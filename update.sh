@@ -40,11 +40,18 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG_FILE="${HOME}/.astranodes-deploy.conf"
 DOMAIN=""
 
+USE_CLOUDFLARE=""
+USE_WWW=""
+APP_PORT=""
+
 if [[ -f "$CONFIG_FILE" ]]; then
   # shellcheck disable=SC1090
   source "$CONFIG_FILE"
   APP_DIR="${APP_DIR:-/opt/astranodes}"
   DOMAIN="${DOMAIN:-}"
+  USE_CLOUDFLARE="${USE_CLOUDFLARE:-no}"
+  USE_WWW="${USE_WWW:-no}"
+  APP_PORT="${APP_PORT:-4000}"
 elif [[ -f "${SCRIPT_DIR}/backend/package.json" ]]; then
   APP_DIR="$SCRIPT_DIR"
 else
@@ -53,6 +60,7 @@ fi
 
 info "Install directory: ${APP_DIR}"
 [[ -n "$DOMAIN" ]] && info "Domain: ${DOMAIN}"
+[[ "$USE_CLOUDFLARE" == "yes" ]] && info "SSL mode: Cloudflare origin certificate" || info "SSL mode: Let's Encrypt"
 
 [[ -d "$APP_DIR" ]] || err "App directory not found: ${APP_DIR}. Run deploy.sh first."
 [[ -f "${APP_DIR}/backend/package.json" ]] || err "Backend not found at ${APP_DIR}/backend. Run deploy.sh first."
@@ -230,13 +238,135 @@ else
   warn "PM2 not installed — restart your API manually."
 fi
 
-# ── Reload Nginx ─────────────────────────────────────────────────────────────
-if command -v nginx &>/dev/null && systemctl is-active --quiet nginx; then
+# ── Refresh Nginx config & SSL ───────────────────────────────────────────────
+if command -v nginx &>/dev/null && [[ -n "$DOMAIN" ]] && [[ -n "$APP_PORT" ]]; then
+  header "Refreshing Nginx configuration"
+
+  WEB_ROOT="/var/www/astranodes"
+  NGINX_CONF="/etc/nginx/sites-available/astranodes"
+
+  if [[ "$USE_CLOUDFLARE" == "yes" ]]; then
+    # ── Cloudflare mode: ensure origin cert exists & refresh Nginx config ──
+    SSL_DIR="/etc/ssl/astranodes"
+    mkdir -p "$SSL_DIR"
+
+    # Check / renew self-signed origin cert (regenerate if missing or expiring within 30 days)
+    if [[ ! -f "${SSL_DIR}/origin.pem" ]] || \
+       ! openssl x509 -checkend 2592000 -noout -in "${SSL_DIR}/origin.pem" 2>/dev/null; then
+      info "Generating / renewing self-signed origin certificate (Cloudflare mode)..."
+      openssl req -x509 -nodes -days 3650 \
+        -newkey rsa:2048 \
+        -keyout "${SSL_DIR}/origin.key" \
+        -out    "${SSL_DIR}/origin.pem" \
+        -subj   "/CN=${DOMAIN}" \
+        -addext "subjectAltName=DNS:${DOMAIN},DNS:*.${DOMAIN}" 2>/dev/null
+      chmod 600 "${SSL_DIR}/origin.key"
+      success "Origin cert created / renewed (valid 10 years)"
+    else
+      success "Origin cert still valid"
+    fi
+
+    # Regenerate Nginx config for Cloudflare SSL
+    cat > "$NGINX_CONF" <<NGINXCONF
+# AstraNodes — Nginx config for ${DOMAIN} (Cloudflare Origin)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DOMAIN};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${DOMAIN};
+
+    ssl_certificate     ${SSL_DIR}/origin.pem;
+    ssl_certificate_key ${SSL_DIR}/origin.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+
+    # ── API reverse proxy ──────────────────────────────────────────────────
+    location /api/ {
+        proxy_pass         http://127.0.0.1:${APP_PORT}/api/;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 60s;
+        client_max_body_size 10M;
+    }
+
+    # ── Socket.io ──────────────────────────────────────────────────────────
+    location /socket.io/ {
+        proxy_pass         http://127.0.0.1:${APP_PORT}/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade    \$http_upgrade;
+        proxy_set_header   Connection "upgrade";
+        proxy_set_header   Host       \$host;
+        proxy_set_header   X-Real-IP  \$remote_addr;
+        proxy_read_timeout 86400s;
+    }
+
+    # ── Uploaded files ─────────────────────────────────────────────────────
+    location /uploads/ {
+        proxy_pass       http://127.0.0.1:${APP_PORT}/uploads/;
+        proxy_set_header Host \$host;
+    }
+
+    # ── Block direct access to SQLite DB ──────────────────────────────────
+    location ~* \.sqlite3?\$ {
+        deny all;
+    }
+
+    # ── Security headers ──────────────────────────────────────────────────
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # ── React SPA (frontend) ──────────────────────────────────────────────
+    root  ${WEB_ROOT};
+    index index.html;
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2|woff|ttf|eot)\$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+}
+NGINXCONF
+
+    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/astranodes
+    success "Nginx config refreshed (Cloudflare SSL)"
+
+  else
+    # ── Let's Encrypt mode: don't overwrite certbot-managed config ──
+    # Certbot manages the Nginx config in this mode; just reload.
+    info "Let's Encrypt mode — Nginx config managed by certbot (not overwritten)"
+  fi
+
+  # Validate and reload
   if nginx -t 2>/dev/null; then
     systemctl reload nginx
     success "Nginx reloaded"
   else
     warn "Nginx config test failed — not reloading. Run 'nginx -t' to diagnose."
+  fi
+else
+  # Nginx not installed or domain/port unknown — try a simple reload
+  if command -v nginx &>/dev/null && systemctl is-active --quiet nginx; then
+    if nginx -t 2>/dev/null; then
+      systemctl reload nginx
+      success "Nginx reloaded"
+    else
+      warn "Nginx config test failed — not reloading. Run 'nginx -t' to diagnose."
+    fi
   fi
 fi
 
