@@ -1,0 +1,17 @@
+{
+  "name": "AstraNodes",
+  "forwardPorts": [4000, 5173],
+  "portsAttributes": {
+    "4000": {
+      "label": "API Backend",
+      "visibility": "public",
+      "onAutoForward": "silent"
+    },
+    "5173": {
+      "label": "Frontend Dev",
+      "visibility": "public",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postCreateCommand": "cd backend && npm install && cd ../frontend && npm install"
+}
