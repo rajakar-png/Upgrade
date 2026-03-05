@@ -151,7 +151,7 @@ export default function AdminFrontPage() {
 
       <div className="space-y-4">
         {SECTIONS.map(({ key, label, icon: Icon }) => (
-          <div key={key} className="glass rounded-2xl border border-slate-700/40 overflow-hidden">
+          <div key={key} className="glass rounded-2xl border border-dark-700/40 overflow-hidden">
             <button
               onClick={() => toggleSection(key)}
               className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-slate-800/30 transition"
@@ -164,7 +164,7 @@ export default function AdminFrontPage() {
             </button>
 
             {openSections[key] && (
-              <div className="border-t border-slate-700/40 px-6 py-5 space-y-4">
+              <div className="border-t border-dark-700/40 px-6 py-5 space-y-4">
                 {/* ── Hero ── */}
                 {key === "hero" && (
                   <>
@@ -198,7 +198,7 @@ export default function AdminFrontPage() {
                 {key === "features" && (
                   <div className="space-y-4">
                     {features.map((f, idx) => (
-                      <div key={idx} className="relative rounded-xl border border-slate-700/50 bg-ink-900/60 p-4 space-y-3">
+                      <div key={idx} className="relative rounded-xl border border-dark-700/50 bg-ink-900/60 p-4 space-y-3">
                         <button onClick={() => removeFeature(idx)} className="absolute right-3 top-3 rounded-lg p-1 text-slate-500 hover:bg-red-900/30 hover:text-red-300">
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -218,7 +218,7 @@ export default function AdminFrontPage() {
                         </Field>
                       </div>
                     ))}
-                    <button onClick={addFeature} className="flex items-center gap-2 rounded-xl border border-dashed border-slate-700/60 px-4 py-3 text-sm text-slate-400 hover:border-neon-500/40 hover:text-neon-300 transition w-full justify-center">
+                    <button onClick={addFeature} className="flex items-center gap-2 rounded-xl border border-dashed border-dark-700/60 px-4 py-3 text-sm text-slate-400 hover:border-neon-500/40 hover:text-neon-300 transition w-full justify-center">
                       <Plus className="h-4 w-4" /> Add Feature
                     </button>
                   </div>

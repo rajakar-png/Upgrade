@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom"
-import { MapPin, Server, Clock, Cpu, Database, HardDrive } from "lucide-react"
+import { MapPin, Server, Clock, Cpu, Database, HardDrive, Bot } from "lucide-react"
 import Badge from "./Badge.jsx"
 
 export default function ServerCard({ server, onRenew, renewing, countdown, graceCountdown }) {
@@ -28,18 +28,28 @@ export default function ServerCard({ server, onRenew, renewing, countdown, grace
   }
 
   return (
-    <div className="card-3d group h-full flex flex-col rounded-xl border border-white/10 bg-dark-800/60 backdrop-blur-sm p-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary-500/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+    <div className="card-3d group h-full flex flex-col rounded-xl border border-dark-700/50 bg-dark-800/40 backdrop-blur-sm p-6 relative overflow-hidden">
+      <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-primary-500 to-accent-500 opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300 -z-10 pointer-events-none" />
       <div className="flex items-start justify-between gap-3 mb-4 relative">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
-              <Server className="h-4 w-4 text-primary-400" />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              server.category === "bot"
+                ? "bg-neon-500/10 border border-neon-500/20"
+                : "bg-primary-500/10 border border-primary-500/20"
+            }`}>
+              {server.category === "bot"
+                ? <Bot className="h-4 w-4 text-neon-400" />
+                : <Server className="h-4 w-4 text-primary-400" />
+              }
             </div>
             <h3 className="text-lg font-semibold text-white">{server.name}</h3>
           </div>
-          <p className="text-sm text-slate-400">{server.plan}</p>
-          {server.ip && server.port && (
+          <p className="text-sm text-slate-400">
+            {server.plan}
+            {server.category === "bot" && <span className="ml-1.5 text-xs text-neon-400 font-medium">· Bot</span>}
+          </p>
+          {server.ip && server.port && server.category !== "bot" && (
             <p
               className="flex items-center gap-1 text-xs text-slate-400 mt-1 cursor-pointer hover:text-primary-300 transition-colors"
               title="Click to copy address"
@@ -49,7 +59,7 @@ export default function ServerCard({ server, onRenew, renewing, countdown, grace
               {server.ip}:{server.port}
             </p>
           )}
-          {server.location && !(server.ip && server.port) && (
+          {server.location && (server.category === "bot" || !(server.ip && server.port)) && (
             <p className="flex items-center gap-1 text-xs text-slate-500 mt-1">
               <MapPin className="h-3 w-3" />
               {server.location}
@@ -110,7 +120,7 @@ export default function ServerCard({ server, onRenew, renewing, countdown, grace
       </div>
 
       {server.status !== "deleted" && (
-        <div className="flex gap-3 mt-auto pt-4 border-t border-white/[0.06] relative">
+        <div className="flex gap-3 mt-auto pt-4 border-t border-dark-700/40 relative">
           <button
             onClick={handleManage}
             className="button-3d flex-1 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-400 hover:to-primary-500 px-4 py-2.5 text-sm font-semibold text-white shadow-glow-primary transition-all"
@@ -120,7 +130,7 @@ export default function ServerCard({ server, onRenew, renewing, countdown, grace
           <button
             onClick={() => onRenew && onRenew(server.id)}
             disabled={renewing}
-            className="button-3d flex-1 rounded-lg border border-white/10 hover:border-white/20 bg-dark-700/60 hover:bg-dark-600/60 px-4 py-2.5 text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="button-3d flex-1 rounded-lg border border-dark-700/50 hover:border-dark-600/60 bg-dark-700/60 hover:bg-dark-600/60 px-4 py-2.5 text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {renewing ? "Renewing..." : "Renew"}
           </button>

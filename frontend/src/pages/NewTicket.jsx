@@ -65,7 +65,7 @@ export default function NewTicket() {
         <p className="text-sm text-slate-400">Describe your issue and our team will assist you</p>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-dark-800/60 backdrop-blur-sm p-6">
+      <div className="card-3d rounded-xl border border-dark-700/50 bg-dark-800/40 backdrop-blur-sm p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="rounded-lg bg-red-900/20 border border-red-700/30 p-3 text-sm text-red-300">
@@ -202,7 +202,7 @@ export default function NewTicket() {
             <button
               type="button"
               onClick={() => navigate("/support")}
-              className="button-3d flex-1 rounded-lg border border-white/10 px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/[0.04] transition-all"
+              className="button-3d flex-1 rounded-lg border border-dark-700/50 px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-dark-800/60 transition-all"
             >
               Cancel
             </button>

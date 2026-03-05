@@ -30,7 +30,7 @@ export default function PlanCard({ plan, isSelected, onClick, icon: IconComponen
       <div className={`relative h-full rounded-2xl p-6 border transition-all duration-300 backdrop-blur-sm ${
         isSelected 
           ? "bg-dark-800/90 border-primary-500 shadow-lg shadow-primary-500/20" 
-          : "bg-dark-800/70 border-white/10 hover:border-white/20 hover:shadow-card"
+          : "bg-dark-800/70 border-dark-700/50 hover:border-dark-600/60 hover:shadow-card"
       }`}>
         
         {/* Plan Icon & Name */}
@@ -38,7 +38,7 @@ export default function PlanCard({ plan, isSelected, onClick, icon: IconComponen
           <div className={`inline-flex items-center justify-center h-12 w-12 rounded-xl mb-4 transition-all duration-300 ${
             isSelected 
               ? "bg-primary-500/20 text-primary-400 shadow-glow-primary" 
-              : "bg-white/5 text-slate-400 group-hover:bg-primary-500/10 group-hover:text-primary-400"
+              : "bg-dark-800/60 text-slate-400 group-hover:bg-primary-500/10 group-hover:text-primary-400"
           }`}>
             {IconComponent ? <IconComponent className="h-6 w-6" /> : <Zap className="h-6 w-6" />}
           </div>
@@ -53,7 +53,7 @@ export default function PlanCard({ plan, isSelected, onClick, icon: IconComponen
         </div>
 
         {/* Price */}
-        <div className="mb-6 pb-6 border-b border-white/10">
+        <div className="mb-6 pb-6 border-b border-dark-700/50">
           <div className="flex items-baseline gap-2">
             <span className={`text-4xl font-extrabold ${isSelected ? "text-gradient" : "text-white"}`}>
               {plan.real_cost > 0 ? `₹${plan.real_cost}` : (plan.coins ? `${plan.coins}` : "Free")}
@@ -73,7 +73,7 @@ export default function PlanCard({ plan, isSelected, onClick, icon: IconComponen
             { icon: HardDrive, label: "Storage", value: plan.disk || plan.storage || "0MB" }
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-center gap-3 text-sm">
-              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/5">
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-dark-800/60">
                 <Icon className="h-4 w-4 text-primary-400" />
               </div>
               <span className="text-slate-400">{label}</span>

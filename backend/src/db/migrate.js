@@ -314,6 +314,30 @@ export default async function migrate() {
     }
     await runSync("CREATE INDEX IF NOT EXISTS idx_tickets_priority ON tickets(priority)").catch(() => {})
 
+    // ── Bot hosting category columns ────────────────────────────────────
+    try {
+      await runSync("ALTER TABLE plans_coin ADD COLUMN category TEXT NOT NULL DEFAULT 'minecraft'")
+      console.log("[Migration] ✓ Added category column to plans_coin")
+    } catch { /* already exists */ }
+    try {
+      await runSync("ALTER TABLE plans_real ADD COLUMN category TEXT NOT NULL DEFAULT 'minecraft'")
+      console.log("[Migration] ✓ Added category column to plans_real")
+    } catch { /* already exists */ }
+    try {
+      await runSync("ALTER TABLE servers ADD COLUMN category TEXT NOT NULL DEFAULT 'minecraft'")
+      console.log("[Migration] ✓ Added category column to servers")
+    } catch { /* already exists */ }
+
+    // ── Swap column for virtual memory ───────────────────────────────────
+    try {
+      await runSync("ALTER TABLE plans_coin ADD COLUMN swap INTEGER NOT NULL DEFAULT 0")
+      console.log("[Migration] ✓ Added swap column to plans_coin")
+    } catch { /* already exists */ }
+    try {
+      await runSync("ALTER TABLE plans_real ADD COLUMN swap INTEGER NOT NULL DEFAULT 0")
+      console.log("[Migration] ✓ Added swap column to plans_real")
+    } catch { /* already exists */ }
+
     console.log("[Migration] ✓ Database migrated successfully")
   } catch (error) {
     console.error("[Migration] ✗ Critical error:", error)

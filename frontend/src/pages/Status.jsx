@@ -53,7 +53,7 @@ function ServiceRow({ service }) {
   const cfg = STATUS_CONFIG[service.status] || STATUS_CONFIG.operational
   const Icon = cfg.icon
   return (
-    <div className="flex items-center justify-between py-3 border-b border-slate-800/60 last:border-0">
+    <div className="flex items-center justify-between py-3 border-b border-dark-700/60 last:border-0">
       <div>
         <div className="text-sm font-medium text-slate-200">{service.name}</div>
         <div className="text-xs text-slate-500">{service.desc}</div>
@@ -109,13 +109,13 @@ export default function Status() {
           )}
         </section>
 
-        <div className="glass rounded-2xl border border-slate-700/40 px-6 py-2 shadow-soft mb-6">
+        <div className="glass rounded-2xl border border-dark-700/40 px-6 py-2 shadow-soft mb-6">
           {services.map((s) => (
             <ServiceRow key={s.name} service={s} />
           ))}
         </div>
 
-        <div className="glass rounded-2xl border border-slate-700/40 p-6 shadow-soft mb-6">
+        <div className="glass rounded-2xl border border-dark-700/40 p-6 shadow-soft mb-6">
           <h2 className="text-base font-semibold text-slate-200 mb-4">Incident History</h2>
           {INCIDENTS.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -125,7 +125,7 @@ export default function Status() {
           ) : (
             <ul className="space-y-3">
               {INCIDENTS.map((incident, i) => (
-                <li key={i} className="text-sm text-slate-300 border-b border-slate-800/40 pb-3 last:border-0">
+                <li key={i} className="text-sm text-slate-300 border-b border-dark-700/40 pb-3 last:border-0">
                   <span className="font-medium">{incident.date}</span>
                   {" — "}{incident.message}
                 </li>
@@ -139,7 +139,7 @@ export default function Status() {
           Page reflects live status. Refresh for latest data.
         </div>
 
-        <footer className="mt-10 border-t border-slate-800/60 pt-6 text-center text-xs text-slate-500">
+        <footer className="mt-10 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} AstraNodes. All rights reserved.
         </footer>
       </div>

@@ -150,7 +150,7 @@ export default function AdminSiteSettings() {
         action={
           <button
             onClick={() => navigate("/admin")}
-            className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300"
+            className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300"
           >
             ← Back to Admin
           </button>
@@ -159,7 +159,7 @@ export default function AdminSiteSettings() {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* General Settings */}
-        <div className="glass rounded-2xl border border-slate-700/40 p-6 space-y-5">
+        <div className="glass rounded-2xl border border-dark-700/40 p-6 space-y-5">
           <h3 className="flex items-center gap-2 text-base font-semibold text-slate-100">
             <Globe className="h-4 w-4 text-neon-300" />
             General
@@ -230,7 +230,7 @@ export default function AdminSiteSettings() {
         </div>
 
         {/* Maintenance Mode */}
-        <div className={`glass rounded-2xl border p-6 space-y-3 ${settings.maintenanceMode ? "border-amber-500/40" : "border-slate-700/40"}`}>
+        <div className={`glass rounded-2xl border p-6 space-y-3 ${settings.maintenanceMode ? "border-amber-500/40" : "border-dark-700/40"}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className={`h-4 w-4 ${settings.maintenanceMode ? "text-amber-400" : "text-slate-500"}`} />
@@ -265,14 +265,14 @@ export default function AdminSiteSettings() {
       </form>
 
       {/* Background Image Upload */}
-      <div className="glass rounded-2xl border border-slate-700/40 p-6 space-y-5">
+      <div className="glass rounded-2xl border border-dark-700/40 p-6 space-y-5">
         <h3 className="flex items-center gap-2 text-base font-semibold text-slate-100">
           <Image className="h-4 w-4 text-neon-300" />
           Background Image
         </h3>
 
         {backgroundPreview && (
-          <div className="relative overflow-hidden rounded-xl border border-slate-700/60 h-32">
+          <div className="relative overflow-hidden rounded-xl border border-dark-700/60 h-32">
             <img src={backgroundPreview} alt="Background" className="w-full h-full object-cover opacity-60" />
             <span className="absolute bottom-2 left-2 text-xs text-slate-300 bg-ink-950/70 px-2 py-1 rounded">Current</span>
           </div>
@@ -310,7 +310,7 @@ export default function AdminSiteSettings() {
       </div>
 
       {/* Favicon Upload */}
-      <div className="glass rounded-2xl border border-slate-700/40 p-6 space-y-5">
+      <div className="glass rounded-2xl border border-dark-700/40 p-6 space-y-5">
         <h3 className="flex items-center gap-2 text-base font-semibold text-slate-100">
           <CheckCircle className="h-4 w-4 text-neon-300" />
           Favicon
@@ -355,7 +355,7 @@ export default function AdminSiteSettings() {
       </div>
 
       {/* Logo Upload */}
-      <div className="glass rounded-2xl border border-slate-700/40 p-6 space-y-5">
+      <div className="glass rounded-2xl border border-dark-700/40 p-6 space-y-5">
         <h3 className="flex items-center gap-2 text-base font-semibold text-slate-100">
           <Image className="h-4 w-4 text-aurora-300" />
           Site Logo
@@ -366,7 +366,7 @@ export default function AdminSiteSettings() {
 
         {logoPreview && (
           <div className="flex items-center gap-3">
-            <img src={logoPreview} alt="Logo" className="h-9 w-9 rounded-xl object-contain border border-slate-700/60" />
+            <img src={logoPreview} alt="Logo" className="h-9 w-9 rounded-xl object-contain border border-dark-700/60" />
             <span className="text-xs text-slate-400">Current logo</span>
           </div>
         )}

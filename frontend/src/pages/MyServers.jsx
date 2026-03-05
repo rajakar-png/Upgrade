@@ -131,7 +131,7 @@ export default function MyServers() {
               placeholder="Search servers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-72 bg-dark-800/80 backdrop-blur-sm border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500/50 transition-all"
+              className="w-full sm:w-72 bg-dark-800/80 backdrop-blur-sm border border-dark-700/50 rounded-xl pl-12 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500/50 transition-all"
             />
           </div>
           
@@ -147,7 +147,7 @@ export default function MyServers() {
 
       {/* Servers List */}
       {filteredServers.length === 0 ? (
-        <div className="bg-dark-800/60 backdrop-blur-sm rounded-2xl border border-white/10 p-16 text-center">
+        <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-2xl border border-dark-700/50 p-16 text-center">
           <div className="w-16 h-16 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mx-auto mb-5">
             <Server className="w-8 h-8 text-primary-400" />
           </div>
@@ -170,14 +170,14 @@ export default function MyServers() {
           )}
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           {filteredServers.map((server) => (
             <div
               key={server.id}
-              className="card-3d group bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/10 p-6 space-y-4 relative overflow-hidden"
+              className="card-3d group bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6 space-y-4 relative overflow-hidden"
             >
-              {/* Subtle glow on hover */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary-500/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              {/* Glow on hover */}
+              <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-primary-500 to-accent-500 opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300 -z-10 pointer-events-none" />
 
               <div className="flex items-start justify-between relative">
                 <div className="flex items-center gap-3">
@@ -225,10 +225,10 @@ export default function MyServers() {
               )}
 
               <div className="grid grid-cols-2 gap-4 text-sm relative">
-                {server.ip && server.port && (
+                {server.ip && server.port && server.category !== "bot" && (
                   <div className="col-span-2">
                     <p className="text-slate-500 text-xs uppercase tracking-wider mb-1.5">Server Address</p>
-                    <div className="flex items-center gap-2 bg-dark-900/80 px-3 py-2.5 rounded-lg border border-white/[0.06]">
+                    <div className="flex items-center gap-2 bg-dark-900/80 px-3 py-2.5 rounded-lg border border-dark-700/40">
                       <p className="font-mono font-medium text-primary-400">
                         {server.ip}:{server.port}
                       </p>
@@ -309,7 +309,7 @@ export default function MyServers() {
                   </button>
                   <button
                     onClick={() => navigate(`/servers/${server.id}/manage`)}
-                    className="button-3d flex-1 px-4 py-2.5 bg-dark-700/80 hover:bg-dark-600/80 text-white rounded-lg font-semibold border border-white/10 hover:border-white/20 transition-all inline-flex items-center justify-center gap-2"
+                    className="button-3d flex-1 px-4 py-2.5 bg-dark-700/80 hover:bg-dark-600/80 text-white rounded-lg font-semibold border border-dark-700/50 hover:border-dark-600/60 transition-all inline-flex items-center justify-center gap-2"
                   >
                     <Settings className="w-4 h-4" />
                     Manage

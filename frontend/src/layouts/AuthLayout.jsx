@@ -19,7 +19,7 @@ export default function AuthLayout() {
         <div className="mb-20 flex items-center justify-between">
             <Link to="/" className="group flex items-center gap-4 hover:scale-105 transition-transform">
               <Logo size="lg" />
-              <div className="h-10 w-[1px] bg-white/10 hidden sm:block" />
+              <div className="h-10 w-[1px] bg-dark-700/50 hidden sm:block" />
               <div className="hidden sm:block">
                  <p className="text-[10px] font-black text-white italic uppercase tracking-[0.3em] leading-none mb-1">ASTRA FLEET</p>
                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic">COMMAND INTERFACE V4.2</p>
@@ -41,7 +41,7 @@ export default function AuthLayout() {
           {/* Hero Branding */}
           <div className="space-y-12 max-w-xl animate-slide-up">
             <div className="space-y-6">
-               <div className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/5 border border-white/10">
+               <div className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-dark-800/40 border border-dark-700/50">
                   <Lock size={12} className="text-accent-500" />
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">Authorization Required</span>
                </div>
@@ -61,8 +61,8 @@ export default function AuthLayout() {
                 { label: "DDoS_EXCLUSION", icon: Globe, desc: "L7 Mitigation active" },
                 { label: "PTERODACTYL_V2", icon: Activity, desc: "Logic automation" }
               ].map((item, i) => (
-                <div key={i} className="group flex items-start gap-4 p-5 rounded-[2rem] border border-white/[0.06] bg-dark-900/50 backdrop-blur-3xl transition-all hover:bg-white/5 hover:border-white/10 hover:translate-y-[-2px]">
-                  <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-accent-500 group-hover:scale-110 transition-transform">
+                <div key={i} className="group flex items-start gap-4 p-5 rounded-[2rem] border border-dark-700/50 bg-dark-900/50 backdrop-blur-3xl transition-all hover:bg-dark-800/50 hover:border-dark-600/60 hover:translate-y-[-2px]">
+                  <div className="h-10 w-10 rounded-xl bg-dark-800/60 border border-dark-700/40 flex items-center justify-center text-accent-500 group-hover:scale-110 transition-transform">
                      <item.icon size={18} />
                   </div>
                   <div>
@@ -73,7 +73,7 @@ export default function AuthLayout() {
               ))}
             </div>
             
-            <div className="pt-8 border-t border-white/5 opacity-40">
+            <div className="pt-8 border-t border-dark-700/40 opacity-40">
                <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.4em] italic leading-loose">
                   ASTRA_NODES // DECENTRALIZED DATA CLUSTERS // END-TO-END CRYPTOGRAPHIC SECURITY ENFORCED ON ALL LAYERS.
                </p>
@@ -83,7 +83,7 @@ export default function AuthLayout() {
           {/* Form Container */}
           <div className="relative group/container perspective-1000">
             <div className="absolute -inset-1 bg-gradient-to-r from-accent-500/20 via-purple-500/20 to-accent-500/20 rounded-[3.5rem] blur-xl opacity-20 group-hover/container:opacity-40 transition-opacity" />
-            <div className="relative bg-dark-900/50 border border-white/10 rounded-[3.5rem] p-10 lg:p-14 backdrop-blur-3xl shadow-2xl transition-all duration-700 group-hover/container:rotate-y-2 group-hover/container:border-white/20">
+            <div className="relative bg-dark-900/60 border border-dark-700/50 rounded-[3.5rem] p-10 lg:p-14 backdrop-blur-3xl shadow-2xl transition-all duration-700 group-hover/container:rotate-y-2 group-hover/container:border-dark-600/60">
                <div className="absolute top-0 right-0 p-8 opacity-5">
                   <Database size={100} className="text-accent-500 rotate-12" />
                </div>

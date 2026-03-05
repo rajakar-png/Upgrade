@@ -490,13 +490,13 @@ export default function AdminPanel() {
       )}
 
       {/* Users Section */}
-      <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
         <h2 className="text-base font-semibold text-slate-200 mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-aurora-400 inline-block" /> Users ({users.length})</h2>
           <div className="space-y-3">
             {users.map((user) => (
               <div
                 key={user.id}
-                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-800/60 bg-ink-950/60 px-4 py-3"
+                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
               >
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <p className="font-semibold text-slate-100 truncate">{user.email}</p>
@@ -543,13 +543,13 @@ export default function AdminPanel() {
         </div>
 
       {/* Servers Section */}
-      <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
         <h2 className="text-base font-semibold text-slate-200 mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-neon-400 inline-block" /> Servers ({servers.length})</h2>
           <div className="space-y-3">
             {servers.map((server) => (
               <div
                 key={server.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800/60 bg-ink-950/60 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
               >
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-100">{server.name}</p>
@@ -594,13 +594,13 @@ export default function AdminPanel() {
         </div>
 
       {/* UTR Section */}
-      <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
         <h2 className="text-base font-semibold text-slate-200 mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block" /> UTR Submissions ({utrs.length})</h2>
           <div className="space-y-3">
             {utrs.map((utr) => (
               <div
                 key={utr.id}
-                className="rounded-xl border border-slate-800/60 bg-ink-950/60 p-4"
+                className="rounded-xl border border-dark-700/60 bg-ink-950/60 p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
@@ -626,13 +626,13 @@ export default function AdminPanel() {
                     <img
                       src={utr.screenshot_url}
                       alt="UTR receipt"
-                      className="rounded-lg max-h-40 object-cover border border-slate-700/40"
+                      className="rounded-lg max-h-40 object-cover border border-dark-700/40"
                     />
                   </div>
                 )}
 
                 {utr.status === "pending" && (
-                  <div className="flex gap-2 pt-3 border-t border-slate-800/40">
+                  <div className="flex gap-2 pt-3 border-t border-dark-700/40">
                     <button
                       onClick={() => handleApproveUTR(utr.id)}
                       disabled={approving[`approve-${utr.id}`]}
@@ -661,7 +661,7 @@ export default function AdminPanel() {
       {/* Plans Section */}
       <div className="space-y-6">
           {/* Coin Plans Section */}
-          <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+          <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-100">Coin Plans</h3>
               <button
@@ -678,7 +678,7 @@ export default function AdminPanel() {
                 return (
                   <div
                     key={plan.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800/60 bg-ink-950/60 px-4 py-3"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-aurora-900/20 flex items-center justify-center text-aurora-300">
@@ -718,7 +718,7 @@ export default function AdminPanel() {
           </div>
 
           {/* Real Money Plans Section */}
-          <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+          <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-100">Real Money Plans</h3>
               <button
@@ -735,7 +735,7 @@ export default function AdminPanel() {
                 return (
                   <div
                     key={plan.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800/60 bg-ink-950/60 px-4 py-3"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-aurora-900/20 flex items-center justify-center text-aurora-300">
@@ -776,7 +776,7 @@ export default function AdminPanel() {
         </div>
 
       {/* Coupons Section */}
-      <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-slate-200 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-ember-400 inline-block" /> Coupon Codes ({coupons.length})</h2>
             <button
@@ -791,7 +791,7 @@ export default function AdminPanel() {
             {coupons.map((c) => (
               <div
                 key={c.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800/60 bg-ink-950/60 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -834,7 +834,7 @@ export default function AdminPanel() {
       {/* Coupon Create/Edit Modal */}
       {couponModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-800/60 bg-ink-900 p-6">
+          <div className="relative w-full max-w-md rounded-2xl border border-dark-700/60 bg-ink-900 p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-100">
                 {couponModal.mode === 'create' ? 'New Coupon Code' : 'Edit Coupon Code'}
@@ -860,7 +860,7 @@ export default function AdminPanel() {
                   onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
                   placeholder="e.g. LAUNCH50"
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                  className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                 />
               </div>
 
@@ -876,7 +876,7 @@ export default function AdminPanel() {
                   placeholder="500"
                   required
                   min="1"
-                  className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                  className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                 />
               </div>
 
@@ -893,7 +893,7 @@ export default function AdminPanel() {
                     placeholder="100"
                     required
                     min="1"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                   />
                 </div>
                 <div>
@@ -907,7 +907,7 @@ export default function AdminPanel() {
                     placeholder="1"
                     required
                     min="1"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                   />
                 </div>
               </div>
@@ -922,7 +922,7 @@ export default function AdminPanel() {
                   value={couponForm.expires_at || ''}
                   onChange={(e) => setCouponForm({ ...couponForm, expires_at: e.target.value })}
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 focus:outline-none focus:border-aurora-500/50"
+                  className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 focus:outline-none focus:border-aurora-500/50"
                 />
               </div>
 
@@ -932,7 +932,7 @@ export default function AdminPanel() {
                   type="checkbox"
                   checked={Boolean(couponForm.active)}
                   onChange={(e) => setCouponForm({ ...couponForm, active: e.target.checked })}
-                  className="rounded border-slate-700/50 bg-ink-950/60 text-aurora-500 focus:ring-aurora-500/50"
+                  className="rounded border-dark-700/50 bg-ink-950/60 text-aurora-500 focus:ring-aurora-500/50"
                 />
                 <span className="text-sm font-medium text-slate-300">Active (users can redeem)</span>
               </label>
@@ -962,7 +962,7 @@ export default function AdminPanel() {
       {/* Plan Create/Edit Modal */}
       {planModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800/60 bg-ink-900 p-6">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-dark-700/60 bg-ink-900 p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-100">
                 {planModal.mode === 'create' ? 'Create' : 'Edit'} {planModal.type === 'coin' ? 'Coin' : 'Real Money'} Plan
@@ -995,7 +995,7 @@ export default function AdminPanel() {
                   onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
                   placeholder="e.g., Starter Plan"
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                  className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                 />
               </div>
 
@@ -1016,7 +1016,7 @@ export default function AdminPanel() {
                         className={`p-3 rounded-lg border transition-all ${
                           isSelected
                             ? 'border-aurora-500 bg-aurora-900/30 text-aurora-300'
-                            : 'border-slate-700/50 bg-ink-950/60 text-slate-400 hover:border-slate-600 hover:text-slate-300'
+                            : 'border-dark-700/50 bg-ink-950/60 text-slate-400 hover:border-dark-600 hover:text-slate-300'
                         }`}
                       >
                         <IconComponent size={20} className="mx-auto" />
@@ -1041,7 +1041,7 @@ export default function AdminPanel() {
                     placeholder="4"
                     required
                     min="1"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                   />
                 </div>
                 <div>
@@ -1057,7 +1057,7 @@ export default function AdminPanel() {
                     placeholder="2"
                     required
                     min="1"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                   />
                 </div>
                 <div>
@@ -1073,7 +1073,7 @@ export default function AdminPanel() {
                     placeholder="20"
                     required
                     min="1"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                   />
                 </div>
               </div>
@@ -1095,7 +1095,7 @@ export default function AdminPanel() {
                       }
                       placeholder="0 = FREE"
                       min="0"
-                      className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                      className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                     />
                     <p className="text-xs text-slate-500 mt-1">Set to 0 for free first purchase</p>
                   </div>
@@ -1114,7 +1114,7 @@ export default function AdminPanel() {
                       placeholder="500"
                       required
                       min="0"
-                      className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                      className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                     />
                     <p className="text-xs text-slate-500 mt-1">Charged on every renewal after first buy</p>
                   </div>
@@ -1136,7 +1136,7 @@ export default function AdminPanel() {
                     required
                     min="0"
                     step="0.01"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                   />
                 </div>
               )}
@@ -1152,7 +1152,7 @@ export default function AdminPanel() {
                     name="durationType"
                     value={planForm.duration_type || 'days'}
                     onChange={(e) => setPlanForm({ ...planForm, duration_type: e.target.value })}
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 focus:outline-none focus:border-aurora-500/50"
                   >
                     <option value="days">Days</option>
                     <option value="lifetime">Lifetime</option>
@@ -1171,7 +1171,7 @@ export default function AdminPanel() {
                     placeholder="30"
                     required
                     min="1"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                   />
                 </div>
               </div>
@@ -1185,7 +1185,7 @@ export default function AdminPanel() {
                     onChange={(e) =>
                       setPlanForm({ ...planForm, limited_stock: e.target.checked })
                     }
-                    className="rounded border-slate-700/50 bg-ink-950/60 text-aurora-500 focus:ring-aurora-500/50"
+                    className="rounded border-dark-700/50 bg-ink-950/60 text-aurora-500 focus:ring-aurora-500/50"
                   />
                   Limited Stock
                 </label>
@@ -1196,7 +1196,7 @@ export default function AdminPanel() {
                     onChange={(e) => setPlanForm({ ...planForm, stock_amount: e.target.value })}
                     placeholder="100"
                     min="1"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
+                    className="w-full px-4 py-2 rounded-lg border border-dark-700/50 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-aurora-500/50"
                   />
                 )}
               </div>
@@ -1211,7 +1211,7 @@ export default function AdminPanel() {
                       onChange={(e) =>
                         setPlanForm({ ...planForm, one_time_purchase: e.target.checked })
                       }
-                      className="rounded border-slate-700/50 bg-ink-950/60 text-aurora-500 focus:ring-aurora-500/50"
+                      className="rounded border-dark-700/50 bg-ink-950/60 text-aurora-500 focus:ring-aurora-500/50"
                     />
                     One-time Purchase Only
                   </label>

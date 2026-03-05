@@ -91,10 +91,10 @@ export default function AdminFeatures() {
         subtitle="Edit the feature cards shown on the public /features page."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/features")} target="_blank" className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/features")} target="_blank" className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               View Page ↗
             </button>
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               ← Admin
             </button>
           </div>
@@ -103,7 +103,7 @@ export default function AdminFeatures() {
 
       <div className="space-y-3">
         {features.map((feat, idx) => (
-          <div key={idx} className="glass rounded-2xl border border-slate-700/40 p-5 space-y-4">
+          <div key={idx} className="glass rounded-2xl border border-dark-700/40 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <GripVertical className="h-4 w-4 text-slate-600" />
@@ -179,7 +179,7 @@ export default function AdminFeatures() {
 
       <button
         onClick={addFeature}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-600 py-4 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300 transition"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-dark-600 py-4 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300 transition"
       >
         <Plus className="h-4 w-4" /> Add Feature
       </button>

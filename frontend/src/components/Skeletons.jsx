@@ -1,7 +1,7 @@
 export function SkeletonCard({ className = "" }) {
   return (
     <div
-      className={`animate-pulse rounded-2xl border border-slate-800/60 bg-ink-900/70 ${className}`}
+      className={`animate-pulse rounded-2xl border border-dark-700/60 bg-ink-900/70 ${className}`}
     >
       <div className="p-6 space-y-4">
         <div className="h-4 w-3/4 rounded-lg bg-slate-800/80" />

@@ -17,6 +17,7 @@ const purchaseSchema = z.object({
     plan_type: z.enum(["coin", "real"]),
     plan_id: z.number().int().positive(),
     server_name: z.string().min(3).max(60),
+    category: z.enum(["minecraft", "bot"]).default("minecraft"),
     location: z.string().max(80).optional(),
     node_id: z.number().int().positive().optional(),
     software: z.string().max(100).optional().default("minecraft"),
@@ -115,7 +116,7 @@ router.get("/", requireAuth, async (req, res, next) => {
 
 router.post("/purchase", requireAuth, purchaseLimiter, validate(purchaseSchema), async (req, res, next) => {
   try {
-    const { plan_type: planType, plan_id: planId, server_name: serverName, location, node_id: nodeId, software = "minecraft", egg_id: eggId } = req.body
+    const { plan_type: planType, plan_id: planId, server_name: serverName, category = "minecraft", location, node_id: nodeId, software = "minecraft", egg_id: eggId } = req.body
 
     // ── Atomic balance check + deduction inside a transaction ──────────
     // Uses BEGIN IMMEDIATE to serialize concurrent purchases per user,
@@ -145,8 +146,9 @@ router.post("/purchase", requireAuth, purchaseLimiter, validate(purchaseSchema),
 
       const price = getPurchasePrice(planType, plan)
       const balanceField = getBalanceField(planType)
+      console.log(`[SERVERS] Purchase check: user=${req.user.id}, planType=${planType}, planId=${planId}, category=${category}, price=${price}, balanceField=${balanceField}, balance=${user[balanceField]}, initial_price=${plan.initial_price}, coin_price=${plan.coin_price}`)
       if (price > 0 && user[balanceField] < price) {
-        throw Object.assign(new Error("Insufficient balance"), { statusCode: 400 })
+        throw Object.assign(new Error(`Insufficient balance (need ${price}, have ${user[balanceField]})`), { statusCode: 400 })
       }
 
       // Deduct balance atomically (skip if price is 0 = free first purchase)
@@ -202,7 +204,8 @@ router.post("/purchase", requireAuth, purchaseLimiter, validate(purchaseSchema),
         limits: getLimits(plan),
         nodeId: nodeId || null,
         software: software,
-        eggId: eggId || null
+        eggId: eggId || null,
+        category: category
       })
       // Fetch the short identifier needed for Client API (backups, etc.)
       try {
@@ -230,17 +233,20 @@ router.post("/purchase", requireAuth, purchaseLimiter, validate(purchaseSchema),
     }
 
     // ── Record the server in DB ───────────────────────────────────────
+    let serverId
     try {
-      await runSync(
-        "INSERT INTO servers (user_id, name, plan_type, plan_id, pterodactyl_server_id, identifier, expires_at, status, location, software, egg_id) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)",
-        [req.user.id, serverName, planType, planId, pteroServerId, pteroIdentifier, expiresAt, location || "", software, eggId || null]
+      const insertResult = await runSync(
+        "INSERT INTO servers (user_id, name, plan_type, plan_id, pterodactyl_server_id, identifier, expires_at, status, location, software, category, egg_id) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)",
+        [req.user.id, serverName, planType, planId, pteroServerId, pteroIdentifier, expiresAt, location || "", software, category, eggId || null]
       )
+      serverId = insertResult.lastID
     } catch (dbErr) {
       await pterodactyl.deleteServer(pteroServerId)
       throw dbErr
     }
 
-    res.status(201).json({ message: "Server created", expires_at: expiresAt })
+    console.log(`[SERVERS] ✓ Server created: id=${serverId}, category=${category}, user=${req.user.id}, plan=${planType}/${planId}`)
+    res.status(201).json({ message: "Server created", server_id: serverId, category, expires_at: expiresAt })
   } catch (error) {
     next(error)
   }

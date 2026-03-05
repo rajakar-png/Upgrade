@@ -55,7 +55,7 @@ export default function AppLayout() {
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[auto_1fr]">
         <Sidebar />
         <main className="px-4 py-6 sm:px-6 lg:px-10">
-          <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-dark-900/60 backdrop-blur-xl px-4 py-4 lg:hidden">
+          <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-dark-700/50 bg-dark-800/40 backdrop-blur-xl px-4 py-4 lg:hidden">
             <div className="flex items-center justify-between">
               <Logo size="md" />
               <div className="flex items-center gap-2">
@@ -86,7 +86,7 @@ export default function AppLayout() {
                     to={item.to}
                     className={({ isActive }) =>
                       `flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-200 ${
-                        isActive ? "bg-primary-500/15 text-primary-300 border border-primary-500/20" : "text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent"
+                        isActive ? "bg-primary-500/15 text-primary-300 border border-primary-500/20" : "text-slate-400 hover:bg-dark-800/50 hover:text-slate-200 border border-transparent"
                       }`
                     }
                   >

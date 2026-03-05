@@ -53,7 +53,7 @@ export default function Register() {
         <button
           onClick={handleGoogleLogin}
           type="button"
-          className="button-3d group w-full h-12 rounded-xl border border-white/10 bg-white/5 text-white font-semibold text-sm flex items-center justify-center gap-3 hover:bg-white/10 hover:border-white/20 transition-all"
+          className="button-3d group w-full h-12 rounded-xl border border-dark-700/50 bg-dark-800/60 text-white font-semibold text-sm flex items-center justify-center gap-3 hover:bg-dark-800/80 hover:border-dark-600/60 transition-all"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

@@ -112,10 +112,10 @@ export default function AdminKnowledgebase() {
         subtitle="Edit FAQ categories and Q&A items shown on /knowledgebase."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/knowledgebase")} className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/knowledgebase")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               View Page ↗
             </button>
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               ← Admin
             </button>
           </div>
@@ -124,7 +124,7 @@ export default function AdminKnowledgebase() {
 
       <div className="space-y-3">
         {categories.map((cat, catIdx) => (
-          <div key={catIdx} className="glass rounded-2xl border border-slate-700/40 overflow-hidden">
+          <div key={catIdx} className="glass rounded-2xl border border-dark-700/40 overflow-hidden">
             {/* Category header */}
             <div className="flex items-center gap-3 p-4">
               <button
@@ -141,7 +141,7 @@ export default function AdminKnowledgebase() {
                   placeholder="Category name"
                 />
               </button>
-              <span className="rounded-full border border-slate-700/40 px-2 py-0.5 text-xs text-slate-500">{cat.items.length} items</span>
+              <span className="rounded-full border border-dark-700/40 px-2 py-0.5 text-xs text-slate-500">{cat.items.length} items</span>
               <button onClick={() => removeCategory(catIdx)} className="rounded-lg p-1.5 text-slate-500 hover:text-red-400">
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -149,9 +149,9 @@ export default function AdminKnowledgebase() {
 
             {/* Items */}
             {expanded[catIdx] && (
-              <div className="border-t border-slate-700/40 p-4 space-y-3">
+              <div className="border-t border-dark-700/40 p-4 space-y-3">
                 {cat.items.map((item, itemIdx) => (
-                  <div key={itemIdx} className="rounded-xl border border-slate-700/30 bg-ink-900/40 p-4 space-y-3">
+                  <div key={itemIdx} className="rounded-xl border border-dark-700/30 bg-ink-900/40 p-4 space-y-3">
                     <div className="flex items-start gap-2">
                       <div className="flex-1 space-y-2">
                         <div>
@@ -195,7 +195,7 @@ export default function AdminKnowledgebase() {
 
       <button
         onClick={addCategory}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-600 py-4 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300 transition"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-dark-600 py-4 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300 transition"
       >
         <Plus className="h-4 w-4" /> Add Category
       </button>

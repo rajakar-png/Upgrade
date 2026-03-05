@@ -1,9 +1,9 @@
 export default function SectionHeader({ title, subtitle, icon: Icon, action }) {
   return (
-    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-white/[0.06] relative">
+    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 border-b border-dark-700/50 relative">
       <div className="flex items-start gap-4">
         {Icon && (
-          <div className="h-12 w-12 rounded-xl bg-dark-800/60 border border-white/10 flex items-center justify-center text-slate-400 shadow-lg">
+          <div className="h-12 w-12 rounded-xl bg-dark-800/60 border border-dark-700/50 flex items-center justify-center text-slate-400 shadow-lg">
             <Icon size={24} />
           </div>
         )}

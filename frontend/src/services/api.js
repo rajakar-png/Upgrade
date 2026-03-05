@@ -52,20 +52,23 @@ export const api = {
   },
 
   // Plans
-  getCoinPlans: async () => {
-    const res = await fetch(`${API_URL}/plans/coin`)
+  getCoinPlans: async (category) => {
+    const url = category ? `${API_URL}/plans/coin?category=${category}` : `${API_URL}/plans/coin`
+    const res = await fetch(url)
     if (!res.ok) throw new Error("Failed to fetch coin plans")
     return res.json()
   },
 
-  getRealPlans: async () => {
-    const res = await fetch(`${API_URL}/plans/real`)
+  getRealPlans: async (category) => {
+    const url = category ? `${API_URL}/plans/real?category=${category}` : `${API_URL}/plans/real`
+    const res = await fetch(url)
     if (!res.ok) throw new Error("Failed to fetch real plans")
     return res.json()
   },
 
-  getAvailableEggs: async (token) => {
-    const res = await fetch(`${API_URL}/plans/eggs`, {
+  getAvailableEggs: async (token, category) => {
+    const url = category ? `${API_URL}/plans/eggs?category=${category}` : `${API_URL}/plans/eggs`
+    const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to fetch eggs")
@@ -89,7 +92,7 @@ export const api = {
     return res.json()
   },
 
-  purchaseServer: async (token, planType, planId, serverName, nodeId, locationName, software = "minecraft", eggId = null) => {
+  purchaseServer: async (token, planType, planId, serverName, nodeId, locationName, software = "minecraft", eggId = null, category = "minecraft") => {
     const res = await fetch(`${API_URL}/servers/purchase`, {
       method: "POST",
       headers: {
@@ -100,6 +103,7 @@ export const api = {
         plan_type: planType,
         plan_id: planId,
         server_name: serverName,
+        category: category,
         node_id: nodeId || undefined,
         location: locationName || "",
         software: software,
@@ -829,6 +833,33 @@ export const api = {
     return res.json()
   },
 
+  // Bot ZIP upload + extract
+  serverUploadBot: async (token, serverId, file, onProgress) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const res = await fetch(`${API_URL}/servers/${serverId}/bot/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    })
+    if (!res.ok) throw new Error((await res.json()).error || "Bot upload failed")
+    return res.json()
+  },
+
+  // Single file upload to a directory
+  serverUploadFile: async (token, serverId, file, directory = "/") => {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("directory", directory)
+    const res = await fetch(`${API_URL}/servers/${serverId}/file/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    })
+    if (!res.ok) throw new Error((await res.json()).error || "Upload failed")
+    return res.json()
+  },
+
   // Properties
   serverGetProperties: async (token, serverId) => {
     const res = await fetch(`${API_URL}/servers/${serverId}/properties`, {
@@ -940,6 +971,16 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to load settings")
+    return res.json()
+  },
+
+  serverUpdateStartupVar: async (token, serverId, key, value) => {
+    const res = await fetch(`${API_URL}/servers/${serverId}/startup`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ key, value })
+    })
+    if (!res.ok) throw new Error((await res.json()).error || "Failed to update startup variable")
     return res.json()
   },
 

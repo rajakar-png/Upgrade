@@ -36,6 +36,7 @@ import About from "./pages/About.jsx"
 import Contact from "./pages/Contact.jsx"
 import Knowledgebase from "./pages/Knowledgebase.jsx"
 import Status from "./pages/Status.jsx"
+import Pricing from "./pages/Pricing.jsx"
 import NotFound from "./pages/NotFound.jsx"
 import MaintenancePage from "./pages/MaintenancePage.jsx"
 import ProtectedAdminRoute from "./components/ProtectedAdminRoute.jsx"
@@ -79,6 +80,7 @@ export default function App() {
       <Route path="/contact" element={<Contact />} />
       <Route path="/knowledgebase" element={<Knowledgebase />} />
       <Route path="/status" element={<Status />} />
+      <Route path="/pricing" element={<Pricing />} />
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

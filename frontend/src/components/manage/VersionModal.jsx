@@ -55,9 +55,9 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-ink-950 border border-slate-700/40 rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+      <div className="bg-ink-950 border border-dark-700/40 rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-800/40">
+        <div className="flex items-center justify-between p-4 border-b border-dark-700/40">
           <div className="flex items-center gap-3">
             {project?.icon_url ? (
               <img src={project.icon_url} alt="" className="w-10 h-10 rounded-lg" />
@@ -102,7 +102,7 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
               {versions.map((version) => (
                 <div
                   key={version.id}
-                  className="rounded-lg border border-slate-800/40 bg-slate-900/20 p-4 hover:border-slate-700/60 transition"
+                  className="rounded-lg border border-dark-700/40 bg-slate-900/20 p-4 hover:border-dark-700/60 transition"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -173,10 +173,10 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-800/40 p-4 flex justify-end">
+        <div className="border-t border-dark-700/40 p-4 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-slate-700/40 bg-slate-900/50 text-slate-300 hover:bg-slate-900 transition text-sm font-medium"
+            className="px-4 py-2 rounded-lg border border-dark-700/40 bg-slate-900/50 text-slate-300 hover:bg-slate-900 transition text-sm font-medium"
           >
             Cancel
           </button>

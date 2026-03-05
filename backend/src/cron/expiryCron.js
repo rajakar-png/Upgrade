@@ -24,10 +24,17 @@ function getBalanceField(planType) {
 
 export function getLimits(plan) {
   // Convert GB to MB for Pterodactyl (plan.ram and plan.storage are in GB)
+  const memory = Math.round(plan.ram * 1024)   // GB to MB (supports fractional e.g. 0.5 GB = 512 MB)
+  const disk = Math.round(plan.storage * 1024)  // GB to MB
+
+  // Use the admin-configured swap value (in MB), defaulting to 0
+  const swap = plan.swap || 0
+
   return {
-    memory: plan.ram * 1024,           // GB to MB
-    cpu: plan.cpu,                     // CPU cores (no conversion needed)
-    disk: plan.storage * 1024,         // GB to MB
+    memory,
+    swap,
+    cpu: plan.cpu,                     // CPU cores (converted to % in pterodactyl service)
+    disk,
     backups: plan.backup_count || 0,   // allowed Pterodactyl backups
     allocations: plan.extra_ports || 0 // extra port allocations
   }

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function getApiUrl() {
@@ -11,8 +11,13 @@ function getApiUrl() {
 
 export default function OAuthCallback() {
   const navigate = useNavigate();
+  const exchanged = useRef(false);
 
   useEffect(() => {
+    // Prevent double-call from React Strict Mode re-mount
+    if (exchanged.current) return;
+    exchanged.current = true;
+
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
 

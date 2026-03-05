@@ -9,7 +9,7 @@ export default function NotFound() {
       <div className="relative group perspective-1000">
         <div className="absolute -inset-10 bg-red-500/10 blur-[100px] rounded-full animate-pulse" />
         
-        <div className="relative bg-dark-900/60 border border-white/10 rounded-[4rem] p-16 lg:p-24 backdrop-blur-3xl flex flex-col items-center text-center max-w-2xl shadow-2xl">
+        <div className="relative bg-dark-900/60 border border-dark-700/50 rounded-[4rem] p-16 lg:p-24 backdrop-blur-3xl flex flex-col items-center text-center max-w-2xl shadow-2xl">
            <div className="h-32 w-32 rounded-[3.5rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-12 shadow-glow-red/20 group-hover:scale-110 transition-transform duration-700 animate-shake">
               <AlertCircle size={64} />
            </div>
@@ -27,12 +27,12 @@ export default function NotFound() {
            </div>
 
            <div className="grid grid-cols-2 gap-4 w-full mb-12 opacity-40">
-              <div className="p-6 rounded-3xl bg-white/2 border border-white/5 flex flex-col items-center">
+              <div className="p-6 rounded-3xl bg-dark-800/30 border border-dark-700/40 flex flex-col items-center">
                  <Terminal size={16} className="text-slate-500 mb-2" />
                  <span className="text-[9px] font-black text-white uppercase tracking-widest italic">ERR_CODE</span>
                  <span className="text-[8px] font-black text-slate-700 uppercase italic">VOID_REF_NULL</span>
               </div>
-              <div className="p-6 rounded-3xl bg-white/2 border border-white/5 flex flex-col items-center">
+              <div className="p-6 rounded-3xl bg-dark-800/30 border border-dark-700/40 flex flex-col items-center">
                  <AlertCircle size={16} className="text-slate-500 mb-2" />
                  <span className="text-[9px] font-black text-white uppercase tracking-widest italic">COORD_SIG</span>
                  <span className="text-[8px] font-black text-slate-700 uppercase italic">OUT_OF_BOUNDS</span>
@@ -41,7 +41,7 @@ export default function NotFound() {
 
            <button 
              onClick={() => navigate("/")}
-             className="h-20 w-full rounded-[2rem] bg-white/5 border border-white/10 text-white font-black italic text-[11px] uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-white/10 hover:border-red-500/20 transition-all hover:scale-[1.02] active:scale-95 group/btn"
+             className="h-20 w-full rounded-[2rem] bg-dark-800/40 border border-dark-700/50 text-white font-black italic text-[11px] uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-dark-700/50 hover:border-red-500/20 transition-all hover:scale-[1.02] active:scale-95 group/btn"
            >
              <ChevronLeft size={20} className="group-hover/btn:-translate-x-1 transition-transform" />
              RE-ENTER CONTROLLED SPACE

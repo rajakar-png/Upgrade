@@ -22,9 +22,10 @@ CREATE TABLE IF NOT EXISTS plans_coin (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   icon TEXT DEFAULT 'Package',
-  ram INTEGER NOT NULL,
-  cpu INTEGER NOT NULL,
-  storage INTEGER NOT NULL,
+  category TEXT NOT NULL DEFAULT 'minecraft' CHECK (category IN ('minecraft', 'bot')),
+  ram REAL NOT NULL,
+  cpu REAL NOT NULL,
+  storage REAL NOT NULL,
   coin_price INTEGER NOT NULL,
   initial_price INTEGER NOT NULL DEFAULT 0,
   renewal_price INTEGER NOT NULL DEFAULT 0,
@@ -34,23 +35,26 @@ CREATE TABLE IF NOT EXISTS plans_coin (
   stock_amount INTEGER,
   one_time_purchase INTEGER NOT NULL DEFAULT 0,
   backup_count INTEGER NOT NULL DEFAULT 0,
-  extra_ports INTEGER NOT NULL DEFAULT 0
+  extra_ports INTEGER NOT NULL DEFAULT 0,
+  swap INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS plans_real (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   icon TEXT DEFAULT 'Server',
-  ram INTEGER NOT NULL,
-  cpu INTEGER NOT NULL,
-  storage INTEGER NOT NULL,
+  category TEXT NOT NULL DEFAULT 'minecraft' CHECK (category IN ('minecraft', 'bot')),
+  ram REAL NOT NULL,
+  cpu REAL NOT NULL,
+  storage REAL NOT NULL,
   price REAL NOT NULL,
   duration_type TEXT NOT NULL CHECK (duration_type IN ('weekly', 'monthly', 'custom', 'days', 'lifetime')),
   duration_days INTEGER NOT NULL,
   limited_stock INTEGER NOT NULL DEFAULT 0,
   stock_amount INTEGER,
   backup_count INTEGER NOT NULL DEFAULT 0,
-  extra_ports INTEGER NOT NULL DEFAULT 0
+  extra_ports INTEGER NOT NULL DEFAULT 0,
+  swap INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS servers (
@@ -67,6 +71,7 @@ CREATE TABLE IF NOT EXISTS servers (
   status TEXT NOT NULL CHECK (status IN ('active', 'suspended', 'deleted')),
   location TEXT NOT NULL DEFAULT '',
   software TEXT NOT NULL DEFAULT 'minecraft',
+  category TEXT NOT NULL DEFAULT 'minecraft',
   egg_id INTEGER,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id)

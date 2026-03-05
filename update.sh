@@ -64,6 +64,32 @@ info "Install directory: ${APP_DIR}"
 
 [[ -d "$APP_DIR" ]] || err "App directory not found: ${APP_DIR}. Run deploy.sh first."
 [[ -f "${APP_DIR}/backend/package.json" ]] || err "Backend not found at ${APP_DIR}/backend. Run deploy.sh first."
+[[ -f "${APP_DIR}/backend/.env" ]] || err "Backend .env not found at ${APP_DIR}/backend/.env — API will not start. Run deploy.sh first."
+
+# ── Pre-flight: Verify Node.js & PM2 ─────────────────────────────────────────
+header "Pre-flight checks"
+
+# Ensure Node.js >= 18 (required for ES modules, top-level await, etc.)
+if command -v node &>/dev/null; then
+  NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
+  if [[ "$NODE_VER" -lt 18 ]]; then
+    err "Node.js v18+ is required (found v${NODE_VER}). Please upgrade Node.js first."
+  fi
+  success "Node.js $(node -v) detected"
+else
+  err "Node.js not found. Install Node.js 18+ before running this script."
+fi
+
+# Ensure npm is available
+command -v npm &>/dev/null || err "npm not found. Install Node.js 18+ before running this script."
+
+# Warn if PM2 is not installed (non-fatal — user may manage process differently)
+if ! command -v pm2 &>/dev/null; then
+  warn "PM2 not found globally. Install with: npm install -g pm2"
+  warn "The API will not be restarted automatically."
+else
+  success "PM2 $(pm2 -v 2>/dev/null || echo '?') detected"
+fi
 
 # ── Pre-flight: Backup database ──────────────────────────────────────────────
 header "Backing up database"
@@ -124,6 +150,13 @@ if [[ "$REPO_DIR" != "$APP_DIR" && -d "$REPO_DIR/backend" ]]; then
     "${REPO_DIR}/" "${APP_DIR}/"
   success "Code synced from ${REPO_DIR} → ${APP_DIR}"
 fi
+
+# ── Ensure required directories exist ─────────────────────────────────────────
+header "Ensuring required directories"
+mkdir -p "${APP_DIR}/backend/data"
+mkdir -p "${APP_DIR}/backend/public/uploads/tickets"
+mkdir -p /var/log/pm2 2>/dev/null || true
+success "Directories verified"
 
 # ── Backend dependencies ─────────────────────────────────────────────────────
 header "Updating backend dependencies"
@@ -392,3 +425,26 @@ echo -e "  ${BOLD}API logs:${RESET}  pm2 logs astranodes-api --lines 50"
 echo -e "  ${BOLD}Status:${RESET}    pm2 status"
 [[ -n "$DOMAIN" ]] && echo -e "  ${BOLD}Health:${RESET}    curl -s https://${DOMAIN}/api/health"
 echo ""
+echo -e "  ${CYAN}Tip:${RESET} If you changed backend/.env variables, restart with: pm2 restart astranodes-api --update-env"
+echo ""
+
+# ── Post-update health check ──────────────────────────────────────────────────
+if command -v pm2 &>/dev/null && pm2 list 2>/dev/null | grep -q "astranodes-api"; then
+  sleep 3
+  if pm2 list 2>/dev/null | grep -q "online"; then
+    success "API process is online"
+  else
+    warn "API process may not be running correctly. Check: pm2 logs astranodes-api"
+  fi
+fi
+
+if [[ -n "$DOMAIN" ]]; then
+  API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://${DOMAIN}/api/health" 2>/dev/null || echo "000")
+  if [[ "$API_STATUS" == "200" ]]; then
+    success "Health check passed (HTTP ${API_STATUS})"
+  elif [[ "$API_STATUS" == "000" ]]; then
+    warn "Health check timed out — API may still be starting up."
+  else
+    warn "Health check returned HTTP ${API_STATUS} — check API logs."
+  fi
+fi

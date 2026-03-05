@@ -14,19 +14,21 @@ const coinPlanSchema = z.object({
   body: z.object({
     name: z.string().min(2),
     icon: z.string().optional().default("Package"),
-    ram: z.number().int().positive(),
-    cpu: z.number().int().positive(),
-    storage: z.number().int().positive(),
+    category: z.enum(["minecraft", "bot"]).default("minecraft"),
+    ram: z.number().positive(),
+    cpu: z.number().positive(),
+    storage: z.number().positive(),
     coin_price: z.number().int().min(0),
     initial_price: z.number().int().min(0).default(0),
     renewal_price: z.number().int().min(0).default(0),
     duration_type: z.enum(["weekly", "monthly", "custom", "days", "lifetime"]),
     duration_days: z.number().int().positive(),
     limited_stock: z.boolean().default(false),
-    stock_amount: z.number().int().positive().nullable().optional(),
+    stock_amount: z.number().int().min(0).nullable().optional(),
     one_time_purchase: z.boolean().default(false),
     backup_count: z.number().int().min(0).default(0),
-    extra_ports: z.number().int().min(0).default(0)
+    extra_ports: z.number().int().min(0).default(0),
+    swap: z.number().int().min(0).default(0)
   })
 })
 
@@ -34,16 +36,18 @@ const realPlanSchema = z.object({
   body: z.object({
     name: z.string().min(2),
     icon: z.string().optional().default("Server"),
-    ram: z.number().int().positive(),
-    cpu: z.number().int().positive(),
-    storage: z.number().int().positive(),
+    category: z.enum(["minecraft", "bot"]).default("minecraft"),
+    ram: z.number().positive(),
+    cpu: z.number().positive(),
+    storage: z.number().positive(),
     price: z.number().positive(),
     duration_type: z.enum(["weekly", "monthly", "custom", "days", "lifetime"]),
     duration_days: z.number().int().positive(),
     limited_stock: z.boolean().default(false),
-    stock_amount: z.number().int().positive().nullable().optional(),
+    stock_amount: z.number().int().min(0).nullable().optional(),
     backup_count: z.number().int().min(0).default(0),
-    extra_ports: z.number().int().min(0).default(0)
+    extra_ports: z.number().int().min(0).default(0),
+    swap: z.number().int().min(0).default(0)
   })
 })
 
@@ -182,10 +186,11 @@ router.delete("/users/:id", async (req, res, next) => {
 router.post("/plans/coin", validate(coinPlanSchema), async (req, res, next) => {
   try {
     const info = await runSync(
-      "INSERT INTO plans_coin (name, icon, ram, cpu, storage, coin_price, initial_price, renewal_price, duration_type, duration_days, limited_stock, stock_amount, one_time_purchase, backup_count, extra_ports) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO plans_coin (name, icon, category, ram, cpu, storage, coin_price, initial_price, renewal_price, duration_type, duration_days, limited_stock, stock_amount, one_time_purchase, backup_count, extra_ports, swap) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         req.body.name,
         req.body.icon || "Package",
+        req.body.category || "minecraft",
         req.body.ram,
         req.body.cpu,
         req.body.storage,
@@ -195,10 +200,11 @@ router.post("/plans/coin", validate(coinPlanSchema), async (req, res, next) => {
         req.body.duration_type,
         req.body.duration_days,
         req.body.limited_stock ? 1 : 0,
-        req.body.stock_amount || null,
+        req.body.stock_amount ?? null,
         req.body.one_time_purchase ? 1 : 0,
         req.body.backup_count || 0,
-        req.body.extra_ports || 0
+        req.body.extra_ports || 0,
+        req.body.swap || 0
       ]
     )
     console.log("[ADMIN] Coin plan created with ID:", info.lastID)
@@ -212,10 +218,11 @@ router.post("/plans/coin", validate(coinPlanSchema), async (req, res, next) => {
 router.post("/plans/real", validate(realPlanSchema), async (req, res, next) => {
   try {
     const info = await runSync(
-      "INSERT INTO plans_real (name, icon, ram, cpu, storage, price, duration_type, duration_days, limited_stock, stock_amount, backup_count, extra_ports) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO plans_real (name, icon, category, ram, cpu, storage, price, duration_type, duration_days, limited_stock, stock_amount, backup_count, extra_ports, swap) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         req.body.name,
         req.body.icon || "Server",
+        req.body.category || "minecraft",
         req.body.ram,
         req.body.cpu,
         req.body.storage,
@@ -223,9 +230,10 @@ router.post("/plans/real", validate(realPlanSchema), async (req, res, next) => {
         req.body.duration_type,
         req.body.duration_days,
         req.body.limited_stock ? 1 : 0,
-        req.body.stock_amount || null,
+        req.body.stock_amount ?? null,
         req.body.backup_count || 0,
-        req.body.extra_ports || 0
+        req.body.extra_ports || 0,
+        req.body.swap || 0
       ]
     )
     res.status(201).json({ id: info.lastID })
@@ -237,10 +245,11 @@ router.post("/plans/real", validate(realPlanSchema), async (req, res, next) => {
 router.put("/plans/coin/:id", validate(coinPlanSchema), async (req, res, next) => {
   try {
     await runSync(
-      "UPDATE plans_coin SET name = ?, icon = ?, ram = ?, cpu = ?, storage = ?, coin_price = ?, initial_price = ?, renewal_price = ?, duration_type = ?, duration_days = ?, limited_stock = ?, stock_amount = ?, one_time_purchase = ?, backup_count = ?, extra_ports = ? WHERE id = ?",
+      "UPDATE plans_coin SET name = ?, icon = ?, category = ?, ram = ?, cpu = ?, storage = ?, coin_price = ?, initial_price = ?, renewal_price = ?, duration_type = ?, duration_days = ?, limited_stock = ?, stock_amount = ?, one_time_purchase = ?, backup_count = ?, extra_ports = ?, swap = ? WHERE id = ?",
       [
         req.body.name,
         req.body.icon || "Package",
+        req.body.category || "minecraft",
         req.body.ram,
         req.body.cpu,
         req.body.storage,
@@ -250,10 +259,11 @@ router.put("/plans/coin/:id", validate(coinPlanSchema), async (req, res, next) =
         req.body.duration_type,
         req.body.duration_days || null,
         req.body.limited_stock ? 1 : 0,
-        req.body.stock_amount || null,
+        req.body.stock_amount ?? null,
         req.body.one_time_purchase ? 1 : 0,
         req.body.backup_count || 0,
         req.body.extra_ports || 0,
+        req.body.swap || 0,
         req.params.id
       ]
     )
@@ -266,10 +276,11 @@ router.put("/plans/coin/:id", validate(coinPlanSchema), async (req, res, next) =
 router.put("/plans/real/:id", validate(realPlanSchema), async (req, res, next) => {
   try {
     await runSync(
-      "UPDATE plans_real SET name = ?, icon = ?, ram = ?, cpu = ?, storage = ?, price = ?, duration_type = ?, duration_days = ?, limited_stock = ?, stock_amount = ?, backup_count = ?, extra_ports = ? WHERE id = ?",
+      "UPDATE plans_real SET name = ?, icon = ?, category = ?, ram = ?, cpu = ?, storage = ?, price = ?, duration_type = ?, duration_days = ?, limited_stock = ?, stock_amount = ?, backup_count = ?, extra_ports = ?, swap = ? WHERE id = ?",
       [
         req.body.name,
         req.body.icon || "Server",
+        req.body.category || "minecraft",
         req.body.ram,
         req.body.cpu,
         req.body.storage,
@@ -277,9 +288,10 @@ router.put("/plans/real/:id", validate(realPlanSchema), async (req, res, next) =
         req.body.duration_type,
         req.body.duration_days || null,
         req.body.limited_stock ? 1 : 0,
-        req.body.stock_amount || null,
+        req.body.stock_amount ?? null,
         req.body.backup_count || 0,
         req.body.extra_ports || 0,
+        req.body.swap || 0,
         req.params.id
       ]
     )

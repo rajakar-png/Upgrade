@@ -53,9 +53,9 @@ export default function Features() {
             return (
               <div
                 key={idx}
-                className="glass rounded-2xl border border-slate-700/40 p-6 shadow-soft hover:-translate-y-0.5 transition-transform duration-200"
+                className="glass rounded-2xl border border-dark-700/40 p-6 shadow-soft hover:-translate-y-0.5 transition-transform duration-200"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700/50 bg-ink-900/80 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-dark-700/50 bg-ink-900/80 mb-4">
                   <Icon className={`h-5 w-5 ${feature.color}`} />
                 </div>
                 <h3 className="text-base font-semibold text-slate-100">{feature.title}</h3>
@@ -65,7 +65,7 @@ export default function Features() {
           })}
         </div>
 
-        <div className="mt-16 glass rounded-3xl border border-slate-700/40 p-10 text-center space-y-4">
+        <div className="mt-16 glass rounded-3xl border border-dark-700/40 p-10 text-center space-y-4">
           <h2 className="text-2xl font-semibold text-slate-100">Ready to get started?</h2>
           <p className="text-slate-400">Deploy your first Minecraft server in under 60 seconds.</p>
           <Link
@@ -76,7 +76,7 @@ export default function Features() {
           </Link>
         </div>
 
-        <footer className="mt-12 border-t border-slate-800/60 pt-6 text-center text-xs text-slate-500">
+        <footer className="mt-12 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} AstraNodes. All rights reserved.
         </footer>
       </div>

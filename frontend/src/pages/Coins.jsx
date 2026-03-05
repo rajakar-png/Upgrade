@@ -184,8 +184,8 @@ export default function Coins() {
       </div>
 
       {/* Main claim section */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="card-3d bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/10 p-6 space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6 space-y-6">
           <div>
             <p className="text-sm text-slate-400 mb-2">Earn rate</p>
             <div className="flex items-baseline gap-2">
@@ -195,7 +195,7 @@ export default function Coins() {
           </div>
 
           {/* Status message */}
-          <div className="rounded-xl bg-dark-900/80 border border-white/[0.06] px-4 py-3 text-sm min-h-[52px] flex items-center">
+          <div className="rounded-xl bg-dark-900/80 border border-dark-700/40 px-4 py-3 text-sm min-h-[52px] flex items-center">
             {adblockStatus === "checking" && (
               <p className="text-slate-400 flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-slate-500/30 border-t-slate-400 rounded-full animate-spin" />
@@ -264,7 +264,7 @@ export default function Coins() {
 
         {/* Adblock warning */}
         {adblockStatus === "blocked" && (
-          <div className="bg-dark-800/60 backdrop-blur-sm rounded-xl border border-yellow-500/20 p-6 space-y-4">
+          <div className="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-yellow-500/20 p-6 space-y-4">
             <div className="flex items-start gap-3">
               <div className="p-2.5 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
                 <AlertTriangle className="w-5 h-5 text-yellow-400" />
@@ -304,8 +304,8 @@ export default function Coins() {
       </div>
 
       {/* Stats row */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="card-3d bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-primary-500/10 rounded-lg border border-primary-500/20">
               <CoinsIcon className="w-5 h-5 text-primary-400" />
@@ -315,7 +315,7 @@ export default function Coins() {
           <p className="text-2xl font-bold text-white">{balance.toLocaleString()}</p>
         </div>
         
-        <div className="card-3d bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+        <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-accent-500/10 rounded-lg border border-accent-500/20">
               <Zap className="w-5 h-5 text-accent-400" />
@@ -325,7 +325,7 @@ export default function Coins() {
           <p className="text-2xl font-bold text-white">{coinsPerMinute} / min</p>
         </div>
         
-        <div className="card-3d bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+        <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
               <Clock className="w-5 h-5 text-emerald-400" />
@@ -341,11 +341,11 @@ export default function Coins() {
       {/* Ad slots — only rendered when adblock is not active */}
       {adblockStatus !== "blocked" && (
         <>
-          <div className="bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+          <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6">
             <p className="text-xs text-slate-500 mb-4">Sponsored</p>
             <NativeAd />
           </div>
-          <div className="bg-dark-800/60 backdrop-blur-sm rounded-xl border border-white/10 p-6">
+          <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6">
             <p className="text-xs text-slate-500 mb-4">Sponsored</p>
             <BannerAd />
           </div>

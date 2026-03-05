@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Folder, File, ArrowLeft, Plus, Trash2, Pencil, Save,
-  X, Loader2, ChevronRight, Home
+  X, Loader2, ChevronRight, Home, Upload, FilePlus
 } from "lucide-react"
 import { api } from "../../services/api.js"
 
@@ -25,6 +25,14 @@ export default function FilesTab({ serverId }) {
   // New folder
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState("")
+
+  // New file
+  const [showNewFile, setShowNewFile] = useState(false)
+  const [newFileName, setNewFileName] = useState("")
+
+  // File upload
+  const [uploading, setUploading] = useState(false)
+  const uploadRef = useRef(null)
 
   // Delete confirmation
   const [deleting, setDeleting] = useState(null)
@@ -116,6 +124,35 @@ export default function FilesTab({ serverId }) {
     }
   }
 
+  const createNewFile = async () => {
+    if (!newFileName.trim()) return
+    try {
+      const filePath = (path.endsWith("/") ? path : path + "/") + newFileName.trim()
+      await api.serverWriteFile(token, serverId, filePath, "")
+      setShowNewFile(false)
+      setNewFileName("")
+      loadFiles(path)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError("")
+    try {
+      await api.serverUploadFile(token, serverId, file, path)
+      loadFiles(path)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUploading(false)
+      if (uploadRef.current) uploadRef.current.value = ""
+    }
+  }
+
   const deleteItem = async (name) => {
     try {
       await api.serverDeleteFiles(token, serverId, path, [name])
@@ -141,7 +178,7 @@ export default function FilesTab({ serverId }) {
           <div className="flex gap-2">
             <button
               onClick={() => setEditing(null)}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-700/40 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200"
+              className="flex items-center gap-1.5 rounded-lg border border-dark-700/40 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200"
             >
               <X className="h-3.5 w-3.5" /> Cancel
             </button>
@@ -158,7 +195,7 @@ export default function FilesTab({ serverId }) {
         <textarea
           value={editorContent}
           onChange={(e) => setEditorContent(e.target.value)}
-          className="h-[450px] w-full rounded-lg border border-slate-700/40 bg-[#0c0c0c] p-3 font-mono text-xs leading-relaxed text-slate-300 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none resize-none"
+          className="h-[450px] w-full rounded-lg border border-dark-700/40 bg-[#0c0c0c] p-3 font-mono text-xs leading-relaxed text-slate-300 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none resize-none"
           spellCheck={false}
         />
       </div>
@@ -193,18 +230,31 @@ export default function FilesTab({ serverId }) {
             </span>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {path !== "/" && (
-            <button onClick={goUp} className="flex items-center gap-1 rounded-lg border border-slate-700/40 px-2 py-1 text-xs text-slate-400 hover:text-slate-200">
+            <button onClick={goUp} className="flex items-center gap-1 rounded-lg border border-dark-700/40 px-2 py-1 text-xs text-slate-400 hover:text-slate-200">
               <ArrowLeft className="h-3 w-3" /> Up
             </button>
           )}
           <button
-            onClick={() => { setShowNewFolder(true); setNewFolderName("") }}
+            onClick={() => { setShowNewFile(true); setNewFileName(""); setShowNewFolder(false) }}
+            className="flex items-center gap-1 rounded-lg border border-primary-400/40 bg-primary-500/15 px-2 py-1 text-xs font-semibold text-primary-200 hover:bg-primary-500/25"
+          >
+            <FilePlus className="h-3 w-3" /> New File
+          </button>
+          <button
+            onClick={() => { setShowNewFolder(true); setNewFolderName(""); setShowNewFile(false) }}
             className="flex items-center gap-1 rounded-lg border border-neon-400/40 bg-neon-500/15 px-2 py-1 text-xs font-semibold text-neon-200 hover:bg-neon-500/25"
           >
             <Plus className="h-3 w-3" /> Folder
           </button>
+          <label
+            className={`flex items-center gap-1 rounded-lg border border-dark-600/40 bg-slate-700/15 px-2 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-700/30 cursor-pointer ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+          >
+            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+            Upload
+            <input ref={uploadRef} type="file" onChange={handleFileUpload} className="hidden" />
+          </label>
         </div>
       </div>
 
@@ -215,12 +265,28 @@ export default function FilesTab({ serverId }) {
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
             placeholder="Folder name"
-            className="flex-1 rounded-lg border border-slate-700/40 bg-ink-950 px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
+            className="flex-1 rounded-lg border border-dark-700/40 bg-ink-950 px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
             autoFocus
             onKeyDown={(e) => e.key === "Enter" && createFolder()}
           />
           <button onClick={createFolder} className="rounded-lg bg-neon-500/15 px-3 py-1.5 text-xs font-semibold text-neon-200">Create</button>
-          <button onClick={() => setShowNewFolder(false)} className="rounded-lg border border-slate-700/40 px-3 py-1.5 text-xs text-slate-400">Cancel</button>
+          <button onClick={() => setShowNewFolder(false)} className="rounded-lg border border-dark-700/40 px-3 py-1.5 text-xs text-slate-400">Cancel</button>
+        </div>
+      )}
+
+      {/* New file input */}
+      {showNewFile && (
+        <div className="flex gap-2">
+          <input
+            value={newFileName}
+            onChange={(e) => setNewFileName(e.target.value)}
+            placeholder="File name (e.g. main.py, config.json)"
+            className="flex-1 rounded-lg border border-dark-700/40 bg-ink-950 px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:border-primary-500/50 focus:outline-none"
+            autoFocus
+            onKeyDown={(e) => e.key === "Enter" && createNewFile()}
+          />
+          <button onClick={createNewFile} className="rounded-lg bg-primary-500/15 px-3 py-1.5 text-xs font-semibold text-primary-200">Create</button>
+          <button onClick={() => setShowNewFile(false)} className="rounded-lg border border-dark-700/40 px-3 py-1.5 text-xs text-slate-400">Cancel</button>
         </div>
       )}
 
@@ -232,7 +298,7 @@ export default function FilesTab({ serverId }) {
       ) : files.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-500">Empty directory</p>
       ) : (
-        <div className="divide-y divide-slate-800/40 rounded-lg border border-slate-800/40 overflow-hidden">
+        <div className="divide-y divide-dark-700/40 rounded-lg border border-dark-700/40 overflow-hidden">
           {files.map((f) => (
             <div
               key={f.name}
@@ -260,11 +326,11 @@ export default function FilesTab({ serverId }) {
       {/* Delete confirmation */}
       {deleting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-2xl border border-slate-700/40 bg-ink-950 p-6 max-w-sm w-full mx-4 space-y-4">
+          <div className="rounded-2xl border border-dark-700/40 bg-ink-950 p-6 max-w-sm w-full mx-4 space-y-4">
             <h3 className="text-sm font-semibold text-slate-100">Delete "{deleting}"?</h3>
             <p className="text-xs text-slate-400">This cannot be undone.</p>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setDeleting(null)} className="rounded-lg border border-slate-700/40 px-3 py-1.5 text-xs text-slate-400">Cancel</button>
+              <button onClick={() => setDeleting(null)} className="rounded-lg border border-dark-700/40 px-3 py-1.5 text-xs text-slate-400">Cancel</button>
               <button onClick={() => deleteItem(deleting)} className="rounded-lg bg-red-900/30 border border-red-700/40 px-3 py-1.5 text-xs font-semibold text-red-300">Delete</button>
             </div>
           </div>

@@ -88,7 +88,7 @@ export default function Locations() {
             <div
               key={loc.city}
               className={`glass rounded-2xl border p-6 shadow-soft transition-transform hover:-translate-y-0.5 ${
-                loc.status === "coming-soon" ? "border-slate-800/60 opacity-70" : "border-slate-700/40"
+                loc.status === "coming-soon" ? "border-dark-700/60 opacity-70" : "border-dark-700/40"
               }`}
             >
               <div className="flex items-start justify-between mb-4">
@@ -119,7 +119,7 @@ export default function Locations() {
               {loc.status === "operational" && (
                 <Link
                   to="/register"
-                  className="button-3d mt-5 flex items-center justify-center gap-2 rounded-xl border border-slate-700/60 py-2 text-sm font-semibold text-slate-300 hover:border-neon-500/30 hover:text-neon-200"
+                  className="button-3d mt-5 flex items-center justify-center gap-2 rounded-xl border border-dark-700/60 py-2 text-sm font-semibold text-slate-300 hover:border-neon-500/30 hover:text-neon-200"
                 >
                   Deploy Here <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
@@ -128,7 +128,7 @@ export default function Locations() {
           ))}
         </div>
 
-        <div className="mt-10 glass rounded-2xl border border-slate-700/40 p-6 text-sm text-slate-400 space-y-2">
+        <div className="mt-10 glass rounded-2xl border border-dark-700/40 p-6 text-sm text-slate-400 space-y-2">
           <div className="flex items-center gap-2 text-slate-300 font-semibold">
             <Shield className="h-4 w-4 text-neon-300" />
             All locations include DDoS protection
@@ -136,7 +136,7 @@ export default function Locations() {
           <p>Enterprise-grade DDoS mitigation is included with every plan at no additional cost. Attacks are filtered before reaching your server.</p>
         </div>
 
-        <footer className="mt-12 border-t border-slate-800/60 pt-6 text-center text-xs text-slate-500">
+        <footer className="mt-12 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} AstraNodes. All rights reserved.
         </footer>
       </div>

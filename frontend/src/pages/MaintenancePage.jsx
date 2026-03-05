@@ -43,7 +43,7 @@ export default function MaintenancePage() {
         {/* Action */}
         <button
           onClick={() => window.location.reload()}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-700/60 bg-dark-900/80 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-dark-800 hover:border-slate-600 transition-all"
+          className="inline-flex items-center gap-2 rounded-xl border border-dark-700/60 bg-dark-900/80 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-dark-800 hover:border-dark-600 transition-all"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh Page

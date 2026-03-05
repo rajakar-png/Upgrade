@@ -1,6 +1,6 @@
 export default function StatCard({ label, value, hint, icon: Icon }) {
   return (
-    <div className="card-3d rounded-xl border border-white/10 bg-dark-800/60 backdrop-blur-sm p-6">
+    <div className="card-3d rounded-xl border border-dark-700/50 bg-dark-800/40 backdrop-blur-sm p-6">
       <div className="flex items-center gap-3 mb-4">
         {Icon && (
           <div className="h-10 w-10 rounded-lg bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">

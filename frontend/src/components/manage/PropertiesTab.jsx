@@ -77,7 +77,7 @@ export default function PropertiesTab({ serverId }) {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-200">server.properties</h3>
         <div className="flex gap-2">
-          <button onClick={load} className="flex items-center gap-1.5 rounded-lg border border-slate-700/40 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">
+          <button onClick={load} className="flex items-center gap-1.5 rounded-lg border border-dark-700/40 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">
             <RefreshCw className="h-3.5 w-3.5" /> Reload
           </button>
           <button
@@ -103,7 +103,7 @@ export default function PropertiesTab({ serverId }) {
           server.properties not found or empty. Start the server first.
         </p>
       ) : (
-        <div className="divide-y divide-slate-800/40 rounded-lg border border-slate-800/40 overflow-hidden max-h-[500px] overflow-y-auto">
+        <div className="divide-y divide-dark-700/40 rounded-lg border border-dark-700/40 overflow-hidden max-h-[500px] overflow-y-auto">
           {keys.map((key) => (
             <div key={key} className="flex items-center gap-4 px-3 py-2">
               <label htmlFor={`prop-${key}`} className="w-1/3 text-xs font-mono text-slate-400 truncate shrink-0">
@@ -115,7 +115,7 @@ export default function PropertiesTab({ serverId }) {
                 type="text"
                 value={properties[key]}
                 onChange={(e) => handleChange(key, e.target.value)}
-                className="flex-1 rounded border border-slate-700/40 bg-ink-950 px-2 py-1 text-xs font-mono text-slate-200 focus:border-neon-500/50 focus:outline-none"
+                className="flex-1 rounded border border-dark-700/40 bg-ink-950 px-2 py-1 text-xs font-mono text-slate-200 focus:border-neon-500/50 focus:outline-none"
               />
             </div>
           ))}

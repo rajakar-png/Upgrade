@@ -19,7 +19,7 @@ const DEFAULTS = [
 const STATUS_COLORS = {
   operational: "bg-aurora-900/30 border-aurora-500/30 text-aurora-200",
   degraded: "bg-amber-900/30 border-amber-500/30 text-amber-200",
-  "coming-soon": "bg-slate-800/40 border-slate-600/30 text-slate-400",
+  "coming-soon": "bg-slate-800/40 border-dark-600/30 text-slate-400",
   maintenance: "bg-red-900/30 border-red-500/30 text-red-200",
 }
 
@@ -98,10 +98,10 @@ export default function AdminLocations() {
         subtitle="Edit server regions shown on the public /locations page."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/locations")} className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/locations")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               View Page ↗
             </button>
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               ← Admin
             </button>
           </div>
@@ -110,7 +110,7 @@ export default function AdminLocations() {
 
       <div className="space-y-4">
         {locations.map((loc, idx) => (
-          <div key={idx} className="glass rounded-2xl border border-slate-700/40 p-5 space-y-4">
+          <div key={idx} className="glass rounded-2xl border border-dark-700/40 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-300">{loc.flag} {loc.city || "New Location"}</span>
               <button onClick={() => remove(idx)} className="rounded-lg p-1.5 text-slate-500 hover:bg-red-900/30 hover:text-red-400">
@@ -145,7 +145,7 @@ export default function AdminLocations() {
                     key={s}
                     type="button"
                     onClick={() => update(idx, "status", s)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${loc.status === s ? STATUS_COLORS[s] : "border-slate-700/40 text-slate-500 hover:border-slate-600"}`}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${loc.status === s ? STATUS_COLORS[s] : "border-dark-700/40 text-slate-500 hover:border-dark-600"}`}
                   >
                     {s}
                   </button>
@@ -180,7 +180,7 @@ export default function AdminLocations() {
 
       <button
         onClick={() => setLocations((prev) => [...prev, makeBlank()])}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-600 py-4 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300 transition"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-dark-600 py-4 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300 transition"
       >
         <Plus className="h-4 w-4" /> Add Location
       </button>

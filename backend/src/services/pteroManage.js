@@ -22,13 +22,28 @@ function sanitizePath(p) {
 }
 
 function handleError(error, action) {
+  // Log full details for debugging — include the response body from Wings
+  const responseBody = error.response?.data
   console.error(`[PTERO-MANAGE] ${action} failed:`, {
     message: error.message,
     status: error.response?.status,
-    statusText: error.response?.statusText
+    statusText: error.response?.statusText,
+    body: typeof responseBody === "string" ? responseBody.slice(0, 500) : responseBody
   })
-  const err = new Error(`${action} failed. Please try again.`)
-  err.statusCode = error.response?.status === 404 ? 404 : 502
+
+  // Build a more descriptive error message
+  let detail = `${action} failed.`
+  const status = error.response?.status
+  if (status === 500) {
+    detail += " The server may still be installing or is not ready yet."
+  } else if (status === 404) {
+    detail += " Resource not found."
+  } else {
+    detail += " Please try again."
+  }
+
+  const err = new Error(detail)
+  err.statusCode = status === 404 ? 404 : 502
   throw err
 }
 
@@ -236,6 +251,19 @@ export const pteroManage = {
       return { success: true }
     } catch (error) {
       handleError(error, "Upload file")
+    }
+  },
+
+  /** Decompress an archive on the server (ZIP, tar.gz, etc.) */
+  async decompressFile(serverUuid, nodeId, root, file) {
+    try {
+      await wingsRequest(nodeId, serverUuid, "POST", "/files/decompress", {
+        data: { root: sanitizePath(root), file: sanitizePath(file) },
+        timeout: 120000
+      })
+      return { success: true }
+    } catch (error) {
+      handleError(error, "Decompress file")
     }
   },
 

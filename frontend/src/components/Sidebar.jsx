@@ -36,7 +36,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="hidden w-64 flex-col gap-6 border-r border-white/[0.06] bg-dark-900/80 backdrop-blur-xl px-5 py-6 lg:flex">
+    <aside className="hidden w-64 flex-col gap-6 border-r border-dark-700/50 bg-dark-900/80 backdrop-blur-xl px-5 py-6 lg:flex">
       <Logo size="lg" />
       
       <nav className="flex flex-1 flex-col gap-1">
@@ -50,7 +50,7 @@ export default function Sidebar() {
                 `group flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? "bg-primary-500/10 text-primary-400 border border-primary-500/20 shadow-sm shadow-primary-500/10"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5"
+                    : "text-slate-400 hover:bg-dark-800/50 hover:text-white border border-transparent hover:border-dark-700/40"
                 }`
               }
             >
@@ -76,7 +76,7 @@ export default function Sidebar() {
           </div>
         )}
         
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+        <div className="rounded-xl border border-dark-700/50 bg-dark-800/40 p-4">
           <div className="mb-3 text-sm">
             <p className="font-semibold text-white truncate">{user.email}</p>
             <p className="mt-1 text-xs text-slate-500 font-medium">{isAdmin ? "Administrator" : "User"}</p>

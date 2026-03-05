@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import {
   ArrowLeft, Terminal, FolderOpen, FileText, Globe,
   Puzzle, GitBranch, Settings, Users, Play, Square,
-  RotateCcw, Skull, Loader2, ShieldCheck, Archive
+  RotateCcw, Skull, Loader2, ShieldCheck, Archive, Upload
 } from "lucide-react"
 import SectionHeader from "../components/SectionHeader.jsx"
 import ConsoleTab from "../components/manage/ConsoleTab.jsx"
@@ -15,9 +15,11 @@ import VersionTab from "../components/manage/VersionTab.jsx"
 import SettingsTab from "../components/manage/SettingsTab.jsx"
 import PlayersTab from "../components/manage/PlayersTab.jsx"
 import BackupsTab from "../components/manage/BackupsTab.jsx"
+import BotUploadTab from "../components/manage/BotUploadTab.jsx"
 import { api } from "../services/api.js"
 
-const tabs = [
+// Minecraft-specific tabs
+const minecraftTabs = [
   { id: "console",    label: "Console",    icon: Terminal },
   { id: "files",      label: "Files",      icon: FolderOpen },
   { id: "properties", label: "Properties", icon: FileText },
@@ -29,16 +31,28 @@ const tabs = [
   { id: "players",    label: "Players",    icon: Users },
 ]
 
+// Bot hosting tabs — no properties, world, plugins, players
+const botTabs = [
+  { id: "console",    label: "Console",    icon: Terminal },
+  { id: "deploy",     label: "Deploy",     icon: Upload },
+  { id: "files",      label: "Files",      icon: FolderOpen },
+  { id: "backups",    label: "Backups",    icon: Archive },
+  { id: "settings",   label: "Settings",   icon: Settings },
+]
+
 export default function ServerManage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get("tab") || "console"
   const [serverInfo, setServerInfo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [activeTab, setActiveTab] = useState("console")
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [powerLoading, setPowerLoading] = useState("")
   const [eulaLoading, setEulaLoading] = useState(false)
   const [eulaAccepted, setEulaAccepted] = useState(false)
+  const [hasDeployed, setHasDeployed] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -49,6 +63,12 @@ export default function ServerManage() {
         setServerInfo(data)
         // Initialize EULA state from server response
         if (data?.eula_accepted) setEulaAccepted(true)
+        // For bots, check if server root has files (hide deploy tab if so)
+        if (data?.server?.category === "bot") {
+          api.serverListFiles(token, id, "/").then((files) => {
+            if (files && files.length > 0) setHasDeployed(true)
+          }).catch(() => {})
+        }
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
@@ -101,6 +121,13 @@ export default function ServerManage() {
   }
 
   const srv = serverInfo?.server
+  const pteroStatus = srv?.ptero_status // null = ready, "installing", "install_failed", etc.
+  const isInstalling = pteroStatus === "installing"
+  const isInstallFailed = pteroStatus === "install_failed" || pteroStatus === "reinstall_failed"
+  const isBot = srv?.category === "bot"
+  const tabs = isBot
+    ? (hasDeployed ? botTabs.filter(t => t.id !== "deploy") : botTabs)
+    : minecraftTabs
   const defaultAlloc = srv?.allocations?.find((a) => a.is_default) || srv?.allocations?.[0]
 
   // Resolve display IP: prefer ip_alias, then node_fqdn if allocation IP is unusable (0.0.0.0 or private)
@@ -121,14 +148,15 @@ export default function ServerManage() {
   ]
 
   const tabContent = {
-    console:    <ConsoleTab serverId={id} serverInfo={serverInfo} />,
+    console:    <ConsoleTab serverId={id} serverInfo={serverInfo} isBot={isBot} />,
+    deploy:     <BotUploadTab serverId={id} onDeployed={() => { setHasDeployed(true); setActiveTab("files") }} />,
     files:      <FilesTab serverId={id} />,
     properties: <PropertiesTab serverId={id} />,
     world:      <WorldTab serverId={id} />,
     plugins:    <PluginsTab serverId={id} />,
     version:    <VersionTab serverId={id} />,
     backups:    <BackupsTab serverId={id} />,
-    settings:   <SettingsTab serverId={id} />,
+    settings:   <SettingsTab serverId={id} isBot={isBot} />,
     players:    <PlayersTab serverId={id} />,
   }
 
@@ -139,21 +167,26 @@ export default function ServerManage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/servers")}
-            className="button-3d rounded-lg border border-white/10 bg-dark-800/60 p-2 text-slate-400 hover:text-white hover:border-white/20 transition-all"
+            className="button-3d rounded-lg border border-dark-700/50 bg-dark-800/60 p-2 text-slate-400 hover:text-white hover:border-dark-600/60 transition-all"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
             <h1 className="text-xl font-bold text-white">{srv?.name}</h1>
             <p className="text-xs text-slate-500 flex items-center gap-1.5">
-              <span
-                className="cursor-pointer hover:text-primary-400 font-mono transition"
-                title="Click to copy"
-                onClick={() => { navigator.clipboard.writeText(displayAddress); }}
-              >
-                {displayAddress}
-              </span>
-              · {srv?.node_fqdn || "Node"}
+              {!isBot && (
+                <>
+                  <span
+                    className="cursor-pointer hover:text-primary-400 font-mono transition"
+                    title="Click to copy"
+                    onClick={() => { navigator.clipboard.writeText(displayAddress); }}
+                  >
+                    {displayAddress}
+                  </span>
+                  ·{" "}
+                </>
+              )}
+              {srv?.node_fqdn || "Node"}
             </p>
           </div>
         </div>
@@ -178,8 +211,8 @@ export default function ServerManage() {
         </div>
       </div>
 
-      {/* ── EULA Banner ───────────────────────────────────────────────── */}
-      {!eulaAccepted && (
+      {/* ── EULA Banner (Minecraft only) ──────────────────────────────── */}
+      {!isBot && !eulaAccepted && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-yellow-700/30 bg-yellow-900/15 px-4 py-3 text-sm text-yellow-200">
           <span>
             <b>Minecraft EULA:</b> You must accept the{" "}
@@ -199,6 +232,24 @@ export default function ServerManage() {
         </div>
       )}
 
+      {/* ── Installing Banner ─────────────────────────────────────────── */}
+      {isInstalling && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary-700/30 bg-primary-900/15 px-4 py-3 text-sm text-primary-200">
+          <Loader2 className="h-4 w-4 animate-spin text-primary-400" />
+          <span>
+            <b>Server is installing…</b> Files, properties, and plugins will be available once installation completes. This may take a few minutes.
+          </span>
+        </div>
+      )}
+
+      {isInstallFailed && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-700/30 bg-red-900/15 px-4 py-3 text-sm text-red-200">
+          <span>
+            <b>Installation failed.</b> Try reinstalling from the <b>Version</b> tab, or contact support if the issue persists.
+          </span>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-lg bg-red-900/20 border border-red-700/30 p-3 text-sm text-red-300">
           {error}
@@ -206,18 +257,25 @@ export default function ServerManage() {
       )}
 
       {/* ── Tab navigation ──────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-1.5 rounded-xl border border-white/[0.06] bg-dark-900/80 backdrop-blur-sm p-1.5">
+      <div className="flex flex-wrap gap-1.5 rounded-xl border border-dark-700/50 bg-dark-900/80 backdrop-blur-sm p-1.5">
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
+          // Tabs that require Wings file access are disabled while installing
+          const wingsOnlyTabs = ["files", "properties", "world", "plugins", "backups", "deploy"]
+          const isDisabled = (isInstalling || isInstallFailed) && wingsOnlyTabs.includes(tab.id)
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => !isDisabled && setActiveTab(tab.id)}
+              disabled={isDisabled}
+              title={isDisabled ? "Not available while server is installing" : ""}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
-                isActive
-                  ? "bg-primary-500/15 text-primary-300 border border-primary-500/30 shadow-sm shadow-primary-500/10"
-                  : "text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent"
+                isDisabled
+                  ? "text-slate-600 cursor-not-allowed border border-transparent opacity-50"
+                  : isActive
+                    ? "bg-primary-500/15 text-primary-300 border border-primary-500/30 shadow-sm shadow-primary-500/10"
+                    : "text-slate-400 hover:text-white hover:bg-dark-800/50 border border-transparent"
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -228,15 +286,19 @@ export default function ServerManage() {
       </div>
 
       {/* ── Tab content ─────────────────────────────────────────────────── */}
-      {/* Render all tabs but hide inactive ones so Console keeps its WS connection alive */}
-      {Object.entries(tabContent).map(([key, content]) => (
-        <div
-          key={key}
-          className={`rounded-2xl border border-white/[0.06] bg-dark-900/80 backdrop-blur-sm p-6 ${key === activeTab ? "" : "hidden"}`}
-        >
-          {content}
-        </div>
-      ))}
+      {/* Render only tabs for this server type; hide inactive for WS keepalive */}
+      {tabs.map((tab) => {
+        const content = tabContent[tab.id]
+        if (!content) return null
+        return (
+          <div
+            key={tab.id}
+            className={`rounded-2xl border border-dark-700/50 bg-dark-900/80 backdrop-blur-sm p-6 ${tab.id === activeTab ? "" : "hidden"}`}
+          >
+            {content}
+          </div>
+        )
+      })}
     </div>
   )
 }

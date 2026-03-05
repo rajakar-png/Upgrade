@@ -94,7 +94,7 @@ export default function Billing() {
       </div>
 
       {/* Step 1 — UPI Payment Details */}
-      <div className="rounded-2xl border border-primary-500/30 bg-primary-900/10 p-6">
+      <div className="card-3d card-glow rounded-2xl border border-primary-500/30 bg-primary-900/10 p-6">
         <p className="text-sm font-semibold text-primary-400 mb-4">Step 1: Send payment via UPI</p>
 
         {upiSettings.upiId ? (
@@ -135,8 +135,8 @@ export default function Billing() {
       </div>
 
       {/* Step 2 — Submit UTR */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-        <div className="rounded-2xl border border-dark-700 bg-dark-900 p-6">
+      <div className="grid gap-6 md:grid-cols-[1fr_0.9fr]">
+        <div className="card-3d card-glow rounded-2xl border border-dark-700 bg-dark-900 p-6">
           <p className="text-sm font-semibold text-slate-300 mb-5">Step 2: Submit your payment proof</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -211,7 +211,7 @@ export default function Billing() {
         </div>
 
         {/* Submission history */}
-        <div className="rounded-2xl border border-dark-700 bg-dark-900 p-6">
+        <div className="card-3d card-glow rounded-2xl border border-dark-700 bg-dark-900 p-6">
           <div className="flex items-center gap-2 mb-4">
             <Clock size={14} className="text-slate-400" />
             <p className="text-sm text-slate-300">Recent submissions</p>

@@ -41,7 +41,8 @@ function handleError(error, action) {
   console.error(`[PTERODACTYL] ✗ ${action} failed:`, {
     message: error.message,
     status: error.response?.status,
-    statusText: error.response?.statusText
+    statusText: error.response?.statusText,
+    data: error.response?.data?.errors || error.response?.data || null
   })
   
   // Generic message to the user — no internal details leaked
@@ -127,7 +128,47 @@ export const pterodactyl = {
     }
   },
 
-  async createServer({ name, userId, limits, nodeId: preferredNodeId = null, software = "papermc", eggId = null }) {
+  /**
+   * Fetch egg configuration (docker_image, startup, default env vars) from Pterodactyl.
+   * Used to correctly create servers with non-default eggs (e.g. Python bots).
+   */
+  async getEggConfig(eggId) {
+    try {
+      // Need to find which nest this egg belongs to — iterate nests
+      const nestsResponse = await client.get("/nests")
+      for (const nest of nestsResponse.data.data) {
+        try {
+          const nestId = nest.attributes.id
+          const eggResponse = await client.get(`/nests/${nestId}/eggs/${eggId}?include=variables`)
+          const attr = eggResponse.data.attributes
+          
+          // Build default environment from egg variables
+          const environment = {}
+          const variables = attr.relationships?.variables?.data || []
+          for (const v of variables) {
+            environment[v.attributes.env_variable] = v.attributes.default_value ?? ""
+          }
+          
+          console.log(`[PTERODACTYL] ✓ Egg ${eggId} config: docker=${attr.docker_image}, startup=${(attr.startup || "").slice(0, 60)}…, vars=${Object.keys(environment).join(",")}`)
+          return {
+            docker_image: attr.docker_image,
+            startup: attr.startup,
+            environment
+          }
+        } catch {
+          // Egg not in this nest, try next
+          continue
+        }
+      }
+      console.warn(`[PTERODACTYL] Could not find egg ${eggId} in any nest, using env defaults`)
+      return null
+    } catch (error) {
+      console.warn(`[PTERODACTYL] Failed to fetch egg config for ${eggId}:`, error.message)
+      return null
+    }
+  },
+
+  async createServer({ name, userId, limits, nodeId: preferredNodeId = null, software = "papermc", eggId = null, category = "minecraft" }) {
     try {
       // Dynamically select the best node based on real-time resource availability.
       // If the user picked a specific node (preferredNodeId), that node is used
@@ -137,6 +178,22 @@ export const pterodactyl = {
       // Use provided eggId or fall back to default from env
       const selectedEggId = eggId || env.PTERODACTYL_DEFAULT_EGG
 
+      // Fetch egg-specific config (docker image, startup, env vars) from Pterodactyl
+      // so non-Minecraft eggs (Python bots, Node.js bots, etc.) use correct settings.
+      // Falls back to .env defaults if fetch fails.
+      let dockerImage = env.PTERODACTYL_DEFAULT_DOCKER_IMAGE
+      let startup = env.PTERODACTYL_DEFAULT_STARTUP
+      let environment = parseEnv()
+
+      if (selectedEggId != env.PTERODACTYL_DEFAULT_EGG) {
+        const eggConfig = await pterodactyl.getEggConfig(selectedEggId)
+        if (eggConfig) {
+          dockerImage = eggConfig.docker_image || dockerImage
+          startup = eggConfig.startup || startup
+          environment = eggConfig.environment || environment
+        }
+      }
+
       console.log("[PTERODACTYL] Creating server:", {
         name,
         userId,
@@ -144,7 +201,9 @@ export const pterodactyl = {
         node: nodeId,
         egg: selectedEggId,
         allocation: allocationId,
-        software
+        software,
+        dockerImage,
+        startup: startup.slice(0, 80)
       })
       
       const payload = {
@@ -155,22 +214,23 @@ export const pterodactyl = {
         allocation: {
           default: allocationId
         },
-        docker_image: env.PTERODACTYL_DEFAULT_DOCKER_IMAGE,
-        startup: env.PTERODACTYL_DEFAULT_STARTUP,
-        environment: parseEnv(),
+        docker_image: dockerImage,
+        startup: startup,
+        environment: environment,
         limits: {
           memory: limits.memory,
-          swap: 0,
+          swap: limits.swap || 0,
           disk: limits.disk,
           io: 500,
-          cpu: limits.cpu * 100
+          cpu: Math.round(limits.cpu * 100)
         },
         feature_limits: {
           databases: 0,
           allocations: limits.allocations || 0,
           backups: limits.backups || 0
         },
-        start_on_completion: true
+        // Don't auto-start bot servers — user needs to upload files first
+        start_on_completion: category !== "bot"
       }
       
       const response = await client.post("/servers", payload)

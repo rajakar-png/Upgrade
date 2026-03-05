@@ -19,7 +19,7 @@ function MiniBar({ pct, color = "bg-neon-400" }) {
   )
 }
 
-export default function ConsoleTab({ serverId, serverInfo }) {
+export default function ConsoleTab({ serverId, serverInfo, isBot = false }) {
   const [lines, setLines] = useState([])
   const [command, setCommand] = useState("")
   const [status, setStatus] = useState("connecting") // connecting | connected | offline | error
@@ -159,7 +159,7 @@ export default function ConsoleTab({ serverId, serverInfo }) {
       {/* ── Stats cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
         {/* Status */}
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/60 p-3">
+        <div className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3">
           <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
             <span className={`h-2 w-2 rounded-full ${statusDot[status]}`} />
             Status
@@ -168,7 +168,7 @@ export default function ConsoleTab({ serverId, serverInfo }) {
         </div>
 
         {/* RAM */}
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/60 p-3">
+        <div className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
             <MemoryStick className="h-3 w-3" /> RAM
           </div>
@@ -179,7 +179,7 @@ export default function ConsoleTab({ serverId, serverInfo }) {
         </div>
 
         {/* CPU */}
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/60 p-3">
+        <div className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
             <Cpu className="h-3 w-3" /> CPU
           </div>
@@ -190,7 +190,7 @@ export default function ConsoleTab({ serverId, serverInfo }) {
         </div>
 
         {/* Disk */}
-        <div className="rounded-xl border border-slate-800/60 bg-slate-900/60 p-3">
+        <div className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
             <HardDrive className="h-3 w-3" /> Disk
           </div>
@@ -200,10 +200,10 @@ export default function ConsoleTab({ serverId, serverInfo }) {
           {diskMax > 0 && <MiniBar pct={(diskUsed / diskMax) * 100} color="bg-emerald-500" />}
         </div>
 
-        {/* IP Address */}
-        {displayAddress && (
+        {/* IP Address — hidden for bot hosting */}
+        {!isBot && displayAddress && (
           <div
-            className="rounded-xl border border-slate-800/60 bg-slate-900/60 p-3 cursor-pointer group hover:border-neon-500/30 transition col-span-2 sm:col-span-1"
+            className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3 cursor-pointer group hover:border-neon-500/30 transition col-span-2 sm:col-span-1"
             onClick={copyIp}
             title="Click to copy"
           >
@@ -246,7 +246,7 @@ export default function ConsoleTab({ serverId, serverInfo }) {
 
         <div
           ref={scrollRef}
-          className="h-[420px] overflow-y-auto rounded-xl bg-[#0a0a0a] border border-slate-800/50 p-4 font-mono text-[13px] leading-relaxed text-slate-300 scroll-smooth selection:bg-neon-500/20"
+          className="h-[420px] overflow-y-auto rounded-xl bg-[#0a0a0a] border border-dark-700/50 p-4 font-mono text-[13px] leading-relaxed text-slate-300 scroll-smooth selection:bg-neon-500/20"
         >
           {lines.length === 0 && status === "connected" && (
             <p className="text-slate-600 italic">Waiting for console output…</p>
@@ -255,38 +255,40 @@ export default function ConsoleTab({ serverId, serverInfo }) {
             <p className="text-slate-600 italic">Server is offline. Start it to see console output.</p>
           )}
           {lines.map((line, i) => (
-            <div key={i} className="whitespace-pre-wrap break-all py-px hover:bg-white/[0.02] rounded">
+            <div key={i} className="whitespace-pre-wrap break-all py-px hover:bg-dark-800/30 rounded">
               {line}
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Command input ───────────────────────────────────────────────── */}
-      <form onSubmit={sendCommand} className="flex gap-2">
-        <div className="relative flex-1">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600 font-mono text-sm select-none">&gt;</span>
-          <input
-            ref={inputRef}
-            id="console-command"
-            name="command"
-            type="text"
-            value={command}
-            onChange={(e) => setCommand(e.target.value)}
-            placeholder={status === "connected" ? "Type a command…" : "Connect to send commands"}
-            disabled={status !== "connected" && status !== "offline"}
-            autoComplete="off"
-            className="w-full rounded-xl border border-slate-700/40 bg-[#0a0a0a] py-2.5 pl-8 pr-4 font-mono text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none focus:ring-1 focus:ring-neon-500/20 disabled:opacity-50 transition"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={!command.trim() || (status !== "connected" && status !== "offline")}
-          className="rounded-xl border border-neon-400/40 bg-neon-500/15 px-4 py-2.5 text-sm font-semibold text-neon-200 transition hover:bg-neon-500/25 disabled:opacity-40"
-        >
-          <Send className="h-4 w-4" />
-        </button>
-      </form>
+      {/* ── Command input (Minecraft only) ─────────────────────────────── */}
+      {!isBot && (
+        <form onSubmit={sendCommand} className="flex gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-600 font-mono text-sm select-none">&gt;</span>
+            <input
+              ref={inputRef}
+              id="console-command"
+              name="command"
+              type="text"
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              placeholder={status === "connected" ? "Type a command…" : "Connect to send commands"}
+              disabled={status !== "connected" && status !== "offline"}
+              autoComplete="off"
+              className="w-full rounded-xl border border-dark-700/40 bg-[#0a0a0a] py-2.5 pl-8 pr-4 font-mono text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none focus:ring-1 focus:ring-neon-500/20 disabled:opacity-50 transition"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!command.trim() || (status !== "connected" && status !== "offline")}
+            className="rounded-xl border border-neon-400/40 bg-neon-500/15 px-4 py-2.5 text-sm font-semibold text-neon-200 transition hover:bg-neon-500/25 disabled:opacity-40"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </form>
+      )}
     </div>
   )
 }

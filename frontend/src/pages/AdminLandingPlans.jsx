@@ -44,14 +44,14 @@ export default function AdminLandingPlans() {
         {loading ? (
           <p className="text-slate-400">Loading preview...</p>
         ) : plans.length === 0 ? (
-          <div className="glass rounded-2xl border border-dashed border-slate-700/50 p-12 text-center">
+          <div className="glass rounded-2xl border border-dashed border-dark-700/50 p-12 text-center">
             <Server className="mx-auto h-8 w-8 text-slate-600" />
             <p className="mt-3 text-slate-400">No plans found. Create Coin or Real Money plans from the Admin Panel.</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {plans.map((plan) => (
-              <div key={plan.id} className="glass relative rounded-2xl border border-slate-700/40 p-5 space-y-3">
+              <div key={plan.id} className="glass relative rounded-2xl border border-dark-700/40 p-5 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">

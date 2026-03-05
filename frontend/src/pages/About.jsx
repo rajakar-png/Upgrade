@@ -95,7 +95,7 @@ export default function About() {
             const Icon = STAT_ICONS[i % STAT_ICONS.length]
             const col = STAT_COLORS[i % STAT_COLORS.length]
             return (
-              <div key={label} className="glass rounded-2xl border border-slate-700/40 p-5 text-center shadow-soft">
+              <div key={label} className="glass rounded-2xl border border-dark-700/40 p-5 text-center shadow-soft">
                 <Icon className={`mx-auto mb-2 h-5 w-5 ${col}`} />
                 <div className="text-2xl font-bold text-slate-100">{value}</div>
                 <div className="text-xs text-slate-400 mt-1">{label}</div>
@@ -104,7 +104,7 @@ export default function About() {
           })}
         </div>
 
-        <section className="mb-16 glass rounded-2xl border border-slate-700/40 p-8 shadow-soft text-slate-300 leading-relaxed space-y-4">
+        <section className="mb-16 glass rounded-2xl border border-dark-700/40 p-8 shadow-soft text-slate-300 leading-relaxed space-y-4">
           <h2 className="text-xl font-semibold text-slate-100">{data.storyTitle}</h2>
           <p>{data.storyText}</p>
           <p>{data.storyText2}</p>
@@ -117,7 +117,7 @@ export default function About() {
             {(data.values || DEFAULT_DATA.values).map(({ title, description }, i) => {
               const Icon = VALUE_ICONS[i % VALUE_ICONS.length]
               return (
-                <div key={title} className="glass rounded-2xl border border-slate-700/40 p-6 shadow-soft">
+                <div key={title} className="glass rounded-2xl border border-dark-700/40 p-6 shadow-soft">
                   <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${VALUE_BGS[i % VALUE_BGS.length]}`}>
                     <Icon className={`h-5 w-5 ${VALUE_COLORS[i % VALUE_COLORS.length]}`} />
                   </div>
@@ -129,7 +129,7 @@ export default function About() {
           </div>
         </section>
 
-        <div className="text-center glass rounded-2xl border border-slate-700/40 p-10 shadow-soft space-y-4">
+        <div className="text-center glass rounded-2xl border border-dark-700/40 p-10 shadow-soft space-y-4">
           <h2 className="text-2xl font-semibold text-slate-100">Ready to join us?</h2>
           <p className="text-slate-400">Start your free server in under 60 seconds.</p>
           <Link
@@ -140,7 +140,7 @@ export default function About() {
           </Link>
         </div>
 
-        <footer className="mt-12 border-t border-slate-800/60 pt-6 text-center text-xs text-slate-500">
+        <footer className="mt-12 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} AstraNodes. All rights reserved.
         </footer>
       </div>

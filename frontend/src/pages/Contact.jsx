@@ -96,7 +96,7 @@ export default function Contact() {
           ))}
         </div>
 
-        <div className="glass rounded-2xl border border-slate-700/40 p-8 shadow-soft">
+        <div className="glass rounded-2xl border border-dark-700/40 p-8 shadow-soft">
           <h2 className="mb-6 text-lg font-semibold text-slate-100">Send a message</h2>
 
           {!isLoggedIn ? (
@@ -111,7 +111,7 @@ export default function Contact() {
                 </Link>
                 <Link
                   to="/login"
-                  className="button-3d inline-flex items-center gap-2 rounded-xl border border-slate-700/40 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800/40 transition-colors"
+                  className="button-3d inline-flex items-center gap-2 rounded-xl border border-dark-700/40 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800/40 transition-colors"
                 >
                   <LogIn className="h-4 w-4" /> Login
                 </Link>
@@ -127,7 +127,7 @@ export default function Contact() {
                   value={form.subject}
                   onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
                   placeholder="Brief description of your issue"
-                  className="w-full rounded-xl border border-slate-700/60 bg-ink-900/60 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30"
+                  className="w-full rounded-xl border border-dark-700/60 bg-ink-900/60 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30"
                 />
               </div>
               <div>
@@ -139,7 +139,7 @@ export default function Contact() {
                   onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))}
                   rows={5}
                   placeholder="Describe your issue or question..."
-                  className="w-full rounded-xl border border-slate-700/60 bg-ink-900/60 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30 resize-none"
+                  className="w-full rounded-xl border border-dark-700/60 bg-ink-900/60 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30 resize-none"
                 />
               </div>
               <div className="flex items-center justify-between gap-4">
@@ -162,7 +162,7 @@ export default function Contact() {
           )}
         </div>
 
-        <footer className="mt-12 border-t border-slate-800/60 pt-6 text-center text-xs text-slate-500">
+        <footer className="mt-12 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} AstraNodes. All rights reserved.
         </footer>
       </div>

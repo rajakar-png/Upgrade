@@ -165,7 +165,7 @@ export default function AdminTicketDetail() {
         action={
           <button
             onClick={() => navigate("/admin/tickets")}
-            className="button-3d rounded-xl border border-slate-600/60 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-slate-500/80"
+            className="button-3d rounded-xl border border-dark-600/60 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-slate-500/80"
           >
             ← Back to Tickets
           </button>
@@ -173,7 +173,7 @@ export default function AdminTicketDetail() {
       />
 
       {/* User Info Panel */}
-      <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
         <h3 className="text-lg font-semibold text-slate-100 mb-4">User Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -196,7 +196,7 @@ export default function AdminTicketDetail() {
       </div>
 
       {/* Ticket Info & Actions */}
-      <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4">
             <Badge
@@ -250,7 +250,7 @@ export default function AdminTicketDetail() {
       </div>
 
       {/* Messages */}
-      <div className="rounded-2xl border border-slate-800/60 bg-ink-900/70 p-6">
+      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
         <h3 className="text-lg font-semibold text-slate-100 mb-4">Conversation</h3>
         
         <div className="space-y-4 mb-6 max-h-[500px] overflow-y-auto">
@@ -261,7 +261,7 @@ export default function AdminTicketDetail() {
             >
               <div className={`max-w-[80%] rounded-2xl p-4 ${
                 msg.sender_type === "user"
-                  ? "bg-slate-800/50 border border-slate-700/50"
+                  ? "bg-slate-800/50 border border-dark-700/50"
                   : "bg-ember-500/15 border border-ember-500/30"
               }`}>
                 <div className="flex items-center gap-2 mb-2">
@@ -301,7 +301,7 @@ export default function AdminTicketDetail() {
           
           {/* Image Preview */}
           {replyImagePreview && (
-            <div className="relative rounded-lg border border-slate-700/60 p-3">
+            <div className="relative rounded-lg border border-dark-700/60 p-3">
               <img src={replyImagePreview} alt="Preview" className="max-h-32 rounded-lg" />
               <button
                 type="button"
@@ -324,7 +324,7 @@ export default function AdminTicketDetail() {
             required
             rows={4}
             maxLength={2000}
-            className="w-full px-4 py-3 rounded-lg border border-slate-700/60 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-ember-500/50 resize-none"
+            className="w-full px-4 py-3 rounded-lg border border-dark-700/60 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-ember-500/50 resize-none"
           />
           <div className="flex justify-between items-center gap-3">
             <div className="flex items-center gap-3">

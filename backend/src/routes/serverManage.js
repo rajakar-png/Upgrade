@@ -1,5 +1,6 @@
 import { Router } from "express"
 import { z } from "zod"
+import multer from "multer"
 import { requireAuth } from "../middlewares/auth.js"
 import { validate } from "../middlewares/validate.js"
 import { getOne } from "../config/db.js"
@@ -7,6 +8,24 @@ import { pteroManage } from "../services/pteroManage.js"
 import { pluginInstaller } from "../services/pluginInstaller.js"
 
 const router = Router()
+
+// Multer config for bot ZIP uploads — 100 MB limit, memory storage
+const botUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = [".zip", ".tar.gz", ".tgz", ".tar"]
+    const ext = file.originalname.toLowerCase()
+    if (allowed.some((e) => ext.endsWith(e))) return cb(null, true)
+    cb(new Error("Only ZIP and tar archives are allowed"))
+  }
+})
+
+// Multer config for single file uploads — 50 MB limit, any file type
+const singleFileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }
+})
 
 /* ── Middleware: look up the server + resolve Pterodactyl identifier ──────── */
 
@@ -38,28 +57,55 @@ async function resolveServer(req, res, next) {
   }
 }
 
+/**
+ * Middleware: block Wings-dependent routes when the server is still installing.
+ * Pterodactyl `status` values: null (ready), "installing", "install_failed",
+ * "suspended", "reinstall_failed".
+ */
+function requireInstalled(req, res, next) {
+  const pteroStatus = req.ptero?.status // null means installed & ready
+  if (pteroStatus === "installing") {
+    return res.status(409).json({
+      error: "Server is still installing. Please wait for installation to complete before accessing files."
+    })
+  }
+  if (pteroStatus === "install_failed" || pteroStatus === "reinstall_failed") {
+    return res.status(409).json({
+      error: `Server installation failed (${pteroStatus}). Try reinstalling from the Version tab.`
+    })
+  }
+  next()
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════ *
  *  1. MANAGE — overview                                                      *
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 router.get("/:serverId/manage", requireAuth, resolveServer, async (req, res, next) => {
   try {
-    let resources = null
-    try {
-      resources = await pteroManage.getResources(req.ptero.uuid, req.ptero.node)
-    } catch {
-      /* non-fatal */
-    }
+    const pteroStatus = req.ptero.status // null = installed, "installing", "install_failed", etc.
+    const isReady = !pteroStatus // null means ready
 
-    // Check if EULA has already been accepted by reading eula.txt from Wings
+    let resources = null
     let eulaAccepted = false
-    try {
-      const eulaContent = await pteroManage.getFileContents(req.ptero.uuid, req.ptero.node, "/eula.txt")
-      if (typeof eulaContent === "string" && /eula\s*=\s*true/i.test(eulaContent)) {
-        eulaAccepted = true
+
+    // Only query Wings if server is fully installed
+    if (isReady) {
+      try {
+        resources = await pteroManage.getResources(req.ptero.uuid, req.ptero.node)
+      } catch {
+        /* non-fatal */
       }
-    } catch {
-      /* eula.txt may not exist yet — that's fine, treat as not accepted */
+
+      // Check if EULA has already been accepted by reading eula.txt from Wings
+      try {
+        const eulaContent = await pteroManage.getFileContents(req.ptero.uuid, req.ptero.node, "/eula.txt")
+        if (typeof eulaContent === "string" && /eula\s*=\s*true/i.test(eulaContent)) {
+          eulaAccepted = true
+        }
+      } catch {
+        /* eula.txt may not exist yet — that's fine, treat as not accepted */
+      }
     }
 
     res.json({
@@ -67,12 +113,14 @@ router.get("/:serverId/manage", requireAuth, resolveServer, async (req, res, nex
         id: req.server.id,
         name: req.server.name,
         status: req.server.status,
+        category: req.server.category || "minecraft",
         identifier: req.ptero.identifier,
         node_fqdn: req.ptero.node_fqdn || null,
         limits: req.ptero.limits,
         feature_limits: req.ptero.feature_limits,
         allocations: req.ptero.allocations,
-        is_suspended: req.ptero.suspended
+        is_suspended: req.ptero.suspended,
+        ptero_status: pteroStatus // null = ready, "installing", "install_failed", etc.
       },
       resources,
       eula_accepted: eulaAccepted
@@ -164,7 +212,7 @@ router.post("/:serverId/eula", requireAuth, resolveServer, async (req, res, next
  *  4. FILES                                                                   *
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-router.get("/:serverId/files", requireAuth, resolveServer, async (req, res, next) => {
+router.get("/:serverId/files", requireAuth, resolveServer, requireInstalled, async (req, res, next) => {
   try {
     const directory = req.query.path || "/"
     const files = await pteroManage.listFiles(req.ptero.uuid, req.ptero.node, directory)
@@ -174,7 +222,7 @@ router.get("/:serverId/files", requireAuth, resolveServer, async (req, res, next
   }
 })
 
-router.get("/:serverId/file", requireAuth, resolveServer, async (req, res, next) => {
+router.get("/:serverId/file", requireAuth, resolveServer, requireInstalled, async (req, res, next) => {
   try {
     const filePath = req.query.path
     if (!filePath) return res.status(400).json({ error: "File path required" })
@@ -196,6 +244,7 @@ router.post(
   "/:serverId/file/write",
   requireAuth,
   resolveServer,
+  requireInstalled,
   validate(writeSchema),
   async (req, res, next) => {
     try {
@@ -218,6 +267,7 @@ router.post(
   "/:serverId/file/delete",
   requireAuth,
   resolveServer,
+  requireInstalled,
   validate(deleteFileSchema),
   async (req, res, next) => {
     try {
@@ -240,6 +290,7 @@ router.post(
   "/:serverId/file/create-folder",
   requireAuth,
   resolveServer,
+  requireInstalled,
   validate(createFolderSchema),
   async (req, res, next) => {
     try {
@@ -277,10 +328,114 @@ router.post(
 )
 
 /* ═══════════════════════════════════════════════════════════════════════════ *
+ *  4b. BOT UPLOAD — upload ZIP and auto-extract to server root               *
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+router.post(
+  "/:serverId/bot/upload",
+  requireAuth,
+  resolveServer,
+  requireInstalled,
+  botUpload.single("file"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded. Please select a ZIP archive." })
+      }
+
+      const originalName = req.file.originalname
+      const targetPath = "/" + originalName
+
+      // 1. Upload the archive to Wings
+      console.log(`[BOT-UPLOAD] Uploading ${originalName} (${(req.file.size / 1024 / 1024).toFixed(1)} MB) to server ${req.server.id}...`)
+      await pteroManage.uploadFile(req.ptero.uuid, req.ptero.node, targetPath, req.file.buffer)
+
+      // 2. Decompress the archive in the server root
+      console.log(`[BOT-UPLOAD] Decompressing ${originalName}...`)
+      await pteroManage.decompressFile(req.ptero.uuid, req.ptero.node, "/", originalName)
+
+      // 3. Delete the archive after extraction
+      try {
+        await pteroManage.deleteFiles(req.ptero.uuid, req.ptero.node, "/", [originalName])
+        console.log(`[BOT-UPLOAD] ✓ Cleaned up archive ${originalName}`)
+      } catch {
+        // Non-fatal — archive stays but files are extracted
+        console.warn(`[BOT-UPLOAD] Could not delete archive ${originalName} after extraction`)
+      }
+
+      // 4. Flatten single top-level directory (GitHub ZIPs always have one)
+      //    e.g. Discord-Auto-message-main/ → move contents up to /
+      try {
+        const rootFiles = await pteroManage.listFiles(req.ptero.uuid, req.ptero.node, "/")
+        // Check if there's exactly one directory (ignore hidden files)
+        const visibleEntries = rootFiles.filter(f => !f.name.startsWith("."))
+        const dirs = visibleEntries.filter(f => !f.is_file)
+        if (dirs.length === 1 && visibleEntries.length === 1) {
+          const wrapperDir = dirs[0].name
+          console.log(`[BOT-UPLOAD] Detected single wrapper directory: ${wrapperDir}/ — flattening...`)
+          // List contents of the wrapper directory
+          const innerFiles = await pteroManage.listFiles(req.ptero.uuid, req.ptero.node, `/${wrapperDir}`)
+          if (innerFiles.length > 0) {
+            // Move each item from /wrapperDir/X to /X
+            const renames = innerFiles.map(f => ({
+              from: `${wrapperDir}/${f.name}`,
+              to: f.name
+            }))
+            await pteroManage.renameFile(req.ptero.uuid, req.ptero.node, "/", renames)
+            // Delete the now-empty wrapper directory
+            try {
+              await pteroManage.deleteFiles(req.ptero.uuid, req.ptero.node, "/", [wrapperDir])
+            } catch { /* non-fatal */ }
+            console.log(`[BOT-UPLOAD] ✓ Flattened ${innerFiles.length} files from ${wrapperDir}/`)
+          }
+        }
+      } catch (flattenErr) {
+        // Non-fatal — files are still in the subdirectory, user can move them manually
+        console.warn(`[BOT-UPLOAD] Could not flatten wrapper directory:`, flattenErr.message)
+      }
+
+      console.log(`[BOT-UPLOAD] ✓ Bot deployed successfully for server ${req.server.id}`)
+      res.json({ success: true, message: "Bot files uploaded and extracted. You can now start your bot from the Console tab." })
+    } catch (error) {
+      if (error.message === "Only ZIP and tar archives are allowed") {
+        return res.status(400).json({ error: error.message })
+      }
+      next(error)
+    }
+  }
+)
+
+/* ═══════════════════════════════════════════════════════════════════════════ *
+ *  4c. SINGLE FILE UPLOAD — upload any file to a given directory             *
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+router.post(
+  "/:serverId/file/upload",
+  requireAuth,
+  resolveServer,
+  requireInstalled,
+  singleFileUpload.single("file"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file provided." })
+      }
+      const dir = req.body.directory || "/"
+      const safeName = req.file.originalname.replace(/[\x00-\x1f]/g, "")
+      const targetPath = (dir.endsWith("/") ? dir : dir + "/") + safeName
+      await pteroManage.uploadFile(req.ptero.uuid, req.ptero.node, targetPath, req.file.buffer)
+      res.json({ success: true, message: `Uploaded ${safeName}` })
+    } catch (error) {
+      next(error)
+    }
+  }
+)
+
+/* ═══════════════════════════════════════════════════════════════════════════ *
  *  5. SERVER.PROPERTIES                                                       *
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-router.get("/:serverId/properties", requireAuth, resolveServer, async (req, res, next) => {
+router.get("/:serverId/properties", requireAuth, resolveServer, requireInstalled, async (req, res, next) => {
   try {
     const content = await pteroManage.getFileContents(
       req.ptero.uuid,
@@ -308,6 +463,7 @@ router.put(
   "/:serverId/properties",
   requireAuth,
   resolveServer,
+  requireInstalled,
   validate(propsSchema),
   async (req, res, next) => {
     try {

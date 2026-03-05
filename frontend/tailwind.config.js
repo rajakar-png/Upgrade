@@ -4,11 +4,11 @@ export default {
     extend: {
       colors: {
         dark: {
-          950: "#0a0e1a",
-          900: "#0f1420",
-          800: "#151b2b",
-          700: "#1e2538",
-          600: "#2a3247"
+          950: "#07070a",
+          900: "#0a0a0d",
+          800: "#101013",
+          700: "#131316",
+          600: "#1a1a1f"
         },
         primary: {
           600: "#4f46e5",
@@ -35,10 +35,10 @@ export default {
         },
         // Ink – ultra-dark surface palette (backgrounds, modals)
         ink: {
-          950: "#0a0e1a",
-          900: "#0f1420",
-          800: "#151b2b",
-          700: "#1e2538"
+          950: "#07070a",
+          900: "#0a0a0d",
+          800: "#101013",
+          700: "#131316"
         },
         // Aurora – green/emerald tones for success & admin
         aurora: {
@@ -64,19 +64,19 @@ export default {
         }
       },
       fontFamily: {
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"]
+        sans: ["Nexa", "Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"]
       },
       boxShadow: {
-        'elegant': '0 10px 40px -10px rgba(99, 102, 241, 0.2)',
-        'card': '0 4px 20px rgba(0, 0, 0, 0.3)',
-        'glow': '0 0 30px rgba(99, 102, 241, 0.25)',
-        'glow-primary': '0 0 20px rgba(99, 102, 241, 0.35)',
-        'glow-accent': '0 0 20px rgba(139, 92, 246, 0.35)',
-        'glow-neon': '0 0 20px rgba(20, 184, 166, 0.35)',
-        'glow-emerald': '0 0 20px rgba(16, 185, 129, 0.35)',
-        'glow-red': '0 0 20px rgba(239, 68, 68, 0.35)',
-        '3d': '0 4px 0 rgba(0, 0, 0, 0.25), 0 8px 20px rgba(0, 0, 0, 0.15)',
-        '3d-sm': '0 2px 0 rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.1)'
+        'elegant': '0 10px 40px -10px rgba(99, 102, 241, 0.15)',
+        'card': '0 4px 20px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4)',
+        'glow': '0 0 30px rgba(99, 102, 241, 0.2)',
+        'glow-primary': '0 0 20px rgba(99, 102, 241, 0.3)',
+        'glow-accent': '0 0 20px rgba(139, 92, 246, 0.3)',
+        'glow-neon': '0 0 20px rgba(20, 184, 166, 0.3)',
+        'glow-emerald': '0 0 20px rgba(16, 185, 129, 0.3)',
+        'glow-red': '0 0 20px rgba(239, 68, 68, 0.3)',
+        '3d': '0 2px 0 rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2)',
+        '3d-sm': '0 1px 0 rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.15)'
       },
       backdropBlur: {
         'xs': '2px'

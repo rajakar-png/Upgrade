@@ -137,13 +137,13 @@ export default function PluginsTab({ serverId }) {
       {/* ── Type & Source toggles ───────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Type toggle */}
-        <div className="flex rounded-lg border border-slate-700/40 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-dark-700/40 overflow-hidden text-xs">
           <button
             onClick={() => setType("plugin")}
             className={`flex items-center gap-1.5 px-3 py-1.5 font-semibold transition ${
               type === "plugin"
-                ? "bg-neon-500/20 text-neon-200 border-r border-slate-700/40"
-                : "text-slate-400 hover:text-slate-200 border-r border-slate-700/40"
+                ? "bg-neon-500/20 text-neon-200 border-r border-dark-700/40"
+                : "text-slate-400 hover:text-slate-200 border-r border-dark-700/40"
             }`}
           >
             <Puzzle className="h-3.5 w-3.5" /> Plugins
@@ -161,10 +161,10 @@ export default function PluginsTab({ serverId }) {
         </div>
 
         {/* Source toggle */}
-        <div className="flex rounded-lg border border-slate-700/40 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-dark-700/40 overflow-hidden text-xs">
           <button
             onClick={() => setSource("all")}
-            className={`px-3 py-1.5 font-semibold transition border-r border-slate-700/40 ${
+            className={`px-3 py-1.5 font-semibold transition border-r border-dark-700/40 ${
               source === "all" ? "bg-neon-500/20 text-neon-200" : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -172,7 +172,7 @@ export default function PluginsTab({ serverId }) {
           </button>
           <button
             onClick={() => setSource("modrinth")}
-            className={`px-3 py-1.5 font-semibold transition border-r border-slate-700/40 ${
+            className={`px-3 py-1.5 font-semibold transition border-r border-dark-700/40 ${
               source === "modrinth" ? "bg-green-900/30 text-green-300" : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -202,7 +202,7 @@ export default function PluginsTab({ serverId }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={`Search ${type === "mod" ? "mods" : "plugins"} (e.g. ${type === "mod" ? "Sodium, OptiFine" : "EssentialsX, Vault"})…`}
-              className="w-full rounded-lg border border-slate-700/40 bg-ink-950 py-2 pl-9 pr-4 text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
+              className="w-full rounded-lg border border-dark-700/40 bg-ink-950 py-2 pl-9 pr-4 text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
             />
           </div>
           <button
@@ -220,7 +220,7 @@ export default function PluginsTab({ serverId }) {
             <h3 className="text-sm font-semibold text-slate-200 mb-2">
               {search.length >= 2 ? "Search Results" : `Featured ${type === "mod" ? "Mods" : "Plugins"}`}
             </h3>
-            <div className="divide-y divide-slate-800/40 rounded-lg border border-slate-800/40 max-h-[340px] overflow-y-auto">
+            <div className="divide-y divide-dark-700/40 rounded-lg border border-dark-700/40 max-h-[340px] overflow-y-auto">
               {results.map((p) => {
                 const key = p.source + "-" + (p.slug || p.id)
                 return (
@@ -272,7 +272,7 @@ export default function PluginsTab({ serverId }) {
             No {type === "mod" ? "mods" : "plugins"} installed yet.
           </p>
         ) : (
-          <div className="divide-y divide-slate-800/40 rounded-lg border border-slate-800/40">
+          <div className="divide-y divide-dark-700/40 rounded-lg border border-dark-700/40">
             {installedList.map((p) => (
               <div key={p.name} className="flex items-center justify-between px-3 py-2 group">
                 <div className="flex items-center gap-2 min-w-0">

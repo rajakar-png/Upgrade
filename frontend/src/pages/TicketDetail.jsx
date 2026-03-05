@@ -127,7 +127,7 @@ export default function TicketDetail() {
         </div>
         <button
           onClick={() => navigate("/support")}
-          className="button-3d h-10 px-4 rounded-lg border border-white/10 text-sm font-medium text-slate-300 hover:bg-white/[0.04] transition-all"
+          className="button-3d h-10 px-4 rounded-lg border border-dark-700/50 text-sm font-medium text-slate-300 hover:bg-dark-800/60 transition-all"
         >
           ← Back to tickets
         </button>

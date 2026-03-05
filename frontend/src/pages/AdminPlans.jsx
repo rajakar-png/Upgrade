@@ -24,10 +24,10 @@ const DURATION_TYPES = [
 ]
 
 function makeCoinDefault() {
-  return { name: "", icon: "Package", ram: "", cpu: "", storage: "", coin_price: "", duration_type: "days", duration_days: "", limited_stock: false, stock_amount: "", one_time_purchase: false, backup_count: 0, extra_ports: 0 }
+  return { name: "", icon: "Package", ram: "", cpu: "", storage: "", coin_price: "", duration_type: "days", duration_days: "", limited_stock: false, stock_amount: "", one_time_purchase: false, backup_count: 0, extra_ports: 0, swap: 0, category: "minecraft" }
 }
 function makeRealDefault() {
-  return { name: "", icon: "Server", ram: "", cpu: "", storage: "", price: "", duration_type: "days", duration_days: "", limited_stock: false, stock_amount: "", backup_count: 0, extra_ports: 0 }
+  return { name: "", icon: "Server", ram: "", cpu: "", storage: "", price: "", duration_type: "days", duration_days: "", limited_stock: false, stock_amount: "", backup_count: 0, extra_ports: 0, swap: 0, category: "minecraft" }
 }
 
 export default function AdminPlans() {
@@ -79,17 +79,23 @@ export default function AdminPlans() {
       const planData = {
         name: form.name,
         icon: form.icon || (type === "coin" ? "Package" : "Server"),
-        ram: parseInt(form.ram),
-        cpu: parseInt(form.cpu),
-        storage: parseInt(form.storage),
-        [type === "coin" ? "coin_price" : "price"]: parseFloat(form[type === "coin" ? "coin_price" : "price"]),
+        ram: parseFloat(form.ram) || 0,
+        cpu: parseFloat(form.cpu) || 0,
+        storage: parseFloat(form.storage) || 0,
+        [type === "coin" ? "coin_price" : "price"]: parseFloat(form[type === "coin" ? "coin_price" : "price"]) || 0,
         duration_type: form.duration_type,
-        duration_days: parseInt(form.duration_days),
+        duration_days: parseInt(form.duration_days) || 0,
         limited_stock: Boolean(form.limited_stock),
-        stock_amount: form.limited_stock ? parseInt(form.stock_amount) : null
+        stock_amount: form.limited_stock ? (parseInt(form.stock_amount) || 0) : null
+      }
+      if (type === "coin") {
+        planData.initial_price = parseInt(form.initial_price) || 0
+        planData.renewal_price = parseInt(form.renewal_price) || 0
       }
       planData.backup_count = parseInt(form.backup_count) || 0
       planData.extra_ports = parseInt(form.extra_ports) || 0
+      planData.swap = parseInt(form.swap) || 0
+      planData.category = form.category || "minecraft"
       if (type === "coin") planData.one_time_purchase = Boolean(form.one_time_purchase)
 
       if (mode === "create") {
@@ -154,7 +160,7 @@ export default function AdminPlans() {
         subtitle="Create and manage coin plans and real-money plans for your users."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               ← Admin
             </button>
           </div>
@@ -162,7 +168,7 @@ export default function AdminPlans() {
       />
 
       {/* Tabs */}
-      <div className="flex gap-2 rounded-xl border border-slate-800/60 bg-ink-900/50 p-1.5 w-fit">
+      <div className="flex gap-2 rounded-xl border border-dark-700/60 bg-ink-900/50 p-1.5 w-fit">
         {["coin", "real"].map((t) => (
           <button
             key={t}
@@ -191,7 +197,7 @@ export default function AdminPlans() {
         {plans.map((plan) => {
           const Icon = iconMap[plan.icon] || Package
           return (
-            <div key={plan.id} className="glass rounded-2xl border border-slate-700/40 px-5 py-4">
+            <div key={plan.id} className="glass rounded-2xl border border-dark-700/40 px-5 py-4">
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neon-900/20 text-neon-300">
                   <Icon className="h-5 w-5" />
@@ -202,6 +208,9 @@ export default function AdminPlans() {
                     {plan.ram}GB RAM · {plan.cpu} CPU · {plan.storage}GB SSD
                   </p>
                   <p className="text-xs text-neon-300 mt-1">
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase mr-1.5 ${plan.category === "bot" ? "bg-neon-500/20 text-neon-300" : "bg-primary-500/20 text-primary-300"}`}>
+                      {plan.category === "bot" ? "Bot" : "MC"}
+                    </span>
                     {tab === "coin" ? `${plan.coin_price} coins` : `₹${plan.price}`}
                     {" · "}
                     {plan.duration_type === "lifetime" ? "Lifetime" : `${plan.duration_days} days`}
@@ -231,7 +240,7 @@ export default function AdminPlans() {
         })}
 
         {plans.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-slate-700/40 py-12 text-center">
+          <div className="rounded-2xl border border-dashed border-dark-700/40 py-12 text-center">
             <p className="text-slate-400 text-sm">No {tab === "coin" ? "coin" : "real money"} plans yet.</p>
             <button onClick={() => openModal(tab, "create")} className="mt-3 text-xs text-neon-400 hover:text-neon-300">
               Create your first plan →
@@ -243,7 +252,7 @@ export default function AdminPlans() {
       {/* Plan Modal */}
       {modal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-800/60 bg-ink-900 p-6">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-dark-700/60 bg-ink-900 p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-100">
                 {modal.mode === "create" ? "Create" : "Edit"} {modal.type === "coin" ? "Coin" : "Real Money"} Plan
@@ -273,6 +282,23 @@ export default function AdminPlans() {
                 />
               </div>
 
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Category</label>
+                <div className="flex gap-2">
+                  {[{ value: "minecraft", label: "Minecraft" }, { value: "bot", label: "Bot Hosting" }].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setForm({ ...form, category: value })}
+                      className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-semibold transition ${form.category === value ? (value === "bot" ? "border-neon-500 bg-neon-900/30 text-neon-300" : "border-primary-500 bg-primary-900/30 text-primary-300") : "border-dark-700/50 bg-ink-950/60 text-slate-400 hover:border-dark-600 hover:text-slate-200"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Icon */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Icon</label>
@@ -285,7 +311,7 @@ export default function AdminPlans() {
                         type="button"
                         onClick={() => setForm({ ...form, icon: name })}
                         title={name}
-                        className={`flex items-center justify-center rounded-lg border p-2.5 transition ${form.icon === name ? "border-neon-500 bg-neon-900/30 text-neon-300" : "border-slate-700/50 bg-ink-950/60 text-slate-400 hover:border-slate-600 hover:text-slate-200"}`}
+                        className={`flex items-center justify-center rounded-lg border p-2.5 transition ${form.icon === name ? "border-neon-500 bg-neon-900/30 text-neon-300" : "border-dark-700/50 bg-ink-950/60 text-slate-400 hover:border-dark-600 hover:text-slate-200"}`}
                       >
                         <Ic className="h-5 w-5" />
                       </button>
@@ -296,14 +322,14 @@ export default function AdminPlans() {
 
               {/* Resources */}
               <div className="grid grid-cols-3 gap-4">
-                {[{ key: "ram", label: "RAM (GB)", ph: "4" }, { key: "cpu", label: "CPU Cores", ph: "2" }, { key: "storage", label: "Storage (GB)", ph: "20" }].map(({ key, label, ph }) => (
+                {[{ key: "ram", label: "RAM (GB)", ph: "0.5", step: "0.1", min: "0.5" }, { key: "cpu", label: "CPU Cores", ph: "0.5", step: "0.1", min: "0.5" }, { key: "storage", label: "Storage (GB)", ph: "5", step: "0.5", min: "0.5" }].map(({ key, label, ph, step, min }) => (
                   <div key={key}>
                     <label htmlFor={`plan-${key}`} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
                     <input
                       id={`plan-${key}`}
                       name={key}
-                      type="number" min="1" required
-                      value={form[key] || ""}
+                      type="number" min={min} step={step} required
+                      value={form[key] ?? ""}
                       onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                       placeholder={ph}
                       className="input w-full"
@@ -313,20 +339,30 @@ export default function AdminPlans() {
               </div>
 
               {/* Price */}
-              <div>
-                <label htmlFor="plan-price" className="block text-sm font-medium text-slate-300 mb-1">
-                  {modal.type === "coin" ? "Coin Price" : "Price (₹)"}
-                </label>
-                <input
-                  id="plan-price"
-                  name="planPrice"
-                  type="number" min="0" step="0.01" required
-                  value={form[modal.type === "coin" ? "coin_price" : "price"] || ""}
-                  onChange={(e) => setForm({ ...form, [modal.type === "coin" ? "coin_price" : "price"]: e.target.value })}
-                  placeholder={modal.type === "coin" ? "500" : "299"}
-                  className="input w-full"
-                />
-              </div>
+              {modal.type === "coin" ? (
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="plan-price" className="block text-sm font-medium text-slate-300 mb-1">Coin Price</label>
+                    <input id="plan-price" name="planPrice" type="number" min="0" step="1" required value={form.coin_price ?? ""} onChange={(e) => setForm({ ...form, coin_price: e.target.value })} placeholder="500" className="input w-full" />
+                    <p className="mt-1 text-[10px] text-slate-600">Total coin cost (0 = free first purchase)</p>
+                  </div>
+                  <div>
+                    <label htmlFor="plan-initial-price" className="block text-sm font-medium text-slate-300 mb-1">Initial Price</label>
+                    <input id="plan-initial-price" name="initialPrice" type="number" min="0" step="1" value={form.initial_price ?? 0} onChange={(e) => setForm({ ...form, initial_price: e.target.value })} placeholder="0" className="input w-full" />
+                    <p className="mt-1 text-[10px] text-slate-600">First purchase price (0 = free)</p>
+                  </div>
+                  <div>
+                    <label htmlFor="plan-renewal-price" className="block text-sm font-medium text-slate-300 mb-1">Renewal Price</label>
+                    <input id="plan-renewal-price" name="renewalPrice" type="number" min="0" step="1" value={form.renewal_price ?? 0} onChange={(e) => setForm({ ...form, renewal_price: e.target.value })} placeholder="500" className="input w-full" />
+                    <p className="mt-1 text-[10px] text-slate-600">Auto-renewal cost in coins</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="plan-price" className="block text-sm font-medium text-slate-300 mb-1">Price (₹)</label>
+                  <input id="plan-price" name="planPrice" type="number" min="0" step="0.01" required value={form.price ?? ""} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="299" className="input w-full" />
+                </div>
+              )}
 
               {/* Duration */}
               <div className="grid grid-cols-2 gap-4">
@@ -342,7 +378,7 @@ export default function AdminPlans() {
                     id="plan-duration-days"
                     name="durationDays"
                     type="number" min="1" required
-                    value={form.duration_days || ""}
+                    value={form.duration_days ?? ""}
                     onChange={(e) => setForm({ ...form, duration_days: e.target.value })}
                     placeholder="30"
                     className="input w-full"
@@ -353,16 +389,16 @@ export default function AdminPlans() {
               {/* Stock */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 cursor-pointer">
-                  <input type="checkbox" checked={Boolean(form.limited_stock)} onChange={(e) => setForm({ ...form, limited_stock: e.target.checked })} className="rounded border-slate-700/50" />
+                  <input type="checkbox" checked={Boolean(form.limited_stock)} onChange={(e) => setForm({ ...form, limited_stock: e.target.checked })} className="rounded border-dark-700/50" />
                   Limited Stock
                 </label>
                 {form.limited_stock && (
-                  <input type="number" min="1" value={form.stock_amount || ""} onChange={(e) => setForm({ ...form, stock_amount: e.target.value })} placeholder="Stock amount" className="input w-full" />
+                  <input type="number" min="0" value={form.stock_amount ?? ""} onChange={(e) => setForm({ ...form, stock_amount: e.target.value })} placeholder="Stock amount" className="input w-full" />
                 )}
               </div>
 
               {/* Backups & Extra Ports */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="plan-backup-count" className="block text-sm font-medium text-slate-300 mb-1">Backup Limit</label>
                   <input
@@ -389,12 +425,25 @@ export default function AdminPlans() {
                   />
                   <p className="mt-1 text-[10px] text-slate-600">Additional port allocations beyond the default (0 = no extras)</p>
                 </div>
+                <div>
+                  <label htmlFor="plan-swap" className="block text-sm font-medium text-slate-300 mb-1">Swap (MB)</label>
+                  <input
+                    id="plan-swap"
+                    name="swap"
+                    type="number" min="0" step="64"
+                    value={form.swap ?? 0}
+                    onChange={(e) => setForm({ ...form, swap: e.target.value })}
+                    placeholder="0"
+                    className="input w-full"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-600">Virtual memory swap in MB (0 = disabled, e.g. 256, 512)</p>
+                </div>
               </div>
 
               {/* One-time (coin only) */}
               {modal.type === "coin" && (
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-300 cursor-pointer">
-                  <input type="checkbox" checked={Boolean(form.one_time_purchase)} onChange={(e) => setForm({ ...form, one_time_purchase: e.target.checked })} className="rounded border-slate-700/50" />
+                  <input type="checkbox" checked={Boolean(form.one_time_purchase)} onChange={(e) => setForm({ ...form, one_time_purchase: e.target.checked })} className="rounded border-dark-700/50" />
                   One-time purchase per user
                 </label>
               )}
@@ -407,7 +456,7 @@ export default function AdminPlans() {
                 >
                   {modal.mode === "create" ? "Create Plan" : "Save Changes"}
                 </ButtonSpinner>
-                <button type="button" onClick={closeModal} className="rounded-xl border border-slate-700/60 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-800/50">
+                <button type="button" onClick={closeModal} className="rounded-xl border border-dark-700/60 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-800/50">
                   Cancel
                 </button>
               </div>

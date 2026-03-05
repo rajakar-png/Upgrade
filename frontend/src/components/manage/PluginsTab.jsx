@@ -206,7 +206,7 @@ export default function PluginsTab({ serverId }) {
                 className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-all ${
                   type === pt.id
                     ? "border-neon-500/50 bg-neon-500/10 text-neon-200"
-                    : "border-slate-700/40 bg-slate-900/20 text-slate-400 hover:border-slate-600 hover:text-slate-300"
+                    : "border-dark-700/40 bg-slate-900/20 text-slate-400 hover:border-dark-600 hover:text-slate-300"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -220,10 +220,10 @@ export default function PluginsTab({ serverId }) {
       {/* Source Filter */}
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium text-slate-400">Source:</span>
-        <div className="flex rounded-lg border border-slate-700/40 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-dark-700/40 overflow-hidden text-xs">
           <button
             onClick={() => setSource("all")}
-            className={`px-3 py-1.5 font-semibold transition border-r border-slate-700/40 ${
+            className={`px-3 py-1.5 font-semibold transition border-r border-dark-700/40 ${
               source === "all" ? "bg-neon-500/20 text-neon-200" : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -231,7 +231,7 @@ export default function PluginsTab({ serverId }) {
           </button>
           <button
             onClick={() => setSource("modrinth")}
-            className={`px-3 py-1.5 font-semibold transition border-r border-slate-700/40 ${
+            className={`px-3 py-1.5 font-semibold transition border-r border-dark-700/40 ${
               source === "modrinth" ? "bg-green-900/30 text-green-300" : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -259,7 +259,7 @@ export default function PluginsTab({ serverId }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={`Search ${currentTypeConfig?.label.toLowerCase() || "content"}...`}
-              className="w-full rounded-lg border border-slate-700/40 bg-ink-950 py-2 pl-9 pr-4 text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
+              className="w-full rounded-lg border border-dark-700/40 bg-ink-950 py-2 pl-9 pr-4 text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
             />
           </div>
           <button
@@ -286,7 +286,7 @@ export default function PluginsTab({ serverId }) {
                   <div
                     key={key}
                     onClick={() => handleSelectProject(p)}
-                    className="group cursor-pointer rounded-lg border border-slate-800/40 bg-slate-900/20 p-3 hover:border-slate-700/60 hover:bg-slate-900/40 transition-all"
+                    className="group cursor-pointer rounded-lg border border-dark-700/40 bg-slate-900/20 p-3 hover:border-dark-700/60 hover:bg-slate-900/40 transition-all"
                   >
                     <div className="flex gap-3">
                       {p.icon_url ? (
@@ -325,7 +325,7 @@ export default function PluginsTab({ serverId }) {
                   <button
                     onClick={() => setPage((p) => Math.max(0, p - 1))}
                     disabled={page === 0 || searching}
-                    className="flex items-center gap-1 rounded-lg border border-slate-700/40 bg-slate-900/30 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800/50 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 rounded-lg border border-dark-700/40 bg-slate-900/30 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800/50 transition disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="h-3.5 w-3.5" /> Prev
                   </button>
@@ -335,7 +335,7 @@ export default function PluginsTab({ serverId }) {
                   <button
                     onClick={() => setPage((p) => p + 1)}
                     disabled={(page + 1) * ITEMS_PER_PAGE >= totalResults || searching}
-                    className="flex items-center gap-1 rounded-lg border border-slate-700/40 bg-slate-900/30 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800/50 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 rounded-lg border border-dark-700/40 bg-slate-900/30 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800/50 transition disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     Next <ChevronRight className="h-3.5 w-3.5" />
                   </button>
@@ -361,7 +361,7 @@ export default function PluginsTab({ serverId }) {
               No {type === "mod" ? "mods" : "plugins"} installed yet.
             </p>
           ) : (
-            <div className="divide-y divide-slate-800/40 rounded-lg border border-slate-800/40">
+            <div className="divide-y divide-dark-700/40 rounded-lg border border-dark-700/40">
               {installedList.map((p) => (
                 <div key={p.name} className="flex items-center justify-between px-4 py-3 group">
                   <div className="flex items-center gap-3 min-w-0">

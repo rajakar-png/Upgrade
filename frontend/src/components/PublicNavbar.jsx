@@ -5,6 +5,7 @@ import Logo from "./Logo.jsx"
 
 const NAV_LINKS = [
   { to: "/", label: "Home" },
+  { to: "/pricing", label: "Pricing" },
   { to: "/features", label: "Features" },
   { to: "/locations", label: "Locations" },
   { to: "/about", label: "About" },
@@ -32,8 +33,8 @@ export default function PublicNavbar() {
               to={to}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 pathname === to
-                  ? "text-white bg-white/10"
-                  : "text-slate-400 hover:text-white hover:bg-white/5"
+                  ? "text-white bg-dark-800/60"
+                  : "text-slate-400 hover:text-white hover:bg-dark-800/50"
               }`}
             >
               {label}
@@ -71,7 +72,7 @@ export default function PublicNavbar() {
         {/* Hamburger — visible on mobile only */}
         <button
           onClick={() => setMobileOpen((o) => !o)}
-          className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+          className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-dark-800/50 transition-colors"
           aria-label="Toggle menu"
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -80,7 +81,7 @@ export default function PublicNavbar() {
 
       {/* Mobile dropdown */}
       {mobileOpen && (
-        <div className="md:hidden mt-3 rounded-xl border border-white/10 bg-dark-800 p-4 shadow-xl">
+        <div className="md:hidden mt-3 rounded-xl border border-dark-700/50 bg-dark-800 p-4 shadow-xl">
           <nav className="flex flex-col gap-1 mb-4">
             {NAV_LINKS.map(({ to, label }) => (
               <Link
@@ -89,15 +90,15 @@ export default function PublicNavbar() {
                 onClick={() => setMobileOpen(false)}
                 className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   pathname === to
-                    ? "bg-white/10 text-white"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                    ? "bg-dark-800/60 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-dark-800/50"
                 }`}
               >
                 {label}
               </Link>
             ))}
           </nav>
-          <div className="border-t border-white/10 pt-4 flex flex-col gap-2">
+          <div className="border-t border-dark-700/50 pt-4 flex flex-col gap-2">
             {isLoggedIn ? (
               <Link
                 to="/dashboard"
@@ -111,7 +112,7 @@ export default function PublicNavbar() {
                 <Link
                   to="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="px-4 py-2.5 rounded-lg border border-white/10 text-white text-sm font-medium text-center hover:bg-white/5 transition-colors"
+                  className="px-4 py-2.5 rounded-lg border border-dark-700/50 text-white text-sm font-medium text-center hover:bg-dark-800/60 transition-colors"
                 >
                   Sign in
                 </Link>

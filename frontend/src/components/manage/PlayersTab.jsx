@@ -11,7 +11,7 @@ const QUICK_ACTIONS = [
   { id: "kick",   label: "Kick",   icon: UserX,     cls: "text-orange-300 border-orange-700/40 bg-orange-900/15 hover:bg-orange-900/30", confirm: true },
   { id: "ban",    label: "Ban",    icon: Gavel,     cls: "text-red-300 border-red-700/40 bg-red-900/15 hover:bg-red-900/30", confirm: true },
   { id: "op",     label: "OP",     icon: Shield,    cls: "text-neon-200 border-neon-400/40 bg-neon-500/15 hover:bg-neon-500/25" },
-  { id: "deop",   label: "De-OP",  icon: ShieldOff, cls: "text-slate-300 border-slate-700/40 hover:bg-slate-800/50" },
+  { id: "deop",   label: "De-OP",  icon: ShieldOff, cls: "text-slate-300 border-dark-700/40 hover:bg-slate-800/50" },
   { id: "kill_player", label: "Kill", icon: Skull,  cls: "text-red-300 border-red-700/40 bg-red-900/15 hover:bg-red-900/30" },
 ]
 
@@ -140,7 +140,7 @@ export default function PlayersTab({ serverId }) {
         <button
           onClick={() => fetchPlayers(true)}
           disabled={refreshing}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-700/40 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-lg border border-dark-700/40 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -178,7 +178,7 @@ export default function PlayersTab({ serverId }) {
                 className={`group rounded-xl border p-3 cursor-pointer transition-all ${
                   isSelected
                     ? "border-neon-500/40 bg-neon-500/5 ring-1 ring-neon-500/20"
-                    : "border-slate-800/50 bg-slate-900/40 hover:border-slate-700/60 hover:bg-slate-900/60"
+                    : "border-dark-700/50 bg-slate-900/40 hover:border-dark-700/60 hover:bg-slate-900/60"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -197,7 +197,7 @@ export default function PlayersTab({ serverId }) {
 
                 {/* Quick actions — shown when selected */}
                 {isSelected && (
-                  <div className="mt-3 pt-3 border-t border-slate-800/40 flex flex-wrap gap-1.5">
+                  <div className="mt-3 pt-3 border-t border-dark-700/40 flex flex-wrap gap-1.5">
                     {QUICK_ACTIONS.map((a) => {
                       const Icon = a.icon
                       const key = `${a.id}-${name}`
@@ -245,7 +245,7 @@ export default function PlayersTab({ serverId }) {
       )}
 
       {/* ── Advanced Actions Panel ─────────────────────────────────────── */}
-      <div className="rounded-xl border border-slate-800/50 bg-slate-900/30 overflow-hidden">
+      <div className="rounded-xl border border-dark-700/50 bg-slate-900/30 overflow-hidden">
         <button
           onClick={() => setShowActions(!showActions)}
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-800/30 transition"
@@ -258,7 +258,7 @@ export default function PlayersTab({ serverId }) {
         </button>
 
         {showActions && (
-          <div className="border-t border-slate-800/40 p-4 space-y-4">
+          <div className="border-t border-dark-700/40 p-4 space-y-4">
             {/* Target player */}
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1.5">Target Player</label>
@@ -268,7 +268,7 @@ export default function PlayersTab({ serverId }) {
                 onChange={(e) => setManualPlayer(e.target.value)}
                 placeholder="Enter player name (online or offline)"
                 autoComplete="off"
-                className="w-full rounded-lg border border-slate-700/40 bg-ink-950 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
+                className="w-full rounded-lg border border-dark-700/40 bg-ink-950 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
               />
               {/* Quick fill from online players */}
               {players.length > 0 && (
@@ -280,7 +280,7 @@ export default function PlayersTab({ serverId }) {
                       className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] border transition ${
                         manualPlayer === name
                           ? "border-neon-400/40 bg-neon-500/10 text-neon-200"
-                          : "border-slate-700/30 text-slate-500 hover:text-slate-300 hover:bg-slate-800/30"
+                          : "border-dark-700/30 text-slate-500 hover:text-slate-300 hover:bg-slate-800/30"
                       }`}
                     >
                       <img src={SKIN_URL(name)} alt="" className="h-3 w-3 rounded-sm" />
@@ -305,7 +305,7 @@ export default function PlayersTab({ serverId }) {
                       className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition ${
                         active
                           ? "border-neon-400/40 bg-neon-500/10 text-neon-200"
-                          : "border-slate-700/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                          : "border-dark-700/40 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                       }`}
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -326,7 +326,7 @@ export default function PlayersTab({ serverId }) {
                   onChange={(e) => setActionArgs(e.target.value)}
                   placeholder={selectedAction.placeholder}
                   autoComplete="off"
-                  className="w-full rounded-lg border border-slate-700/40 bg-ink-950 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
+                  className="w-full rounded-lg border border-dark-700/40 bg-ink-950 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none"
                 />
               </div>
             )}

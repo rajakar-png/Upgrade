@@ -40,7 +40,7 @@ export default function ConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative w-full max-w-md rounded-2xl bg-dark-800/90 backdrop-blur-xl border border-white/10 p-8 shadow-2xl animate-slide-up"
+        className="relative w-full max-w-md rounded-2xl bg-dark-800/90 backdrop-blur-xl border border-dark-700/50 p-8 shadow-2xl animate-slide-up"
       >
         <button
           onClick={onClose}
@@ -60,7 +60,7 @@ export default function ConfirmModal({
             </h2>
             <p className="text-sm text-slate-400">{message}</p>
             {detail && (
-              <p className="mt-2 rounded-lg border border-white/[0.06] bg-dark-900/60 px-3 py-2 text-xs text-slate-500">
+              <p className="mt-2 rounded-lg border border-dark-700/40 bg-dark-900/60 px-3 py-2 text-xs text-slate-500">
                 {detail}
               </p>
             )}
@@ -71,7 +71,7 @@ export default function ConfirmModal({
           <button
             onClick={onClose}
             disabled={loading}
-            className="button-3d flex-1 rounded-xl border border-slate-700/60 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800/30 disabled:opacity-50"
+            className="button-3d flex-1 rounded-xl border border-dark-700/60 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800/30 disabled:opacity-50"
           >
             {cancelLabel}
           </button>

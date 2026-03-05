@@ -74,7 +74,7 @@ const KB = [
 function Accordion({ item }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="border-b border-slate-800/60 last:border-0">
+    <div className="border-b border-dark-700/60 last:border-0">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between py-4 text-left text-sm font-medium text-slate-200 hover:text-slate-100 transition-colors"
@@ -140,7 +140,7 @@ export default function Knowledgebase() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search articles…"
-              className="w-full rounded-xl border border-slate-700/60 bg-ink-900/60 py-2.5 pl-9 pr-4 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30"
+              className="w-full rounded-xl border border-dark-700/60 bg-ink-900/60 py-2.5 pl-9 pr-4 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30"
             />
           </div>
         </section>
@@ -151,7 +151,7 @@ export default function Knowledgebase() {
 
         <div className="space-y-6">
           {filtered.map((section) => (
-            <div key={section.category} className="glass rounded-2xl border border-slate-700/40 px-6 py-2 shadow-soft">
+            <div key={section.category} className="glass rounded-2xl border border-dark-700/40 px-6 py-2 shadow-soft">
               <h2 className="pt-5 pb-2 text-base font-semibold text-slate-300">{section.category}</h2>
               {section.items.map((item) => (
                 <Accordion key={item.q} item={item} />
@@ -160,7 +160,7 @@ export default function Knowledgebase() {
           ))}
         </div>
 
-        <div className="mt-10 text-center glass rounded-2xl border border-slate-700/40 p-8 shadow-soft space-y-3">
+        <div className="mt-10 text-center glass rounded-2xl border border-dark-700/40 p-8 shadow-soft space-y-3">
           <p className="text-slate-300 font-medium">Can&apos;t find what you need?</p>
           <p className="text-sm text-slate-400">Open a support ticket and our team will help within a few hours.</p>
           <Link
@@ -171,7 +171,7 @@ export default function Knowledgebase() {
           </Link>
         </div>
 
-        <footer className="mt-12 border-t border-slate-800/60 pt-6 text-center text-xs text-slate-500">
+        <footer className="mt-12 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">
           © {new Date().getFullYear()} AstraNodes. All rights reserved.
         </footer>
       </div>

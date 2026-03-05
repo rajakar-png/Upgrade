@@ -83,10 +83,10 @@ export default function AdminAbout() {
         subtitle="Edit the content shown on the public /about page."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/about")} className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/about")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               View Page ↗
             </button>
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-slate-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
               ← Admin
             </button>
           </div>
@@ -94,7 +94,7 @@ export default function AdminAbout() {
       />
 
       {/* Hero Text */}
-      <div className="glass rounded-2xl border border-slate-700/40 p-5 space-y-4">
+      <div className="glass rounded-2xl border border-dark-700/40 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-200">Hero Section</h3>
         <div>
           <label htmlFor="about-heading" className="text-xs uppercase tracking-widest text-slate-500">Heading</label>
@@ -107,7 +107,7 @@ export default function AdminAbout() {
       </div>
 
       {/* Stats */}
-      <div className="glass rounded-2xl border border-slate-700/40 p-5 space-y-4">
+      <div className="glass rounded-2xl border border-dark-700/40 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-200">Stats Cards</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
@@ -125,7 +125,7 @@ export default function AdminAbout() {
       </div>
 
       {/* Story */}
-      <div className="glass rounded-2xl border border-slate-700/40 p-5 space-y-4">
+      <div className="glass rounded-2xl border border-dark-700/40 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-200">Story Section</h3>
         <div>
           <label htmlFor="about-story-title" className="text-xs uppercase tracking-widest text-slate-500">Section Title</label>
@@ -142,7 +142,7 @@ export default function AdminAbout() {
       </div>
 
       {/* Values */}
-      <div className="glass rounded-2xl border border-slate-700/40 p-5 space-y-4">
+      <div className="glass rounded-2xl border border-dark-700/40 p-5 space-y-4">
         <h3 className="text-sm font-semibold text-slate-200">Values Grid</h3>
         <div className="space-y-3">
           {(data.values || []).map((v, idx) => (

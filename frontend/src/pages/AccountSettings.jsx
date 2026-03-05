@@ -51,7 +51,7 @@ function ResetPasswordModal({ open, onClose }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md rounded-2xl bg-dark-800/90 backdrop-blur-xl border border-white/10 p-8 shadow-2xl animate-slide-up">
+      <div className="relative w-full max-w-md rounded-2xl bg-dark-800/90 backdrop-blur-xl border border-dark-700/50 p-8 shadow-2xl animate-slide-up">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
@@ -113,7 +113,7 @@ function ResetPasswordModal({ open, onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="button-3d flex-1 rounded-xl border border-slate-700/60 py-2.5 text-sm font-semibold text-slate-300"
+              className="button-3d flex-1 rounded-xl border border-dark-700/60 py-2.5 text-sm font-semibold text-slate-300"
             >
               Cancel
             </button>
@@ -172,9 +172,9 @@ export default function AccountSettings() {
         subtitle="Manage your profile and security settings."
       />
 
-      <div className="card-3d rounded-2xl bg-dark-800/60 backdrop-blur-sm border border-white/10 p-6 space-y-4 max-w-lg">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-dark-700/50">
+      <div className="card-3d rounded-2xl bg-dark-800/40 backdrop-blur-sm border border-dark-700/50 p-6 space-y-4 max-w-lg">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-dark-700/50 bg-dark-700/50">
             <User className="h-5 w-5 text-slate-300" />
           </div>
           <h3 className="text-base font-semibold text-white">Profile</h3>
@@ -192,7 +192,7 @@ export default function AccountSettings() {
       </div>
 
       {!user?.oauth_provider && (
-      <div className="card-3d rounded-2xl bg-dark-800/60 backdrop-blur-sm border border-white/10 p-6 space-y-4 max-w-lg">
+      <div className="card-3d rounded-2xl bg-dark-800/40 backdrop-blur-sm border border-dark-700/50 p-6 space-y-4 max-w-lg">
         <div className="flex items-center gap-3 mb-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary-500/30 bg-primary-500/10">
             <Lock className="h-5 w-5 text-primary-400" />
@@ -212,9 +212,9 @@ export default function AccountSettings() {
       )}
 
       {user?.oauth_provider && (
-      <div className="card-3d rounded-2xl bg-dark-800/60 backdrop-blur-sm border border-white/10 p-6 space-y-4 max-w-lg">
+      <div className="card-3d rounded-2xl bg-dark-800/40 backdrop-blur-sm border border-dark-700/50 p-6 space-y-4 max-w-lg">
         <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-dark-700/50">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-dark-700/50 bg-dark-700/50">
             <Lock className="h-5 w-5 text-slate-400" />
           </div>
           <h3 className="text-base font-semibold text-white">Security</h3>
