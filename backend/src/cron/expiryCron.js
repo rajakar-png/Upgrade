@@ -9,12 +9,16 @@ import { pterodactyl } from "../services/pterodactyl.js"
 // (re-exported for backward compat with servers.js getLimits import)
 
 export function getLimits(plan) {
-  // Convert GB to MB for Pterodactyl (plan.ram and plan.storage are in GB)
-  const memory = Math.round(plan.ram * 1024)   // GB to MB (supports fractional e.g. 0.5 GB = 512 MB)
+  // Convert GB to MB for Pterodactyl (plan.ram and plan.storage are in GB).
+  // plan.ram is treated as TOTAL RAM budget (memory + swap).
+  const totalMemoryMb = Math.round(plan.ram * 1024) // supports fractional GB (e.g. 0.5 GB = 512 MB)
   const disk = Math.round(plan.storage * 1024)  // GB to MB
 
-  // Use the admin-configured swap value (in MB), defaulting to 0
-  const swap = plan.swap || 0
+  // Use the admin-configured swap value (in MB), defaulting to 0.
+  // Clamp swap so memory never goes negative.
+  const configuredSwap = Number(plan.swap) || 0
+  const swap = Math.max(0, Math.min(configuredSwap, totalMemoryMb))
+  const memory = totalMemoryMb - swap
 
   return {
     memory,

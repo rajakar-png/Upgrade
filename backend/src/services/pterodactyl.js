@@ -170,10 +170,17 @@ export const pterodactyl = {
 
   async createServer({ name, userId, limits, nodeId: preferredNodeId = null, software = "papermc", eggId = null, category = "minecraft" }) {
     try {
+      // Keep RAM budgeting consistent: total = memory + swap.
+      // If upstream sends unadjusted values, carve swap out of memory here.
+      const requestedMemory = Number(limits.memory) || 0
+      const requestedSwap = Number(limits.swap) || 0
+      const normalizedSwap = Math.max(0, Math.min(requestedSwap, requestedMemory))
+      const normalizedMemory = Math.max(1, requestedMemory - normalizedSwap)
+
       // Dynamically select the best node based on real-time resource availability.
       // If the user picked a specific node (preferredNodeId), that node is used
       // directly (still verified for capacity + free allocations).
-      const { nodeId, allocationId } = await selectBestNode(limits.memory, limits.disk, preferredNodeId)
+      const { nodeId, allocationId } = await selectBestNode(normalizedMemory, limits.disk, preferredNodeId)
 
       // Use provided eggId or fall back to default from env
       const selectedEggId = eggId || env.PTERODACTYL_DEFAULT_EGG
@@ -197,7 +204,11 @@ export const pterodactyl = {
       console.log("[PTERODACTYL] Creating server:", {
         name,
         userId,
-        limits,
+        limits: {
+          ...limits,
+          memory: normalizedMemory,
+          swap: normalizedSwap
+        },
         node: nodeId,
         egg: selectedEggId,
         allocation: allocationId,
@@ -218,8 +229,8 @@ export const pterodactyl = {
         startup: startup,
         environment: environment,
         limits: {
-          memory: limits.memory,
-          swap: limits.swap || 0,
+          memory: normalizedMemory,
+          swap: normalizedSwap,
           disk: limits.disk,
           io: 500,
           cpu: Math.round(limits.cpu * 100)
