@@ -132,7 +132,7 @@ router.put("/:section", validate(sectionSchema), async (req, res, next) => {
 
     if (existing) {
       await runSync(
-        "UPDATE site_content SET content_json = ?, updated_at = datetime('now') WHERE section_name = ?",
+          "UPDATE site_content SET content_json = ?, updated_at = CURRENT_TIMESTAMP WHERE section_name = ?",
         [contentJson, section]
       )
     } else {

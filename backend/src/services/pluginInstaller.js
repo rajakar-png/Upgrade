@@ -46,6 +46,7 @@ const CURSEFORGE_API = "https://api.curseforge.com/v1"
 const CF_GAME_MINECRAFT = 432
 const CF_CLASS_PLUGINS = 5   // Bukkit Plugins
 const CF_CLASS_MODS = 6      // Mods (Forge / Fabric / NeoForge / Quilt)
+const CF_CLASS_MODPACKS = 4471 // Modpacks
 
 // Supported Modrinth project types
 const PROJECT_TYPES = {
@@ -72,13 +73,22 @@ function hasCurseForge() {
 async function searchModrinth(query, type = "plugin", limit = 15, offset = 0) {
   const projectType = PROJECT_TYPES[type] || PROJECT_TYPES.plugin
   const facets = [[projectType.facet]]
+  const normalizedQuery = String(query || "").trim()
+  const isTrending = normalizedQuery.length === 0
 
   const res = await axios.get(`${MODRINTH_API}/search`, {
-    params: { query, limit, offset, facets: JSON.stringify(facets), index: "relevance" },
+    params: {
+      query: isTrending ? "minecraft" : normalizedQuery,
+      limit,
+      offset,
+      facets: JSON.stringify(facets),
+      index: isTrending ? "downloads" : "relevance"
+    },
     timeout: 10000
   })
 
-  const hits = res.data.hits.map((p) => ({
+  const hits = res.data.hits
+    .map((p) => ({
     source: "modrinth",
     id: p.slug,
     slug: p.slug,
@@ -93,7 +103,9 @@ async function searchModrinth(query, type = "plugin", limit = 15, offset = 0) {
     date_created: p.date_created,
     date_modified: p.date_modified,
     project_type: p.project_type,
-    type
+    type,
+    client_side: p.client_side,
+    server_side: p.server_side
   }))
 
   return { results: hits, total: res.data.total_hits || hits.length, offset, limit }
@@ -147,13 +159,29 @@ async function installFromModrinth(serverUuid, nodeId, slug, type = "plugin", ve
   }
 
   // Find the primary file (support .jar and .zip for datapacks/resourcepacks)
-  const primaryFile =
-    target.files?.find((f) => f.primary) ||
-    target.files?.find((f) => f.filename.endsWith(".jar") || f.filename.endsWith(".zip")) ||
-    target.files?.[0]
+  const primaryFile = (() => {
+    // For modpacks, prefer server pack archives when available.
+    if (type === "modpack") {
+      return (
+        target.files?.find((f) => /server/i.test(String(f.filename || "")) && String(f.filename || "").endsWith(".zip")) ||
+        target.files?.find((f) => f.primary && String(f.filename || "").endsWith(".zip")) ||
+        target.files?.find((f) => String(f.filename || "").endsWith(".zip"))
+      )
+    }
+
+    return (
+      target.files?.find((f) => f.primary) ||
+      target.files?.find((f) => f.filename.endsWith(".jar") || f.filename.endsWith(".zip")) ||
+      target.files?.[0]
+    )
+  })()
 
   if (!primaryFile) {
     throw Object.assign(new Error("No downloadable file found in this version"), { statusCode: 404 })
+  }
+
+  if (type === "modpack" && !String(primaryFile.filename || "").endsWith(".zip")) {
+    throw Object.assign(new Error("No server-compatible modpack archive found for this version"), { statusCode: 400 })
   }
 
   // 2. Download the file (with SSRF protection and size limit)
@@ -196,7 +224,11 @@ async function installFromModrinth(serverUuid, nodeId, slug, type = "plugin", ve
 async function searchCurseForge(query, type = "plugin", limit = 15, offset = 0) {
   if (!hasCurseForge()) return { results: [], total: 0, offset, limit }
 
-  const classId = type === "mod" ? CF_CLASS_MODS : CF_CLASS_PLUGINS
+  const classId = type === "mod"
+    ? CF_CLASS_MODS
+    : type === "modpack"
+      ? CF_CLASS_MODPACKS
+      : CF_CLASS_PLUGINS
 
   const res = await axios.get(`${CURSEFORGE_API}/mods/search`, {
     headers: cfHeaders(),
@@ -212,7 +244,8 @@ async function searchCurseForge(query, type = "plugin", limit = 15, offset = 0) 
     timeout: 10000
   })
 
-  const items = (res.data?.data || []).map((m) => ({
+  const items = (res.data?.data || [])
+    .map((m) => ({
     source: "curseforge",
     id: String(m.id),
     slug: m.slug,
@@ -224,7 +257,8 @@ async function searchCurseForge(query, type = "plugin", limit = 15, offset = 0) 
     type,
     // Needed for install
     _cfId: m.id,
-    _cfLatestFileId: m.mainFileId || m.latestFiles?.[0]?.id
+    _cfLatestFileId: m.mainFileId || m.latestFiles?.[0]?.id,
+    server_pack_available: (m.latestFiles || []).some((f) => f?.isServerPack || f?.serverPackFileId || /server/i.test(String(f?.fileName || "")))
   }))
 
   return { results: items, total: res.data?.pagination?.totalCount || items.length, offset, limit }
@@ -250,13 +284,28 @@ async function installFromCurseForge(serverUuid, nodeId, projectId, fileId, type
   }
 
   // 2. Get download URL
-  const fileRes = await axios.get(`${CURSEFORGE_API}/mods/${projectId}/files/${fileId}`, {
+  let fileRes = await axios.get(`${CURSEFORGE_API}/mods/${projectId}/files/${fileId}`, {
     headers: cfHeaders(),
     timeout: 10000
   })
-  const fileData = fileRes.data?.data
+  let fileData = fileRes.data?.data
   if (!fileData) {
     throw Object.assign(new Error("File not found"), { statusCode: 404 })
+  }
+
+  // For modpacks, install server pack file if available.
+  if (type === "modpack") {
+    if (fileData.serverPackFileId) {
+      fileRes = await axios.get(`${CURSEFORGE_API}/mods/${projectId}/files/${fileData.serverPackFileId}`, {
+        headers: cfHeaders(),
+        timeout: 10000
+      })
+      fileData = fileRes.data?.data
+    }
+
+    if (!fileData?.isServerPack && !/server/i.test(String(fileData?.fileName || ""))) {
+      throw Object.assign(new Error("Selected CurseForge file does not provide a server pack"), { statusCode: 400 })
+    }
   }
 
   let downloadUrl = fileData.downloadUrl
@@ -278,7 +327,7 @@ async function installFromCurseForge(serverUuid, nodeId, projectId, fileId, type
   })
 
   // 4. Upload to correct directory (with filename sanitization)
-  const dir = type === "mod" ? "mods" : "plugins"
+  const dir = type === "mod" ? "mods" : type === "modpack" ? "modpacks" : "plugins"
   const safeFilename = sanitizeFilename(fileData.fileName)
   try { await pteroManage.createDirectory(serverUuid, nodeId, "/", dir) } catch { /* exists */ }
 
@@ -294,6 +343,38 @@ async function installFromCurseForge(serverUuid, nodeId, projectId, fileId, type
   }
 }
 
+async function getCurseForgeVersions(projectId, limit = 30) {
+  if (!hasCurseForge()) {
+    throw Object.assign(new Error("CurseForge API key not configured"), { statusCode: 400 })
+  }
+
+  const pageSize = Math.min(50, Math.max(1, Number(limit) || 30))
+  const filesRes = await axios.get(`${CURSEFORGE_API}/mods/${projectId}/files`, {
+    headers: cfHeaders(),
+    params: { pageSize, index: 0 },
+    timeout: 10000
+  })
+
+  const files = filesRes.data?.data || []
+  return files.map((f) => ({
+    id: String(f.id),
+    file_id: f.id,
+    version_number: f.displayName || String(f.id),
+    version_type: f.releaseType === 1 ? "release" : f.releaseType === 2 ? "beta" : "alpha",
+    name: f.displayName,
+    file_name: f.fileName || "",
+    is_server_pack: Boolean(f.isServerPack),
+    server_pack_file_id: f.serverPackFileId || null,
+    server_pack_available: Boolean(f.isServerPack || f.serverPackFileId || /server/i.test(String(f.fileName || ""))),
+    changelog: "",
+    date_published: f.fileDate,
+    downloads: f.downloadCount || 0,
+    game_versions: f.gameVersions || [],
+    loaders: [],
+    files: []
+  }))
+}
+
 /* ── Unified API ──────────────────────────────────────────────────────────── */
 
 export const pluginInstaller = {
@@ -306,19 +387,44 @@ export const pluginInstaller = {
    * @param {object} opts - { type: "plugin"|"mod"|"datapack"|"shader"|"resourcepack"|"modpack", source: "modrinth"|"curseforge"|"all", limit }
    */
   async search(query, { type = "plugin", source = "all", limit = 15, offset = 0 } = {}) {
+    const normalizedQuery = String(query || "").trim()
+
+    // Cross-source pagination must happen after merge; otherwise each provider
+    // paginates independently and the UI receives inconsistent pages.
+    if (source === "all") {
+      const combinedWindow = Math.min(100, offset + limit)
+      const responses = await Promise.all([
+        searchModrinth(normalizedQuery, type, combinedWindow, 0).catch(() => ({ results: [], total: 0 })),
+        hasCurseForge() && ["plugin", "mod", "modpack"].includes(type)
+          ? searchCurseForge(normalizedQuery || "minecraft", type, combinedWindow, 0).catch(() => ({ results: [], total: 0 }))
+          : Promise.resolve({ results: [], total: 0 })
+      ])
+
+      const merged = responses
+        .flatMap((r) => r.results)
+        .sort((a, b) => Number(b.downloads || 0) - Number(a.downloads || 0))
+
+      return {
+        results: merged.slice(offset, offset + limit),
+        total: responses.reduce((sum, r) => sum + Number(r.total || 0), 0),
+        offset,
+        limit
+      }
+    }
+
     const promises = []
 
-    if (source === "modrinth" || source === "all") {
-      promises.push(searchModrinth(query, type, limit, offset).catch(() => ({ results: [], total: 0 })))
+    if (source === "modrinth") {
+      promises.push(searchModrinth(normalizedQuery, type, limit, offset).catch(() => ({ results: [], total: 0 })))
     }
     // CurseForge only supports plugins and mods
-    if ((source === "curseforge" || source === "all") && hasCurseForge() && ["plugin", "mod"].includes(type)) {
-      promises.push(searchCurseForge(query, type, limit, offset).catch(() => ({ results: [], total: 0 })))
+    if (source === "curseforge" && hasCurseForge() && ["plugin", "mod", "modpack"].includes(type)) {
+      promises.push(searchCurseForge(normalizedQuery || "minecraft", type, limit, offset).catch(() => ({ results: [], total: 0 })))
     }
 
     const responses = await Promise.all(promises)
     const results = responses.flatMap((r) => r.results)
-    const total = Math.max(...responses.map((r) => r.total), 0)
+    const total = responses.reduce((sum, r) => sum + Number(r.total || 0), 0)
     return { results, total, offset, limit }
   },
 
@@ -328,6 +434,10 @@ export const pluginInstaller = {
    */
   async getVersions(slug) {
     return getModrinthVersions(slug)
+  },
+
+  async getCurseForgeVersions(projectId, limit = 30) {
+    return getCurseForgeVersions(projectId, limit)
   },
 
   /**

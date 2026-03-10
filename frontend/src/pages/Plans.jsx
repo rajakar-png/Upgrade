@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import Topbar from "../components/Topbar.jsx"
 import ConfirmModal from "../components/ConfirmModal.jsx"
 import ButtonSpinner from "../components/ButtonSpinner.jsx"
+import Button from "../components/ui/Button.jsx"
+import Input from "../components/ui/Input.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api } from "../services/api.js"
 import {
@@ -67,6 +69,15 @@ export default function Plans() {
   const navigate = useNavigate()
   const { showSuccess, showError } = useAppUI()
 
+  const loadPlansData = useCallback(async ({ forceRefresh = false } = {}) => {
+    const [coin, real] = await Promise.all([
+      api.getCoinPlans(category, { forceRefresh }),
+      api.getRealPlans(category, { forceRefresh })
+    ])
+    setCoinPlans(coin || [])
+    setRealPlans(real || [])
+  }, [category])
+
   // Load plans whenever category changes
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -77,23 +88,32 @@ export default function Plans() {
     setEggs([])
     setSelectedEgg(null)
 
-    const loadPlans = async () => {
-      try {
-        const [coin, real] = await Promise.all([
-          api.getCoinPlans(category),
-          api.getRealPlans(category)
-        ])
-        setCoinPlans(coin || [])
-        setRealPlans(real || [])
-      } catch (err) {
-        showError(err.message || "Failed to load plans")
-      } finally {
-        setLoading(false)
+    loadPlansData()
+      .catch((err) => showError(err.message || "Failed to load plans"))
+      .finally(() => setLoading(false))
+  }, [category, navigate, showError, loadPlansData])
+
+  useEffect(() => {
+    const refresh = () => loadPlansData({ forceRefresh: true }).catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "plans") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["servers", "plans", "balance", "admin"].includes(domain))) {
+        refresh()
       }
     }
 
-    loadPlans()
-  }, [category, navigate, showError])
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadPlansData])
 
   const handleConfirmPurchase = async () => {
     if (!selectedPlan || !serverName.trim() || !selectedEgg) return
@@ -125,6 +145,7 @@ export default function Plans() {
       } else {
         navigate("/servers")
       }
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["servers", "balance", "plans", "dashboard"], source: "plans" } }))
     } catch (err) {
       showError(err.message || "Purchase failed")
     } finally {
@@ -387,14 +408,14 @@ export default function Plans() {
               <label htmlFor="server-name" className="block text-sm font-semibold text-slate-200 mb-2">
                 Server name
               </label>
-              <input
+              <Input
                 id="server-name"
                 name="serverName"
                 type="text"
                 value={serverName}
                 onChange={(e) => setServerName(e.target.value)}
                 placeholder="e.g., Astra SMP"
-                className="w-full bg-dark-900/80 border border-dark-700/50 rounded-xl px-4 py-3.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary-500/50 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                className="h-[52px] bg-dark-900/80"
               />
             </div>
             

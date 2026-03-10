@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import Logo from "../components/Logo.jsx"
 import { AlertCircle } from "lucide-react"
 
 // Detect API URL based on environment
@@ -44,7 +43,7 @@ export default function Login() {
           Welcome back
         </h1>
         <p className="text-sm text-slate-400">
-          Sign in to continue to your dashboard.
+          Sign in to access your dashboard.
         </p>
       </div>
 
@@ -92,7 +91,7 @@ export default function Login() {
       <p className="text-center text-sm text-slate-500">
         Don't have an account?{" "}
         <Link to="/register" className="font-semibold text-primary-400 hover:text-primary-300 transition-colors">
-          Sign up
+          Create one
         </Link>
       </p>
     </div>

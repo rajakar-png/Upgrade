@@ -16,7 +16,20 @@
     "create-admin": "echo '⚠️  DEPRECATED: Use set-admin instead (OAuth-only auth)' && node scripts/createAdmin.js",
     "set-admin": "node scripts/setAdmin.js",
     "check-oauth": "node scripts/checkOAuthSetup.js",
-    "test-pterodactyl": "node scripts/testPterodactyl.js"
+    "check-postgres": "node scripts/checkPostgresCompat.js",
+    "migrate-up": "node scripts/migrateUp.js",
+    "migrate-down": "node scripts/migrateDown.js",
+    "backup-postgres": "bash scripts/backupPostgres.sh",
+    "predeploy-rollout": "bash scripts/predeployRollout.sh",
+    "restart-service": "bash scripts/restartBackendService.sh",
+    "smoke-check": "node scripts/smokeCheck.js",
+    "migrate-to-postgres": "node scripts/migrateSqliteToPostgres.js",
+    "verify-postgres-migration": "node scripts/verifyPostgresMigration.js",
+    "postgres:up": "docker compose -f docker-compose.postgres.yml up -d",
+    "postgres:down": "docker compose -f docker-compose.postgres.yml down",
+    "postgres:logs": "docker compose -f docker-compose.postgres.yml logs -f postgres",
+    "test-pterodactyl": "node scripts/testPterodactyl.js",
+    "test": "node --test tests/**/*.test.mjs"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -36,6 +49,7 @@
     "passport": "^0.7.0",
     "passport-discord": "^0.1.4",
     "passport-google-oauth20": "^2.0.0",
+    "pg": "^8.13.1",
     "socket.io": "^4.8.3",
     "ws": "^8.19.0",
     "zod": "^3.22.0"

@@ -163,7 +163,7 @@ export default function ServerManage() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="surface-card surface-elevated card-3d flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/servers")}
@@ -257,7 +257,7 @@ export default function ServerManage() {
       )}
 
       {/* ── Tab navigation ──────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-1.5 rounded-xl border border-dark-700/50 bg-dark-900/80 backdrop-blur-sm p-1.5">
+      <div className="surface-card flex flex-wrap gap-1.5 p-1.5">
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
@@ -293,7 +293,7 @@ export default function ServerManage() {
         return (
           <div
             key={tab.id}
-            className={`rounded-2xl border border-dark-700/50 bg-dark-900/80 backdrop-blur-sm p-6 ${tab.id === activeTab ? "" : "hidden"}`}
+            className={`surface-card surface-elevated card-3d p-6 ${tab.id === activeTab ? "" : "hidden"}`}
           >
             {content}
           </div>

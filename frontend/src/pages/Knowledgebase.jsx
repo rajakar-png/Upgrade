@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { ChevronDown, BookOpen, Search } from "lucide-react"
 import PublicNavbar from "../components/PublicNavbar.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
+import Input from "../components/ui/Input.jsx"
 
 const KB = [
   {
@@ -97,6 +99,7 @@ function Accordion({ item }) {
 export default function Knowledgebase() {
   const [query, setQuery] = useState("")
   const [kb, setKb] = useState(KB)
+  const navigate = useNavigate()
 
   useEffect(() => {
     api.getFrontpage()
@@ -133,14 +136,14 @@ export default function Knowledgebase() {
           </p>
           <div className="relative mx-auto max-w-md mt-4">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-            <input
+            <Input
               id="kb-search"
               name="search"
               aria-label="Search knowledgebase"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search articles…"
-              className="w-full rounded-xl border border-dark-700/60 bg-ink-900/60 py-2.5 pl-9 pr-4 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30"
+              className="py-2.5 pl-9 pr-4"
             />
           </div>
         </section>
@@ -151,7 +154,7 @@ export default function Knowledgebase() {
 
         <div className="space-y-6">
           {filtered.map((section) => (
-            <div key={section.category} className="glass rounded-2xl border border-dark-700/40 px-6 py-2 shadow-soft">
+            <div key={section.category} className="surface-card surface-elevated card-3d rounded-2xl border border-dark-700/40 px-6 py-2">
               <h2 className="pt-5 pb-2 text-base font-semibold text-slate-300">{section.category}</h2>
               {section.items.map((item) => (
                 <Accordion key={item.q} item={item} />
@@ -160,15 +163,12 @@ export default function Knowledgebase() {
           ))}
         </div>
 
-        <div className="mt-10 text-center glass rounded-2xl border border-dark-700/40 p-8 shadow-soft space-y-3">
+        <div className="mt-10 text-center surface-card surface-elevated card-3d rounded-2xl border border-dark-700/40 p-8 space-y-3">
           <p className="text-slate-300 font-medium">Can&apos;t find what you need?</p>
           <p className="text-sm text-slate-400">Open a support ticket and our team will help within a few hours.</p>
-          <Link
-            to="/support"
-            className="button-3d inline-flex items-center gap-2 rounded-xl bg-neon-500/20 border border-neon-500/30 px-5 py-2.5 text-sm font-semibold text-neon-200 hover:bg-neon-500/30 transition-colors"
-          >
+          <Button onClick={() => navigate("/support")} className="inline-flex items-center gap-2">
             Open a Ticket
-          </Link>
+          </Button>
         </div>
 
         <footer className="mt-12 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">

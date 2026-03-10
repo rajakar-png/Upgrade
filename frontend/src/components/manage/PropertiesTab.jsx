@@ -74,7 +74,7 @@ export default function PropertiesTab({ serverId }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="surface-card surface-elevated flex items-center justify-between p-4">
         <h3 className="text-sm font-semibold text-slate-200">server.properties</h3>
         <div className="flex gap-2">
           <button onClick={load} className="flex items-center gap-1.5 rounded-lg border border-dark-700/40 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200">
@@ -103,7 +103,7 @@ export default function PropertiesTab({ serverId }) {
           server.properties not found or empty. Start the server first.
         </p>
       ) : (
-        <div className="divide-y divide-dark-700/40 rounded-lg border border-dark-700/40 overflow-hidden max-h-[500px] overflow-y-auto">
+        <div className="surface-card card-3d divide-y divide-dark-700/40 overflow-hidden max-h-[500px] overflow-y-auto">
           {keys.map((key) => (
             <div key={key} className="flex items-center gap-4 px-3 py-2">
               <label htmlFor={`prop-${key}`} className="w-1/3 text-xs font-mono text-slate-400 truncate shrink-0">

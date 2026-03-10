@@ -1,6 +1,6 @@
-import { useEffect } from "react"
+import { useEffect, useId } from "react"
 import { AlertTriangle, X } from "lucide-react"
-import ButtonSpinner from "./ButtonSpinner.jsx"
+import Button from "./ui/Button.jsx"
 
 export default function ConfirmModal({
   open,
@@ -14,36 +14,38 @@ export default function ConfirmModal({
   onConfirm,
   onClose
 }) {
+  const titleId = useId()
+  const messageId = useId()
+
   useEffect(() => {
     if (!open) return
     function handleKey(e) {
-      if (e.key === "Escape") onClose()
+      if (e.key === "Escape" && !loading) onClose()
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [open, onClose])
+  }, [open, onClose, loading])
 
   if (!open) return null
 
-  const variantCls =
-    confirmVariant === "danger"
-      ? "bg-red-900/30 border border-red-700/40 text-red-200 hover:bg-red-900/50"
-      : "bg-primary-500/15 border border-primary-500/30 text-primary-300 hover:bg-primary-500/25"
+  const variant = confirmVariant === "danger" ? "danger" : "primary"
 
   return (
     <div
       className="fixed inset-0 z-[9500] flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && !loading && onClose()}
     >
       <div className="absolute inset-0 bg-dark-950/80 backdrop-blur-sm" />
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
         className="relative w-full max-w-md rounded-2xl bg-dark-800/90 backdrop-blur-xl border border-dark-700/50 p-8 shadow-2xl animate-slide-up"
       >
         <button
           onClick={onClose}
+          disabled={loading}
           className="absolute top-4 right-4 text-slate-500 hover:text-slate-300 transition-colors"
           aria-label="Close"
         >
@@ -55,10 +57,10 @@ export default function ConfirmModal({
             <AlertTriangle className="h-5 w-5 text-red-300" />
           </div>
           <div className="space-y-1">
-            <h2 id="modal-title" className="text-lg font-semibold text-slate-100">
+            <h2 id={titleId} className="text-lg font-semibold text-slate-100">
               {title}
             </h2>
-            <p className="text-sm text-slate-400">{message}</p>
+            <p id={messageId} className="text-sm text-slate-400">{message}</p>
             {detail && (
               <p className="mt-2 rounded-lg border border-dark-700/40 bg-dark-900/60 px-3 py-2 text-xs text-slate-500">
                 {detail}
@@ -68,20 +70,24 @@ export default function ConfirmModal({
         </div>
 
         <div className="mt-8 flex gap-3">
-          <button
+          <Button
             onClick={onClose}
             disabled={loading}
-            className="button-3d flex-1 rounded-xl border border-dark-700/60 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800/30 disabled:opacity-50"
+            className="flex-1"
+            variant="secondary"
+            size="md"
           >
             {cancelLabel}
-          </button>
-          <ButtonSpinner
+          </Button>
+          <Button
             loading={loading}
             onClick={onConfirm}
-            className={`button-3d flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold ${variantCls}`}
+            className="flex-1"
+            variant={variant}
+            size="md"
           >
             {confirmLabel}
-          </ButtonSpinner>
+          </Button>
         </div>
       </div>
     </div>

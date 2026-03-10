@@ -102,6 +102,20 @@ CREATE TABLE IF NOT EXISTS coupon_redemptions (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  endpoint TEXT NOT NULL,
+  key TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('processing', 'completed')),
+  status_code INTEGER,
+  response_json TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  UNIQUE (user_id, endpoint, key)
+);
+
 CREATE TABLE IF NOT EXISTS utr_submissions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -123,6 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_oauth ON users(oauth_provider, oauth_id);
 CREATE INDEX IF NOT EXISTS idx_utr_submissions_user ON utr_submissions(user_id);
 CREATE INDEX IF NOT EXISTS idx_utr_submissions_status ON utr_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_idempotency_lookup ON idempotency_keys(user_id, endpoint, key);
 
 -- ─── Dynamic Front Page ──────────────────────────────────────────────────────
 
@@ -207,4 +222,21 @@ CREATE TABLE IF NOT EXISTS server_backups (
   FOREIGN KEY (server_id) REFERENCES servers(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_server_backups_server ON server_backups(server_id);\n\n-- ─── Audit Log (admin action tracking) ───────────────────────────────────────\n\nCREATE TABLE IF NOT EXISTS audit_log (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  admin_id INTEGER NOT NULL,\n  action TEXT NOT NULL,\n  target_type TEXT,\n  target_id INTEGER,\n  details TEXT,\n  ip_address TEXT,\n  created_at TEXT NOT NULL DEFAULT (datetime('now')),\n  FOREIGN KEY (admin_id) REFERENCES users(id)\n);\n\nCREATE INDEX IF NOT EXISTS idx_audit_log_admin ON audit_log(admin_id);\nCREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_server_backups_server ON server_backups(server_id);
+
+-- ─── Audit Log (admin action tracking) ───────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  target_type TEXT,
+  target_id INTEGER,
+  details TEXT,
+  ip_address TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (admin_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_admin ON audit_log(admin_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);

@@ -558,10 +558,39 @@ router.get("/:serverId/plugins/search", requireAuth, resolveServer, async (req, 
     const offset = Math.max(0, parseInt(req.query.offset) || 0)
     const limit = Math.min(30, Math.max(1, parseInt(req.query.limit) || 15))
     
-    // If no query, return popular/featured items instead of empty array
-    const searchQuery = q.length < 2 ? (type === "mod" ? "fabric" : type === "datapack" ? "vanilla" : "essentials") : q
+    // If query is too short, switch to provider-level trending feed.
+    const searchQuery = q.length < 2 ? "" : q
     const data = await pluginInstaller.search(searchQuery, { type, source, limit, offset })
-    res.json(data)
+
+    let currentMinecraftVersion = null
+    try {
+      const startupVars = await pteroManage.getStartupVariables(req.server.pterodactyl_server_id)
+      const mcVersionVar = startupVars.find((v) => v?.env_variable === "MINECRAFT_VERSION")
+      currentMinecraftVersion = mcVersionVar?.server_value || mcVersionVar?.default_value || null
+    } catch {
+      // Non-fatal: some eggs do not expose this variable.
+    }
+
+    res.json({
+      ...data,
+      serverContext: {
+        minecraftVersion: currentMinecraftVersion
+      }
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+/** GET /plugins/:slug/versions — get all versions for a Modrinth project */
+router.get("/:serverId/plugins/curseforge/:projectId/versions", requireAuth, resolveServer, async (req, res, next) => {
+  try {
+    const projectId = Number(req.params.projectId)
+    if (!projectId || Number.isNaN(projectId)) {
+      return res.status(400).json({ error: "Invalid CurseForge project id" })
+    }
+    const versions = await pluginInstaller.getCurseForgeVersions(projectId)
+    res.json(versions)
   } catch (error) {
     next(error)
   }

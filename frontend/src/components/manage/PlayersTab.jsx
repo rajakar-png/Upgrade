@@ -119,7 +119,7 @@ export default function PlayersTab({ serverId }) {
   return (
     <div className="space-y-6">
       {/* ── Header with count + refresh ────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="surface-card surface-elevated flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-neon-500/10 border border-neon-400/20">
             <Users className="h-5 w-5 text-neon-300" />
@@ -245,7 +245,7 @@ export default function PlayersTab({ serverId }) {
       )}
 
       {/* ── Advanced Actions Panel ─────────────────────────────────────── */}
-      <div className="rounded-xl border border-dark-700/50 bg-slate-900/30 overflow-hidden">
+      <div className="surface-card card-3d overflow-hidden">
         <button
           onClick={() => setShowActions(!showActions)}
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-slate-800/30 transition"

@@ -168,8 +168,8 @@ router.post("/:id/reply", uploadTicketImage.single("image"), handleMulterError, 
       [req.params.id, req.user.id, req.body.message, imageUrl]
     )
 
-    await runSync(
-      "UPDATE tickets SET updated_at = datetime('now') WHERE id = ?",
+      await runSync(
+        "UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       [req.params.id]
     )
 

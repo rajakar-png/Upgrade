@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import Topbar from "../components/Topbar.jsx"
 import BannerAd from "../components/BannerAd.jsx"
@@ -23,8 +23,24 @@ export default function Coins() {
   const [fetchingToken, setFetchingToken] = useState(false)
   const [justEarned, setJustEarned] = useState(0)
   const [error, setError] = useState("")
+  const [adsConfig, setAdsConfig] = useState({ nativeBanner: null, banner: null })
+  const [adsLoading, setAdsLoading] = useState(true)
+  const [adsError, setAdsError] = useState("")
   const [rechecking, setRechecking] = useState(false)
   const navigate = useNavigate()
+
+  const loadBalance = useCallback(async (signal, { forceRefresh = false } = {}) => {
+    const jwt = localStorage.getItem("token")
+    if (!jwt) return
+
+    const data = await api.getBalance(jwt, { signal, forceRefresh })
+    setBalance(data.coins ?? 0)
+    setCoinsPerMinute(1)
+    if (data.last_claim_time) {
+      const elapsed = Math.floor((Date.now() - new Date(data.last_claim_time).getTime()) / 1000)
+      setCooldown(Math.max(0, 60 - elapsed))
+    }
+  }, [])
 
   // ── 1. Load balance + run adblock detection on mount ──────────────────────
   useEffect(() => {
@@ -34,17 +50,14 @@ export default function Coins() {
       return
     }
 
-    api
-      .getBalance(jwt)
-      .then((data) => {
-        setBalance(data.coins ?? 0)
-        setCoinsPerMinute(1)
-        if (data.last_claim_time) {
-          const elapsed = Math.floor((Date.now() - new Date(data.last_claim_time).getTime()) / 1000)
-          setCooldown(Math.max(0, 60 - elapsed))
+    const controller = new AbortController()
+
+    loadBalance(controller.signal)
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.error(err)
         }
       })
-      .catch(console.error)
       .finally(() => setBalanceLoading(false))
 
     detectAdBlock().then((blocked) => {
@@ -60,8 +73,59 @@ export default function Coins() {
       })
     }, 15_000)
 
-    return () => clearInterval(recheck)
-  }, [navigate])
+    return () => {
+      clearInterval(recheck)
+      controller.abort()
+    }
+  }, [navigate, loadBalance])
+
+  useEffect(() => {
+    let active = true
+
+    api.getCoinsPageAds()
+      .then((data) => {
+        if (!active) return
+        setAdsConfig({
+          nativeBanner: data?.nativeBanner || null,
+          banner: data?.banner || null
+        })
+      })
+      .catch((err) => {
+        if (!active) return
+        setAdsError(err.message || "Failed to load ad placements")
+      })
+      .finally(() => {
+        if (active) setAdsLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const refresh = () => loadBalance(controller.signal, { forceRefresh: true }).catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "coins") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["balance", "coins", "billing", "dashboard"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 30000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+      controller.abort()
+    }
+  }, [loadBalance])
 
   // ── Revoke earn token immediately when adblock becomes active ─────────────
   useEffect(() => {
@@ -127,6 +191,7 @@ export default function Coins() {
       const result = await api.claimCoins(jwt, earnToken)
       setBalance((prev) => prev + result.earned)
       setJustEarned(result.earned)
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["balance", "coins", "dashboard"], source: "coins" } }))
       // Reset the earn cycle: cooldown + fresh token for next claim
       setCooldown(60)
       setEarnToken(null)
@@ -197,10 +262,10 @@ export default function Coins() {
           {/* Status message */}
           <div className="rounded-xl bg-dark-900/80 border border-dark-700/40 px-4 py-3 text-sm min-h-[52px] flex items-center">
             {adblockStatus === "checking" && (
-              <p className="text-slate-400 flex items-center gap-2">
+              <div className="text-slate-400 flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-slate-500/30 border-t-slate-400 rounded-full animate-spin" />
                 Checking for AdBlock…
-              </p>
+              </div>
             )}
             {adblockStatus === "blocked" && (
               <div className="flex items-center gap-2">
@@ -341,14 +406,22 @@ export default function Coins() {
       {/* Ad slots — only rendered when adblock is not active */}
       {adblockStatus !== "blocked" && (
         <>
+          {adsError && (
+            <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">
+              Ad network configuration could not be fetched. Using fallback ad slots.
+            </div>
+          )}
           <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6">
             <p className="text-xs text-slate-500 mb-4">Sponsored</p>
-            <NativeAd />
+            <NativeAd placement={adsConfig.nativeBanner} />
           </div>
           <div className="card-3d bg-dark-800/40 backdrop-blur-sm rounded-xl border border-dark-700/50 p-6">
             <p className="text-xs text-slate-500 mb-4">Sponsored</p>
-            <BannerAd />
+            <BannerAd placement={adsConfig.banner} />
           </div>
+          {adsLoading && (
+            <p className="text-xs text-slate-500">Loading ad placement settings…</p>
+          )}
         </>
       )}
     </div>

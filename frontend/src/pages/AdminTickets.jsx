@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "../services/api.js"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import AdminNav from "../components/AdminNav.jsx"
 import Badge from "../components/Badge.jsx"
+import Button from "../components/ui/Button.jsx"
+import Input from "../components/ui/Input.jsx"
+import Card from "../components/ui/Card.jsx"
 import { 
   MessageSquare, Clock, Search, Inbox, ChevronRight
 } from "lucide-react"
@@ -16,6 +19,18 @@ export default function AdminTickets() {
   const navigate = useNavigate()
   const { showError } = useAppUI()
 
+  const loadTickets = useCallback(async ({ forceRefresh = false } = {}) => {
+    try {
+      const token = localStorage.getItem("token")
+      const data = await api.getAllTickets(token, filter !== "all" ? filter : undefined, { forceRefresh })
+      setTickets(data || [])
+    } catch (err) {
+      showError(err.message || "Failed to load tickets.")
+    } finally {
+      setLoading(false)
+    }
+  }, [filter, showError])
+
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) {
@@ -23,20 +38,29 @@ export default function AdminTickets() {
       return
     }
     loadTickets()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, navigate])
+  }, [filter, navigate, loadTickets])
 
-  const loadTickets = async () => {
-    try {
-      const token = localStorage.getItem("token")
-      const data = await api.getAllTickets(token, filter !== "all" ? filter : undefined)
-      setTickets(data || [])
-    } catch (err) {
-      showError(err.message || "Failed to load tickets.")
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    const refresh = () => loadTickets({ forceRefresh: true })
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "admin-tickets") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["tickets", "support", "admin"].includes(domain))) {
+        refresh()
+      }
     }
-  }
+
+    const interval = setInterval(refresh, 30000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadTickets])
 
   const formatRelativeTime = (dateString) => {
     const date = new Date(dateString)
@@ -89,28 +113,30 @@ export default function AdminTickets() {
               { id: "open", label: "Open" },
               { id: "closed", label: "Closed" }
             ].map((tab) => (
-              <button
+              <Button
                 key={tab.id}
                 onClick={() => setFilter(tab.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`${
                   filter === tab.id
                     ? "bg-primary-500 text-white"
                     : "bg-dark-800 text-slate-400 hover:bg-dark-700"
                 }`}
+                size="md"
+                variant="secondary"
               >
                 {tab.label}
-              </button>
+              </Button>
             ))}
           </div>
 
           <div className="relative flex-1 max-w-md">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input 
+            <Input
               type="text" 
               placeholder="Search by subject or ID..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 bg-dark-800 border border-dark-700 rounded-lg pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-primary-500 focus:outline-none transition-all"
+              className="pl-10"
             />
           </div>
         </div>
@@ -118,13 +144,13 @@ export default function AdminTickets() {
         {/* Tickets List */}
         <div className="space-y-3">
           {filteredTickets.length === 0 ? (
-            <div className="bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
+            <Card className="p-12 text-center">
               <Inbox className="w-12 h-12 text-slate-600 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-slate-300 mb-2">No tickets found</h3>
               <p className="text-sm text-slate-500">
                 {searchQuery ? "Try adjusting your search." : "No support tickets to display."}
               </p>
-            </div>
+            </Card>
           ) : (
             filteredTickets.map((ticket) => (
               <div 
@@ -143,7 +169,7 @@ export default function AdminTickets() {
                         <h3 className="text-base font-semibold text-slate-100 truncate ">
                           {ticket.subject}
                         </h3>
-                        <Badge label={ticket.status} tone={ticket.status === 'open' ? 'success' : 'info'} />
+                        <Badge label={ticket.status} tone={ticket.status === 'open' ? 'success' : 'info'} withDot />
                       </div>
                       
                       <div className="flex items-center gap-4 text-sm text-slate-400">

@@ -127,7 +127,7 @@ export default function BackupsTab({ serverId }) {
       )}
 
       {/* ── Create Backup Button ───────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="surface-card surface-elevated flex items-center justify-between p-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-200">
             Server Backups {backupLimit > 0 && (
@@ -157,13 +157,13 @@ export default function BackupsTab({ serverId }) {
           <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
         </div>
       ) : backups.length === 0 ? (
-        <div className="rounded-xl border border-dark-700/40 bg-ink-950 p-12 text-center">
+        <div className="surface-card card-3d p-12 text-center">
           <Archive className="h-10 w-10 text-slate-600 mx-auto mb-3" />
           <h4 className="text-sm font-semibold text-slate-300 mb-1">No backups yet</h4>
           <p className="text-xs text-slate-500">Create your first backup to protect your server data.</p>
         </div>
       ) : (
-        <div className="divide-y divide-dark-700/40 rounded-lg border border-dark-700/40">
+        <div className="surface-card card-3d divide-y divide-dark-700/40">
           {backups.map((backup) => (
             <div key={backup.uuid} className="px-4 py-3 group hover:bg-ink-950/50 transition">
               <div className="flex items-start justify-between gap-4">
@@ -243,7 +243,7 @@ export default function BackupsTab({ serverId }) {
       )}
 
       {/* ── Info Notice ─────────────────────────────────────────────────── */}
-      <div className="rounded-lg border border-blue-700/30 bg-blue-900/15 px-4 py-3 text-xs text-blue-300">
+      <div className="surface-card border-blue-700/30 bg-blue-900/15 px-4 py-3 text-xs text-blue-300">
         <strong>Note:</strong> Backups are stored on the server host. Large backups may take time to create.
         Restore operations will automatically restart your server.
       </div>

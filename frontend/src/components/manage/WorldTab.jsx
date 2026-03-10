@@ -42,7 +42,7 @@ export default function WorldTab({ serverId }) {
   }
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="surface-card surface-elevated max-w-2xl space-y-6 p-5">
       <div>
         <h3 className="text-sm font-semibold text-slate-200 mb-1">World Manager</h3>
         <p className="text-xs text-slate-500">Delete or reset your Minecraft world. This cannot be undone.</p>
@@ -95,7 +95,7 @@ export default function WorldTab({ serverId }) {
       {/* Confirmation modal */}
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-2xl border border-dark-700/40 bg-ink-950 p-6 max-w-sm w-full mx-4 space-y-4">
+          <div className="surface-card surface-elevated card-3d max-w-sm w-full mx-4 space-y-4 p-6">
             <div className="flex items-center gap-2 text-orange-300">
               <AlertTriangle className="h-5 w-5" />
               <h3 className="text-sm font-semibold">

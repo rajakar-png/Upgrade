@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Plus, Trash2 } from "lucide-react"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
-import ButtonSpinner from "../components/ButtonSpinner.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
+import Card from "../components/ui/Card.jsx"
+import Input from "../components/ui/Input.jsx"
 
 const STATUS_OPTIONS = ["operational", "degraded", "outage", "maintenance", "unknown"]
 
@@ -36,21 +38,44 @@ export default function AdminStatus() {
   const navigate = useNavigate()
   const { showSuccess, showError } = useAppUI()
 
+  const loadStatusData = useCallback(async () => {
+    const data = await api.getAdminFrontpage()
+    const section = data?.status_page?.data
+    if (section && Array.isArray(section.services) && section.services.length > 0) {
+      setServices(section.services)
+      setGlobalMessage(section.globalMessage || "")
+    }
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) { navigate("/login"); return }
 
-    api.getAdminFrontpage()
-      .then((data) => {
-        const section = data?.status_page?.data
-        if (section && Array.isArray(section.services) && section.services.length > 0) {
-          setServices(section.services)
-          setGlobalMessage(section.globalMessage || "")
-        }
-      })
+    loadStatusData()
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [navigate])
+  }, [navigate, loadStatusData])
+
+  useEffect(() => {
+    const refresh = () => loadStatusData().catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["frontpage", "admin"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadStatusData])
 
   const update = (idx, field, value) => {
     setServices((prev) => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s))
@@ -89,12 +114,12 @@ export default function AdminStatus() {
         subtitle="Set individual service statuses shown on /status."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/status")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <Button onClick={() => navigate("/status")} variant="secondary">
               View Page ↗
-            </button>
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            </Button>
+            <Button onClick={() => navigate("/admin")} variant="secondary">
               ← Admin
-            </button>
+            </Button>
           </div>
         }
       />
@@ -110,7 +135,7 @@ export default function AdminStatus() {
       </div>
 
       {/* Global message */}
-      <div className="glass rounded-2xl border border-dark-700/40 p-5 space-y-3">
+      <Card elevated className="space-y-3 p-5">
         <label htmlFor="global-status-message" className="text-xs uppercase tracking-widest text-slate-500">Global Status Message (optional)</label>
         <textarea
           id="global-status-message"
@@ -122,10 +147,10 @@ export default function AdminStatus() {
           placeholder="e.g. We are currently investigating elevated latency on Node 1."
         />
         <p className="text-xs text-slate-500">Leave empty to show default message based on overall status.</p>
-      </div>
+      </Card>
 
       {/* Services */}
-      <div className="glass rounded-2xl border border-dark-700/40 p-5 space-y-3">
+      <Card elevated className="space-y-3 p-5">
         <h3 className="text-sm font-semibold text-slate-200">Services</h3>
         <div className="space-y-3">
           {services.map((svc, idx) => {
@@ -133,14 +158,14 @@ export default function AdminStatus() {
             return (
               <div key={idx} className="flex items-center gap-3">
                 <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot}`} />
-                <input
-                  className="input flex-1"
+                <Input
+                  className="flex-1"
                   value={svc.name}
                   onChange={(e) => update(idx, "name", e.target.value)}
                   placeholder="Service name"
                 />
                 <select
-                  className="input w-40"
+                  className="h-11 w-40 rounded-xl border border-dark-700/60 bg-dark-900/75 px-4 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
                   value={svc.status}
                   onChange={(e) => update(idx, "status", e.target.value)}
                 >
@@ -148,29 +173,32 @@ export default function AdminStatus() {
                     <option key={s} value={s}>{STATUS_META[s]?.label || s}</option>
                   ))}
                 </select>
-                <button onClick={() => remove(idx)} className="rounded-lg p-1.5 text-slate-500 hover:text-red-400">
+                <Button onClick={() => remove(idx)} variant="ghost" size="sm" className="h-8 w-8 rounded-lg p-0 text-slate-500 hover:text-red-400">
                   <Trash2 className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
             )
           })}
         </div>
 
-        <button
+        <Button
           onClick={() => setServices((prev) => [...prev, { name: "", status: "operational" }])}
-          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-neon-300"
+          variant="ghost"
+          size="sm"
+          className="w-fit px-1 text-xs text-slate-500 hover:text-neon-300"
         >
           <Plus className="h-3.5 w-3.5" /> Add service
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      <ButtonSpinner
+      <Button
+        type="button"
         loading={saving}
         onClick={handleSave}
-        className="button-3d w-full rounded-xl bg-neon-500/20 border border-neon-500/30 px-4 py-3 text-sm font-semibold text-neon-200 hover:bg-neon-500/30"
+        className="w-full"
       >
         Save Status Page
-      </ButtonSpinner>
+      </Button>
       </div>
     </div>
   )

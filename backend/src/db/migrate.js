@@ -378,6 +378,25 @@ export default async function migrate() {
     await runSync("CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at)").catch(() => {})
     console.log("[Migration] ✓ Audit log table ensured")
 
+    // ── Idempotency keys table (purchase/renew request replay protection) ──
+    await runSync(`
+      CREATE TABLE IF NOT EXISTS idempotency_keys (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        endpoint TEXT NOT NULL,
+        key TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('processing', 'completed')),
+        status_code INTEGER,
+        response_json TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        UNIQUE (user_id, endpoint, key)
+      )
+    `).catch(() => {})
+    await runSync("CREATE INDEX IF NOT EXISTS idx_idempotency_lookup ON idempotency_keys(user_id, endpoint, key)").catch(() => {})
+    console.log("[Migration] ✓ Idempotency table ensured")
+
     console.log("[Migration] ✓ Database migrated successfully")
   } catch (error) {
     console.error("[Migration] ✗ Critical error:", error)

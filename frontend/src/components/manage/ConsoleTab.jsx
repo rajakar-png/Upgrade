@@ -159,7 +159,7 @@ export default function ConsoleTab({ serverId, serverInfo, isBot = false }) {
       {/* ── Stats cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
         {/* Status */}
-        <div className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3">
+        <div className="surface-card p-3">
           <div className="flex items-center gap-2 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
             <span className={`h-2 w-2 rounded-full ${statusDot[status]}`} />
             Status
@@ -168,7 +168,7 @@ export default function ConsoleTab({ serverId, serverInfo, isBot = false }) {
         </div>
 
         {/* RAM */}
-        <div className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3">
+        <div className="surface-card p-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
             <MemoryStick className="h-3 w-3" /> RAM
           </div>
@@ -179,7 +179,7 @@ export default function ConsoleTab({ serverId, serverInfo, isBot = false }) {
         </div>
 
         {/* CPU */}
-        <div className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3">
+        <div className="surface-card p-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
             <Cpu className="h-3 w-3" /> CPU
           </div>
@@ -190,7 +190,7 @@ export default function ConsoleTab({ serverId, serverInfo, isBot = false }) {
         </div>
 
         {/* Disk */}
-        <div className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3">
+        <div className="surface-card p-3">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
             <HardDrive className="h-3 w-3" /> Disk
           </div>
@@ -203,7 +203,7 @@ export default function ConsoleTab({ serverId, serverInfo, isBot = false }) {
         {/* IP Address — hidden for bot hosting */}
         {!isBot && displayAddress && (
           <div
-            className="rounded-xl border border-dark-700/60 bg-slate-900/60 p-3 cursor-pointer group hover:border-neon-500/30 transition col-span-2 sm:col-span-1"
+            className="surface-card col-span-2 cursor-pointer p-3 group transition hover:border-neon-500/30 sm:col-span-1"
             onClick={copyIp}
             title="Click to copy"
           >
@@ -246,7 +246,7 @@ export default function ConsoleTab({ serverId, serverInfo, isBot = false }) {
 
         <div
           ref={scrollRef}
-          className="h-[420px] overflow-y-auto rounded-xl bg-[#0a0a0a] border border-dark-700/50 p-4 font-mono text-[13px] leading-relaxed text-slate-300 scroll-smooth selection:bg-neon-500/20"
+          className="surface-card card-3d h-[420px] overflow-y-auto bg-[#0a0a0a] p-4 font-mono text-[13px] leading-relaxed text-slate-300 scroll-smooth selection:bg-neon-500/20"
         >
           {lines.length === 0 && status === "connected" && (
             <p className="text-slate-600 italic">Waiting for console output…</p>
@@ -283,7 +283,7 @@ export default function ConsoleTab({ serverId, serverInfo, isBot = false }) {
           <button
             type="submit"
             disabled={!command.trim() || (status !== "connected" && status !== "offline")}
-            className="rounded-xl border border-neon-400/40 bg-neon-500/15 px-4 py-2.5 text-sm font-semibold text-neon-200 transition hover:bg-neon-500/25 disabled:opacity-40"
+            className="button-3d rounded-xl border border-neon-400/40 bg-neon-500/15 px-4 py-2.5 text-sm font-semibold text-neon-200 transition hover:bg-neon-500/25 disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>

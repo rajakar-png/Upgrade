@@ -1,124 +1,187 @@
 import Database from "better-sqlite3"
-import { env } from "./env.js"
 import fs from "fs"
 import path from "path"
+import { env } from "./env.js"
+import { createPostgresPool, isPostgresEnabled, toPgPlaceholders } from "./postgresCompat.js"
 
-console.log("[DB] Initializing database at:", env.DB_PATH)
+const provider = isPostgresEnabled() ? "postgres" : "sqlite"
+let sqliteDb = null
+let pgPool = null
 
-const dbDir = path.dirname(env.DB_PATH)
-if (!fs.existsSync(dbDir)) {
-  console.log("[DB] Creating database directory:", dbDir)
-  fs.mkdirSync(dbDir, { recursive: true })
-}
+console.log(`[DB] Initializing provider: ${provider}`)
 
-let db
-try {
-  db = new Database(env.DB_PATH)
-  console.log("[DB] ✓ Database connection successful")
-} catch (err) {
-  console.error("[DB] ✗ Database connection error:", err)
-  process.exit(1)
-}
-
-// better-sqlite3 is synchronous and handles busy internally
-db.pragma("busy_timeout = 10000")
-db.pragma("journal_mode = WAL")
-db.pragma("foreign_keys = ON")
-db.pragma("secure_delete = ON")
-
-// ── Performance tuning for 100+ concurrent users ─────────────────────────
-// Increase page cache to ~64 MB (negative = KB). Default is ~2 MB.
-db.pragma("cache_size = -65536")
-// Memory-mapped I/O: let the OS cache up to 256 MB of the DB file.
-db.pragma("mmap_size = 268435456")
-// Keep temporary tables/indexes in memory instead of disk.
-db.pragma("temp_store = MEMORY")
-// Synchronous NORMAL is safe with WAL mode and ~2x faster than FULL.
-db.pragma("synchronous = NORMAL")
-// Limit WAL file size to 64 MB before auto-checkpoint.
-db.pragma("wal_autocheckpoint = 1000")
-
-console.log("[DB] ✓ WAL mode, foreign keys, secure_delete, performance tuning enabled")
-
-// ── Graceful shutdown ────────────────────────────────────────────────────
-// Checkpoint WAL and close the database cleanly on process exit.
-function closeDb() {
-  try {
-    db.pragma("wal_checkpoint(TRUNCATE)")
-    db.close()
-    console.log("[DB] ✓ Database closed gracefully")
-  } catch (e) {
-    console.error("[DB] Error closing database:", e.message)
+if (provider === "sqlite") {
+  console.log("[DB] Initializing database at:", env.DB_PATH)
+  const dbDir = path.dirname(env.DB_PATH)
+  if (!fs.existsSync(dbDir)) {
+    console.log("[DB] Creating database directory:", dbDir)
+    fs.mkdirSync(dbDir, { recursive: true })
   }
+
+  sqliteDb = new Database(env.DB_PATH)
+  sqliteDb.pragma("busy_timeout = 10000")
+  sqliteDb.pragma("journal_mode = WAL")
+  sqliteDb.pragma("foreign_keys = ON")
+  sqliteDb.pragma("secure_delete = ON")
+  sqliteDb.pragma("cache_size = -65536")
+  sqliteDb.pragma("mmap_size = 268435456")
+  sqliteDb.pragma("temp_store = MEMORY")
+  sqliteDb.pragma("synchronous = NORMAL")
+  sqliteDb.pragma("wal_autocheckpoint = 1000")
+  console.log("[DB] ✓ SQLite connection ready with WAL + tuning")
 }
-process.on("SIGTERM", closeDb)
-process.on("SIGINT", closeDb)
 
-// Keep the same async API surface so no other files need changes.
-// better-sqlite3 is synchronous under the hood — wrapping in Promise
-// keeps all callers using `await` working without modification.
+function stripTrailingSemicolon(sql) {
+  return sql.trim().replace(/;$/, "")
+}
 
-export function query(sql, params = []) {
-  try {
-    const rows = db.prepare(sql).all(params)
-    return Promise.resolve(rows || [])
-  } catch (err) {
-    return Promise.reject(err)
+async function getPgPool() {
+  if (provider !== "postgres") return null
+  if (!pgPool) {
+    pgPool = await createPostgresPool()
+    console.log("[DB] ✓ PostgreSQL pool created")
   }
+  return pgPool
 }
 
-export function getOne(sql, params = []) {
-  try {
-    const row = db.prepare(sql).get(params)
-    return Promise.resolve(row || null)
-  } catch (err) {
-    return Promise.reject(err)
-  }
+async function runPgStatement(clientOrPool, sql, params = []) {
+  const pgSql = toPgPlaceholders(sql)
+  return clientOrPool.query(pgSql, params)
 }
 
-export function runSync(sql, params = []) {
-  try {
-    const info = db.prepare(sql).run(params)
-    return Promise.resolve({ lastID: info.lastInsertRowid, changes: info.changes })
-  } catch (err) {
-    return Promise.reject(err)
-  }
-}
+async function runPgMutation(clientOrPool, sql, params = []) {
+  const normalizedSql = stripTrailingSemicolon(sql)
+  const isInsert = /^\s*insert\s+/i.test(normalizedSql)
+  const hasReturning = /\breturning\b/i.test(normalizedSql)
 
-/**
- * Run multiple operations atomically inside a SERIALIZABLE transaction.
- * Uses better-sqlite3's synchronous transaction API with BEGIN IMMEDIATE
- * to prevent race conditions (double-spend, coupon over-redemption, etc.).
- *
- * @param {(helpers: { query, getOne, runSync }) => any} fn
- * @returns {Promise<any>} result of fn
- *
- * Usage:
- *   const result = await transaction(({ query, getOne, runSync }) => {
- *     const user = getOne("SELECT coins FROM users WHERE id = ?", [userId])
- *     if (user.coins < price) throw Object.assign(new Error("Insufficient balance"), { statusCode: 400 })
- *     runSync("UPDATE users SET coins = coins - ? WHERE id = ?", [price, userId])
- *     return runSync("INSERT INTO servers (...) VALUES (...)", [...])
- *   })
- */
-export function transaction(fn) {
-  const txHelpers = {
-    query: (sql, params = []) => db.prepare(sql).all(params) || [],
-    getOne: (sql, params = []) => db.prepare(sql).get(params) || null,
-    runSync: (sql, params = []) => {
-      const info = db.prepare(sql).run(params)
-      return { lastID: info.lastInsertRowid, changes: info.changes }
+  if (isInsert && !hasReturning) {
+    try {
+      const result = await runPgStatement(clientOrPool, `${normalizedSql} RETURNING id`, params)
+      return {
+        lastID: result.rows?.[0]?.id ?? null,
+        changes: result.rowCount || 0
+      }
+    } catch {
+      // Fallback for tables without an `id` column.
     }
   }
-  try {
-    // BEGIN IMMEDIATE acquires a write lock at the start, serializing
-    // concurrent writes and preventing TOCTOU race conditions.
-    const txn = db.transaction(() => fn(txHelpers))
-    const result = txn.immediate()
-    return Promise.resolve(result)
-  } catch (err) {
-    return Promise.reject(err)
+
+  const result = await runPgStatement(clientOrPool, normalizedSql, params)
+  return {
+    lastID: result.rows?.[0]?.id ?? null,
+    changes: result.rowCount || 0
   }
 }
 
-export { db }
+export async function query(sql, params = []) {
+  if (provider === "sqlite") {
+    return sqliteDb.prepare(sql).all(params) || []
+  }
+
+  const pool = await getPgPool()
+  const result = await runPgStatement(pool, sql, params)
+  return result.rows || []
+}
+
+export async function getOne(sql, params = []) {
+  if (provider === "sqlite") {
+    return sqliteDb.prepare(sql).get(params) || null
+  }
+
+  const pool = await getPgPool()
+  const result = await runPgStatement(pool, sql, params)
+  return result.rows?.[0] || null
+}
+
+export async function runSync(sql, params = []) {
+  if (provider === "sqlite") {
+    const info = sqliteDb.prepare(sql).run(params)
+    return { lastID: info.lastInsertRowid, changes: info.changes }
+  }
+
+  const pool = await getPgPool()
+  return runPgMutation(pool, sql, params)
+}
+
+export async function transaction(fn) {
+  if (provider === "sqlite") {
+    sqliteDb.exec("BEGIN IMMEDIATE")
+    const txHelpers = {
+      query: async (sql, params = []) => sqliteDb.prepare(sql).all(params) || [],
+      getOne: async (sql, params = []) => sqliteDb.prepare(sql).get(params) || null,
+      runSync: async (sql, params = []) => {
+        const info = sqliteDb.prepare(sql).run(params)
+        return { lastID: info.lastInsertRowid, changes: info.changes }
+      }
+    }
+
+    try {
+      const result = await fn(txHelpers)
+      sqliteDb.exec("COMMIT")
+      return result
+    } catch (error) {
+      sqliteDb.exec("ROLLBACK")
+      throw error
+    }
+  }
+
+  const pool = await getPgPool()
+  const client = await pool.connect()
+  try {
+    await client.query("BEGIN")
+    const txHelpers = {
+      query: async (sql, params = []) => {
+        const result = await runPgStatement(client, sql, params)
+        return result.rows || []
+      },
+      getOne: async (sql, params = []) => {
+        const result = await runPgStatement(client, sql, params)
+        return result.rows?.[0] || null
+      },
+      runSync: async (sql, params = []) => runPgMutation(client, sql, params)
+    }
+
+    const result = await fn(txHelpers)
+    await client.query("COMMIT")
+    return result
+  } catch (error) {
+    await client.query("ROLLBACK")
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+async function closeDb() {
+  try {
+    if (provider === "sqlite") {
+      sqliteDb.pragma("wal_checkpoint(TRUNCATE)")
+      sqliteDb.close()
+      console.log("[DB] ✓ SQLite closed gracefully")
+      return
+    }
+
+    if (pgPool) {
+      await pgPool.end()
+      console.log("[DB] ✓ PostgreSQL pool closed gracefully")
+    }
+  } catch (error) {
+    console.error("[DB] Error during shutdown:", error.message)
+  }
+}
+
+process.on("SIGTERM", () => {
+  closeDb().finally(() => process.exit(0))
+})
+process.on("SIGINT", () => {
+  closeDb().finally(() => process.exit(0))
+})
+
+export const db = provider === "sqlite"
+  ? sqliteDb
+  : {
+      pragma: () => {},
+      provider
+    }
+
+export { provider as dbProvider }

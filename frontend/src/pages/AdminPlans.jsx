@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Plus, Edit2, Trash2, X, Package, Server, Cpu, HardDrive, Zap,
@@ -8,6 +8,7 @@ import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
 import ButtonSpinner from "../components/ButtonSpinner.jsx"
 import ConfirmModal from "../components/ConfirmModal.jsx"
+import Button from "../components/ui/Button.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api } from "../services/api.js"
 
@@ -41,22 +42,45 @@ export default function AdminPlans() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState("")
 
-  const [confirmModal, setConfirmModal] = useState({ open: false, title: "", message: "", detail: "", onConfirm: null, loading: false })
+  const [confirmModal, setConfirmModal] = useState({ open: false, title: "", message: "", detail: "", onConfirm: null, confirmLabel: "", loading: false })
   const navigate = useNavigate()
   const { showSuccess, showError } = useAppUI()
+
+  const loadPlans = useCallback(async () => {
+    const [coin, real] = await Promise.all([api.getCoinPlans(), api.getRealPlans()])
+    setCoinPlans(coin || [])
+    setRealPlans(real || [])
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) { navigate("/login"); return }
 
-    Promise.all([api.getCoinPlans(), api.getRealPlans()])
-      .then(([coin, real]) => {
-        setCoinPlans(coin || [])
-        setRealPlans(real || [])
-      })
+    loadPlans()
       .catch((err) => showError(err.message || "Failed to load plans"))
       .finally(() => setLoading(false))
-  }, [navigate, showError])
+  }, [navigate, showError, loadPlans])
+
+  useEffect(() => {
+    const refresh = () => loadPlans().catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["plans", "admin", "frontpage"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadPlans])
 
   const openModal = (type, mode, data = null) => {
     setFormError("")
@@ -108,9 +132,7 @@ export default function AdminPlans() {
         showSuccess("Plan updated")
       }
 
-      const [coin, real] = await Promise.all([api.getCoinPlans(), api.getRealPlans()])
-      setCoinPlans(coin || [])
-      setRealPlans(real || [])
+      await loadPlans()
       closeModal()
     } catch (err) {
       setFormError(err.message || "Failed to save plan")
@@ -132,16 +154,14 @@ export default function AdminPlans() {
           const token = localStorage.getItem("token")
           if (type === "coin") await api.deleteCoinPlan(token, id)
           else await api.deleteRealPlan(token, id)
-          const [coin, real] = await Promise.all([api.getCoinPlans(), api.getRealPlans()])
-          setCoinPlans(coin || [])
-          setRealPlans(real || [])
+          await loadPlans()
           showSuccess("Plan deleted")
           setConfirmModal({ open: false, title: "", message: "", detail: "", onConfirm: null, loading: false })
         } catch (err) {
           showError(err.message || "Failed to delete plan")
           setConfirmModal((p) => ({ ...p, loading: false }))
         }
-      }
+      },
     })
   }
 
@@ -160,9 +180,9 @@ export default function AdminPlans() {
         subtitle="Create and manage coin plans and real-money plans for your users."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <Button onClick={() => navigate("/admin")} variant="secondary">
               ← Admin
-            </button>
+            </Button>
           </div>
         }
       />
@@ -183,13 +203,13 @@ export default function AdminPlans() {
       {/* Stats */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-400">{plans.length} {tab === "coin" ? "coin" : "real money"} plans</p>
-        <button
+        <Button
           onClick={() => openModal(tab, "create")}
-          className="flex items-center gap-2 rounded-xl bg-neon-500/20 border border-neon-500/30 px-4 py-2 text-sm font-semibold text-neon-200 hover:bg-neon-500/30"
+          className="flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
           New {tab === "coin" ? "Coin" : "Real"} Plan
-        </button>
+        </Button>
       </div>
 
       {/* Plans List */}

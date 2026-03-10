@@ -1,0 +1,79 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - backend/**
+      - .github/workflows/backend-ci.yml
+  pull_request:
+    paths:
+      - backend/**
+      - .github/workflows/backend-ci.yml
+
+jobs:
+  test-and-verify-postgres:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: astranodes
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d astranodes"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Run backend tests
+        run: npm test
+
+      - name: Build sqlite source for migration
+        env:
+          DB_PROVIDER: sqlite
+          DB_PATH: ./data/ci.sqlite
+          JWT_SECRET: 12345678901234567890123456789012
+          PTERODACTYL_URL: http://localhost:8080
+          PTERODACTYL_API_KEY: ptla_test
+          PTERODACTYL_DEFAULT_EGG: "1"
+          PTERODACTYL_DEFAULT_DOCKER_IMAGE: ghcr.io/pterodactyl/yolks:java_17
+          PTERODACTYL_DEFAULT_STARTUP: java -version
+          SESSION_SECRET: abcdefghijklmnopqrstuvwxyz123456
+        run: npm run migrate
+
+      - name: Run sqlite to postgres migration
+        env:
+          DB_PROVIDER: postgres
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/astranodes
+          DB_SSL: "false"
+          DB_PATH: ./data/ci.sqlite
+        run: npm run migrate-to-postgres
+
+      - name: Verify migration parity
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/astranodes
+          DB_SSL: "false"
+          DB_PATH: ./data/ci.sqlite
+        run: npm run verify-postgres-migration

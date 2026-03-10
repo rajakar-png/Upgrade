@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
-import ButtonSpinner from "../components/ButtonSpinner.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
+import Card from "../components/ui/Card.jsx"
+import Input from "../components/ui/Input.jsx"
 
 const DEFAULTS = [
   {
@@ -45,18 +47,41 @@ export default function AdminKnowledgebase() {
   const navigate = useNavigate()
   const { showSuccess, showError } = useAppUI()
 
+  const loadKnowledgebaseData = useCallback(async () => {
+    const data = await api.getAdminFrontpage()
+    const section = data?.knowledgebase_page?.data
+    if (Array.isArray(section) && section.length > 0) setCategories(section)
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) { navigate("/login"); return }
 
-    api.getAdminFrontpage()
-      .then((data) => {
-        const section = data?.knowledgebase_page?.data
-        if (Array.isArray(section) && section.length > 0) setCategories(section)
-      })
+    loadKnowledgebaseData()
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [navigate])
+  }, [navigate, loadKnowledgebaseData])
+
+  useEffect(() => {
+    const refresh = () => loadKnowledgebaseData().catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["frontpage", "admin"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadKnowledgebaseData])
 
   const toggleExpand = (idx) => setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }))
 
@@ -112,39 +137,40 @@ export default function AdminKnowledgebase() {
         subtitle="Edit FAQ categories and Q&A items shown on /knowledgebase."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/knowledgebase")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <Button onClick={() => navigate("/knowledgebase")} variant="secondary">
               View Page ↗
-            </button>
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            </Button>
+            <Button onClick={() => navigate("/admin")} variant="secondary">
               ← Admin
-            </button>
+            </Button>
           </div>
         }
       />
 
       <div className="space-y-3">
         {categories.map((cat, catIdx) => (
-          <div key={catIdx} className="glass rounded-2xl border border-dark-700/40 overflow-hidden">
+          <Card key={catIdx} elevated className="overflow-hidden">
             {/* Category header */}
             <div className="flex items-center gap-3 p-4">
-              <button
+              <Button
                 type="button"
                 onClick={() => toggleExpand(catIdx)}
-                className="flex flex-1 items-center gap-3 text-left"
+                variant="ghost"
+                className="flex h-auto flex-1 items-center gap-3 p-0 text-left"
               >
                 {expanded[catIdx] ? <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />}
-                <input
+                <Input
                   onClick={(e) => e.stopPropagation()}
                   value={cat.category}
                   onChange={(e) => setCatName(catIdx, e.target.value)}
-                  className="input flex-1 text-sm font-semibold"
+                  className="flex-1 text-sm font-semibold"
                   placeholder="Category name"
                 />
-              </button>
+              </Button>
               <span className="rounded-full border border-dark-700/40 px-2 py-0.5 text-xs text-slate-500">{cat.items.length} items</span>
-              <button onClick={() => removeCategory(catIdx)} className="rounded-lg p-1.5 text-slate-500 hover:text-red-400">
+              <Button onClick={() => removeCategory(catIdx)} variant="ghost" size="sm" className="h-8 w-8 rounded-lg p-0 text-slate-500 hover:text-red-400">
                 <Trash2 className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             {/* Items */}
@@ -156,10 +182,10 @@ export default function AdminKnowledgebase() {
                       <div className="flex-1 space-y-2">
                         <div>
                           <label htmlFor={`kb-${catIdx}-${itemIdx}-q`} className="text-xs uppercase tracking-widest text-slate-500">Question</label>
-                          <input
+                          <Input
                             id={`kb-${catIdx}-${itemIdx}-q`}
                             name={`kb-${catIdx}-${itemIdx}-q`}
-                            className="input mt-1 w-full"
+                            className="mt-1"
                             value={item.q}
                             onChange={(e) => updateItem(catIdx, itemIdx, "q", e.target.value)}
                             placeholder="Frequently asked question"
@@ -178,35 +204,37 @@ export default function AdminKnowledgebase() {
                           />
                         </div>
                       </div>
-                      <button onClick={() => removeItem(catIdx, itemIdx)} className="mt-6 rounded-lg p-1.5 text-slate-500 hover:text-red-400">
+                      <Button onClick={() => removeItem(catIdx, itemIdx)} variant="ghost" size="sm" className="mt-6 h-8 w-8 rounded-lg p-0 text-slate-500 hover:text-red-400">
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
-                <button onClick={() => addItem(catIdx)} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-neon-300 py-1">
+                <Button onClick={() => addItem(catIdx)} variant="ghost" size="sm" className="w-fit px-1 py-1 text-xs text-slate-500 hover:text-neon-300">
                   <Plus className="h-3.5 w-3.5" /> Add Q&A
-                </button>
+                </Button>
               </div>
             )}
-          </div>
+          </Card>
         ))}
       </div>
 
-      <button
+      <Button
         onClick={addCategory}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-dark-600 py-4 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300 transition"
+        variant="ghost"
+        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-dark-600 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300"
       >
         <Plus className="h-4 w-4" /> Add Category
-      </button>
+      </Button>
 
-      <ButtonSpinner
+      <Button
+        type="button"
         loading={saving}
         onClick={handleSave}
-        className="button-3d w-full rounded-xl bg-neon-500/20 border border-neon-500/30 px-4 py-3 text-sm font-semibold text-neon-200 hover:bg-neon-500/30"
+        className="w-full"
       >
         Save Knowledgebase
-      </ButtonSpinner>
+      </Button>
       </div>
     </div>
   )

@@ -113,9 +113,9 @@ router.post('/:serverId/backups', requireAuth, backupLimiter, validate(createBac
     const backupName = name || `backup-${new Date().toISOString().split('T')[0]}`;
 
     // Atomic check-and-insert to prevent race condition on backup limit
-    await transaction(({ query: txQuery, getOne: txGetOne, runSync: txRun }) => {
+    await transaction(async ({ query: txQuery, getOne: txGetOne, runSync: txRun }) => {
       // Get backup limit from plan
-      const plan = txGetOne(
+      const plan = await txGetOne(
         `SELECT backup_count FROM ${server.plan_type === 'coin' ? 'plans_coin' : 'plans_real'} WHERE id = ?`,
         [server.plan_id]
       );
@@ -126,13 +126,13 @@ router.post('/:serverId/backups', requireAuth, backupLimiter, validate(createBac
       }
 
       // Check current backup count inside the transaction
-      const currentBackups = txQuery('SELECT id FROM server_backups WHERE server_id = ?', [server.id]);
+      const currentBackups = await txQuery('SELECT id FROM server_backups WHERE server_id = ?', [server.id]);
       if (currentBackups.length >= backupLimit) {
         throw Object.assign(new Error(`Backup limit reached (${backupLimit}). Please delete old backups first.`), { statusCode: 403 });
       }
 
       // Reserve the slot in our database first
-      txRun(
+      await txRun(
         'INSERT INTO server_backups (server_id, pterodactyl_backup_uuid, name) VALUES (?, ?, ?)',
         [server.id, backupUuid, backupName]
       );

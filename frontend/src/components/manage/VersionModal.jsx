@@ -7,6 +7,7 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
   const [loading, setLoading] = useState(false)
   const [installing, setInstalling] = useState(null)
   const [error, setError] = useState("")
+  const [serverVersion, setServerVersion] = useState("")
   const token = localStorage.getItem("token")
 
   useEffect(() => {
@@ -20,7 +21,15 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
     setLoading(true)
     setError("")
     try {
-      const data = await api.serverGetPluginVersions(token, serverId, project.slug)
+      const settings = await api.serverGetSettings(token, serverId).catch(() => null)
+      const startupVars = settings?.startup_variables || []
+      const mcVersionVar = startupVars.find((v) => v?.env_variable === "MINECRAFT_VERSION")
+      const currentServerVersion = mcVersionVar?.server_value || mcVersionVar?.default_value || ""
+      setServerVersion(currentServerVersion)
+
+      const data = project?.source === "curseforge"
+        ? await api.serverGetCurseForgeVersions(token, serverId, project._cfId)
+        : await api.serverGetPluginVersions(token, serverId, project.slug)
       setVersions(data)
     } catch (err) {
       setError(err.message || "Failed to load versions")
@@ -29,17 +38,57 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
     }
   }
 
+  function normalizeGameVersion(v) {
+    return String(v || "").trim().toLowerCase().replace(/^v/, "")
+  }
+
+  function isVersionCompatible(current, gameVersions = []) {
+    const c = normalizeGameVersion(current)
+    if (!c || !Array.isArray(gameVersions) || gameVersions.length === 0) return true
+    const normalized = gameVersions.map(normalizeGameVersion)
+    return normalized.includes(c)
+  }
+
+  function pickSuggestedVersion(gameVersions = []) {
+    if (!Array.isArray(gameVersions) || gameVersions.length === 0) return ""
+    const candidates = gameVersions
+      .map((v) => String(v || "").trim())
+      .filter((v) => /^\d+\.\d+(\.\d+)?$/.test(v))
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: "base" }))
+    return candidates[0] || String(gameVersions[0] || "")
+  }
+
   const handleInstall = async (version) => {
     setInstalling(version.id)
     setError("")
     try {
+      if (!isVersionCompatible(serverVersion, version.game_versions || [])) {
+        const suggested = pickSuggestedVersion(version.game_versions || [])
+        if (!suggested) {
+          throw new Error("Selected item is not compatible with current server version, and no target version was provided by source.")
+        }
+
+        const confirmVersionChange = window.confirm(
+          `This item targets Minecraft ${suggested} but your server is on ${serverVersion || "unknown"}.\n\nSwitch server version to ${suggested} and continue?`
+        )
+
+        if (!confirmVersionChange) {
+          return
+        }
+
+        await api.serverChangeVersion(token, serverId, suggested)
+        setServerVersion(suggested)
+      }
+
       const payload = {
         source: project.source,
         type: project.type,
         slug: project.slug,
-        versionId: version.id,
+        versionId: project.source === "modrinth" ? version.id : undefined,
         projectId: project._cfId,
-        fileId: project._cfLatestFileId
+        fileId: project.source === "curseforge"
+          ? (version.server_pack_file_id || version.file_id || Number(version.id))
+          : project._cfLatestFileId
       }
       const data = await api.serverInstallPlugin(token, serverId, payload)
       onInstall?.(data)
@@ -55,7 +104,7 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-ink-950 border border-dark-700/40 rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+      <div className="surface-card surface-elevated card-3d w-full max-w-3xl max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-dark-700/40">
           <div className="flex items-center gap-3">
@@ -68,12 +117,15 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
             )}
             <div>
               <h2 className="text-lg font-semibold text-slate-100">{project?.title}</h2>
-              <p className="text-xs text-slate-500">Select version to install</p>
+              <p className="text-xs text-slate-500">
+                Select version to install{serverVersion ? ` • Server: ${serverVersion}` : ""}
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 transition"
+            className="rounded-lg border border-dark-700/50 bg-dark-900/50 p-1.5 text-slate-400 hover:text-slate-200 transition"
+            aria-label="Close version selector"
           >
             <X className="w-5 h-5" />
           </button>
@@ -102,7 +154,7 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
               {versions.map((version) => (
                 <div
                   key={version.id}
-                  className="rounded-lg border border-dark-700/40 bg-slate-900/20 p-4 hover:border-dark-700/60 transition"
+                  className="surface-card p-4 hover:border-dark-700/60 transition"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -141,6 +193,11 @@ export default function VersionModal({ isOpen, onClose, project, serverId, onIns
                               +{version.game_versions.length - 5} more
                             </span>
                           )}
+                        </div>
+                      )}
+                      {!isVersionCompatible(serverVersion, version.game_versions || []) && (
+                        <div className="mt-2 text-[11px] text-amber-300">
+                          Not compatible with current server version{serverVersion ? ` (${serverVersion})` : ""}. You will be prompted to switch version.
                         </div>
                       )}
                       {version.loaders?.length > 0 && (

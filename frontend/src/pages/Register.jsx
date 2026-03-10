@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import Logo from "../components/Logo.jsx"
 import { AlertCircle } from "lucide-react"
 import { getBackendBaseUrl } from "../services/api.js"
 
@@ -32,7 +31,7 @@ export default function Register() {
           Create your account
         </h1>
         <p className="text-sm text-slate-400">
-          Get started with your free account today.
+          Get started in under a minute.
         </p>
       </div>
 

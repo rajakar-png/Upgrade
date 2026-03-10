@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Copy, Check, IndianRupee, Upload, Clock } from "lucide-react"
 import SectionHeader from "../components/SectionHeader.jsx"
 import { api } from "../services/api.js"
 import Badge from "../components/Badge.jsx"
+import Button from "../components/ui/Button.jsx"
+import Card from "../components/ui/Card.jsx"
+import Input from "../components/ui/Input.jsx"
 
 export default function Billing() {
   const [amount, setAmount] = useState("")
@@ -18,6 +21,18 @@ export default function Billing() {
   const fileRef = useRef(null)
   const navigate = useNavigate()
 
+  const loadBillingData = useCallback(async (signal, { forceRefresh = false } = {}) => {
+    const token = localStorage.getItem("token")
+    if (!token) return
+
+    const [submissionsData, paymentData] = await Promise.all([
+      api.getUTRSubmissions(token, { signal, forceRefresh }),
+      api.getPaymentSettings({ signal, forceRefresh })
+    ])
+    setSubmissions(submissionsData || [])
+    setUpiSettings(paymentData)
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) {
@@ -25,23 +40,38 @@ export default function Billing() {
       return
     }
 
-    const load = async () => {
-      try {
-        const [submissionsData, paymentData] = await Promise.all([
-          api.getUTRSubmissions(token),
-          api.getPaymentSettings()
-        ])
-        setSubmissions(submissionsData || [])
-        setUpiSettings(paymentData)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
+    const controller = new AbortController()
+
+    loadBillingData(controller.signal)
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false))
+
+    return () => controller.abort()
+  }, [navigate, loadBillingData])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const refresh = () => loadBillingData(controller.signal, { forceRefresh: true }).catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "billing") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["billing", "balance", "admin"].includes(domain))) {
+        refresh()
       }
     }
 
-    load()
-  }, [navigate])
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+      controller.abort()
+    }
+  }, [loadBillingData])
 
   const copyUpi = () => {
     if (!upiSettings.upiId) return
@@ -65,8 +95,9 @@ export default function Billing() {
     try {
       const token = localStorage.getItem("token")
       await api.submitUTR(token, parseFloat(amount), utrNumber, screenshot)
-      const data = await api.getUTRSubmissions(token)
+      const data = await api.getUTRSubmissions(token, { forceRefresh: true })
       setSubmissions(data || [])
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["billing", "admin"], source: "billing" } }))
       setAmount("")
       setUtrNumber("")
       setScreenshot(null)
@@ -111,13 +142,14 @@ export default function Billing() {
                 <div className="flex-1 rounded-xl border border-primary-500/40 bg-dark-950 px-4 py-3">
                   <p className="font-mono text-lg font-semibold text-primary-200 select-all">{upiSettings.upiId}</p>
                 </div>
-                <button
+                <Button
                   onClick={copyUpi}
-                  className="flex items-center gap-2 rounded-xl border border-primary-500/30 bg-primary-900/20 px-4 py-3 text-sm font-semibold text-primary-200 hover:bg-primary-900/40 transition-all"
+                  className="h-[50px]"
+                  variant="secondary"
                 >
                   {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
                   {copied ? "Copied!" : "Copy"}
-                </button>
+                </Button>
               </div>
             </div>
             <div className="rounded-xl border border-dark-700 bg-dark-950 px-4 py-3 text-sm text-slate-300">
@@ -136,7 +168,7 @@ export default function Billing() {
 
       {/* Step 2 — Submit UTR */}
       <div className="grid gap-6 md:grid-cols-[1fr_0.9fr]">
-        <div className="card-3d card-glow rounded-2xl border border-dark-700 bg-dark-900 p-6">
+        <Card elevated className="card-glow p-6">
           <p className="text-sm font-semibold text-slate-300 mb-5">Step 2: Submit your payment proof</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -148,7 +180,7 @@ export default function Billing() {
               <label htmlFor="billing-amount" className="text-sm text-slate-300 font-medium">Amount paid (₹)</label>
               <div className="relative mt-2">
                 <IndianRupee size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
+                <Input
                   id="billing-amount"
                   name="amount"
                   type="number"
@@ -157,21 +189,21 @@ export default function Billing() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-dark-700 bg-dark-800 pl-9 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary-500 focus:outline-none"
+                  className="pl-9"
                   placeholder="25.00"
                 />
               </div>
             </div>
             <div>
               <label htmlFor="billing-utr" className="text-sm text-slate-300 font-medium">UTR / Reference number</label>
-              <input
+              <Input
                 id="billing-utr"
                 name="utrNumber"
                 type="text"
                 value={utrNumber}
                 onChange={(e) => setUtrNumber(e.target.value)}
                 required
-                className="mt-2 w-full rounded-xl border border-dark-700 bg-dark-800 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-primary-500 focus:outline-none"
+                className="mt-2"
                 placeholder="UTR000000000000"
               />
               <p className="mt-1 text-xs text-slate-400">Found in your UPI app transaction history</p>
@@ -208,7 +240,7 @@ export default function Billing() {
               {submitting ? "Submitting..." : "Submit for review"}
             </button>
           </form>
-        </div>
+        </Card>
 
         {/* Submission history */}
         <div className="card-3d card-glow rounded-2xl border border-dark-700 bg-dark-900 p-6">

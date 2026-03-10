@@ -1,8 +1,10 @@
 // Smart API URL detection for development and Codespaces
 function getApiUrl() {
+  const viteEnv = (typeof import.meta !== "undefined" && import.meta.env) ? import.meta.env : {}
+
   // If explicitly set via .env, use that
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL
+  if (viteEnv.VITE_API_URL) {
+    return viteEnv.VITE_API_URL
   }
 
   // In development on Codespaces, construct the backend URL from the frontend URL
@@ -17,9 +19,11 @@ function getApiUrl() {
 
 // Returns the backend origin (no /api suffix) — used to build full URLs for uploads
 export function getBackendBaseUrl() {
-  if (import.meta.env.VITE_API_URL) {
+  const viteEnv = (typeof import.meta !== "undefined" && import.meta.env) ? import.meta.env : {}
+
+  if (viteEnv.VITE_API_URL) {
     // Strip trailing /api if present
-    return import.meta.env.VITE_API_URL.replace(/\/api$/, "")
+    return viteEnv.VITE_API_URL.replace(/\/api$/, "")
   }
   if (window.location.hostname.includes("app.github.dev")) {
     return window.location.origin.replace("-5173.", "-4000.")
@@ -28,15 +32,154 @@ export function getBackendBaseUrl() {
 }
 
 const API_URL = getApiUrl()
+const ME_CACHE_TTL_MS = 15000
+const BALANCE_CACHE_TTL_MS = 10000
+const SERVERS_CACHE_TTL_MS = 6000
+const DEFAULT_REQUEST_TIMEOUT_MS = 15000
+
+let pendingGetMePromise = null
+let cachedMeUser = null
+let cachedMeAt = 0
+const pendingBalancePromises = new Map()
+const cachedBalances = new Map()
+const pendingServersPromises = new Map()
+const cachedServers = new Map()
+
+const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504])
+
+function emitDataSync(domains = []) {
+  if (typeof window === "undefined") return
+  window.dispatchEvent(new CustomEvent("astra:data-sync", {
+    detail: { domains, at: Date.now() }
+  }))
+}
+
+function createIdempotencyKey(prefix = "req") {
+  if (globalThis.crypto?.randomUUID) {
+    return `${prefix}-${globalThis.crypto.randomUUID()}`
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function createMergedSignal(externalSignal, timeoutMs) {
+  const timeoutController = new AbortController()
+  const mergedController = new AbortController()
+
+  const onAbort = () => {
+    if (!mergedController.signal.aborted) {
+      mergedController.abort()
+    }
+  }
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      mergedController.abort()
+    } else {
+      externalSignal.addEventListener("abort", onAbort, { once: true })
+    }
+  }
+
+  timeoutController.signal.addEventListener("abort", onAbort, { once: true })
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs)
+
+  return {
+    signal: mergedController.signal,
+    timeoutController,
+    timeoutId,
+    cleanup: () => {
+      clearTimeout(timeoutId)
+      if (externalSignal) {
+        externalSignal.removeEventListener("abort", onAbort)
+      }
+      timeoutController.signal.removeEventListener("abort", onAbort)
+    }
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRetryableError(error) {
+  if (!error) return false
+  return error.name === "TimeoutError" || error instanceof TypeError
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, signal: externalSignal, ...rest } = options
+  const merged = createMergedSignal(externalSignal, timeoutMs)
+
+  try {
+    return await fetch(url, {
+      ...rest,
+      signal: merged.signal
+    })
+  } catch (error) {
+    if (merged.timeoutController.signal.aborted && !externalSignal?.aborted) {
+      const timeoutError = new Error("Request timed out. Please try again.")
+      timeoutError.name = "TimeoutError"
+      throw timeoutError
+    }
+    throw error
+  } finally {
+    merged.cleanup()
+  }
+}
+
+async function fetchWithRetry(url, options = {}, retryOptions = {}) {
+  const attempts = retryOptions.attempts ?? 1
+  const baseDelayMs = retryOptions.baseDelayMs ?? 500
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(url, options)
+      if (!RETRYABLE_STATUSES.has(response.status) || attempt === attempts) {
+        return response
+      }
+    } catch (error) {
+      if (!isRetryableError(error) || attempt === attempts) {
+        throw error
+      }
+    }
+
+    await sleep(baseDelayMs * (2 ** (attempt - 1)))
+  }
+
+  return fetchWithTimeout(url, options)
+}
 
 export const api = {
   // Auth
-  getMe: async () => {
+  getMe: async (options = {}) => {
     const token = localStorage.getItem("token")
     if (!token) return null
-    const res = await fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-    if (!res.ok) return null
-    return res.json()
+
+    const now = Date.now()
+    if (cachedMeUser && now - cachedMeAt < ME_CACHE_TTL_MS) {
+      return cachedMeUser
+    }
+
+    if (pendingGetMePromise) {
+      return pendingGetMePromise
+    }
+
+    pendingGetMePromise = fetchWithTimeout(`${API_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
+    })
+      .then(async (res) => {
+        if (!res.ok) return null
+        const user = await res.json()
+        cachedMeUser = user
+        cachedMeAt = Date.now()
+        return user
+      })
+      .finally(() => {
+        pendingGetMePromise = null
+      })
+
+    return pendingGetMePromise
   },
 
   register: async (email, password) => {
@@ -92,56 +235,130 @@ export const api = {
     return res.json()
   },
 
-  getUserServers: async (token) => {
-    const res = await fetch(`${API_URL}/servers`, {
-      headers: { Authorization: `Bearer ${token}` }
+  getUserServers: async (token, options = {}) => {
+    const page = options.page || 1
+    const limit = options.limit || 10
+    const cacheKey = `${token}:${page}:${limit}`
+    const now = Date.now()
+
+    if (cachedServers.has(cacheKey) && !options.forceRefresh) {
+      const cached = cachedServers.get(cacheKey)
+      if (now - cached.at < SERVERS_CACHE_TTL_MS) {
+        return cached.value
+      }
+    }
+
+    if (pendingServersPromises.has(cacheKey) && !options.forceRefresh) {
+      return pendingServersPromises.get(cacheKey)
+    }
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit)
     })
+
+    const request = fetchWithRetry(`${API_URL}/servers?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
+    }, {
+      attempts: 3,
+      baseDelayMs: 450
+    })
+
+    pendingServersPromises.set(cacheKey, request)
+
+    const res = await request.finally(() => pendingServersPromises.delete(cacheKey))
     if (!res.ok) throw new Error("Failed to fetch servers")
-    return res.json()
+    const data = await res.json()
+    cachedServers.set(cacheKey, { value: data, at: Date.now() })
+    return data
   },
 
   purchaseServer: async (token, planType, planId, serverName, nodeId, locationName, software = "minecraft", eggId = null, category = "minecraft") => {
-    const res = await fetch(`${API_URL}/servers/purchase`, {
+    const idempotencyKey = createIdempotencyKey("purchase")
+    const res = await fetchWithRetry(`${API_URL}/servers/purchase`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        "Idempotency-Key": idempotencyKey
       },
       body: JSON.stringify({
         plan_type: planType,
-        plan_id: planId,
+        plan_id: Number(planId),
         server_name: serverName,
         category: category,
-        node_id: nodeId || undefined,
+        node_id: nodeId != null && nodeId !== "" ? Number(nodeId) : undefined,
         location: locationName || "",
         software: software,
-        egg_id: eggId || undefined
+        egg_id: eggId != null && eggId !== "" ? Number(eggId) : undefined
       })
+    }, {
+      attempts: 3,
+      baseDelayMs: 600
     })
     if (!res.ok) throw new Error((await res.json()).error || "Purchase failed")
+    cachedServers.clear()
+    cachedBalances.clear()
+    emitDataSync(["servers", "balance", "dashboard"])
     return res.json()
   },
 
-  renewServer: async (token, serverId) => {
-    const res = await fetch(`${API_URL}/servers/renew`, {
+  renewServer: async (token, serverId, options = {}) => {
+    const idempotencyKey = options.idempotencyKey || createIdempotencyKey("renew")
+    const res = await fetchWithRetry(`${API_URL}/servers/renew`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        "Idempotency-Key": idempotencyKey
       },
-      body: JSON.stringify({ server_id: serverId })
+      body: JSON.stringify({ server_id: Number(serverId) }),
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
+    }, {
+      attempts: 3,
+      baseDelayMs: 600
     })
     if (!res.ok) throw new Error((await res.json()).error || "Renewal failed")
+    cachedServers.clear()
+    cachedBalances.clear()
+    emitDataSync(["servers", "balance", "dashboard"])
     return res.json()
   },
 
   // Coins
-  getBalance: async (token) => {
-    const res = await fetch(`${API_URL}/coins/balance`, {
-      headers: { Authorization: `Bearer ${token}` }
+  getBalance: async (token, options = {}) => {
+    const now = Date.now()
+
+    if (cachedBalances.has(token) && !options.forceRefresh) {
+      const cached = cachedBalances.get(token)
+      if (now - cached.at < BALANCE_CACHE_TTL_MS) {
+        return cached.value
+      }
+    }
+
+    if (pendingBalancePromises.has(token) && !options.forceRefresh) {
+      return pendingBalancePromises.get(token)
+    }
+
+    const request = fetchWithRetry(`${API_URL}/coins/balance`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
+    }, {
+      attempts: 3,
+      baseDelayMs: 400
     })
+
+    pendingBalancePromises.set(token, request)
+
+    const res = await request.finally(() => pendingBalancePromises.delete(token))
     if (!res.ok) throw new Error("Failed to fetch balance")
-    return res.json()
+    const data = await res.json()
+    cachedBalances.set(token, { value: data, at: Date.now() })
+    return data
   },
 
   claimCoins: async (token, earnToken) => {
@@ -159,6 +376,8 @@ export const api = {
       if (data.waitSeconds) err.waitSeconds = data.waitSeconds
       throw err
     }
+    cachedBalances.delete(token)
+    emitDataSync(["balance", "coins", "dashboard"])
     return res.json()
   },
 
@@ -188,6 +407,8 @@ export const api = {
       body: JSON.stringify({ code })
     })
     if (!res.ok) throw new Error((await res.json()).error || "Coupon redeem failed")
+    cachedBalances.delete(token)
+    emitDataSync(["balance", "coupons", "dashboard"])
     return res.json()
   },
 
@@ -212,12 +433,15 @@ export const api = {
       body: formData
     })
     if (!res.ok) throw new Error((await res.json()).error || "UTR submission failed")
+    emitDataSync(["billing", "admin"])
     return res.json()
   },
 
-  getUTRSubmissions: async (token) => {
-    const res = await fetch(`${API_URL}/billing/utr`, {
-      headers: { Authorization: `Bearer ${token}` }
+  getUTRSubmissions: async (token, options = {}) => {
+    const res = await fetchWithTimeout(`${API_URL}/billing/utr`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
     })
     if (!res.ok) throw new Error("Failed to fetch UTR submissions")
     return res.json()
@@ -299,9 +523,11 @@ export const api = {
     return res.json()
   },
 
-  getUTRSubmissionsAdmin: async (token) => {
-    const res = await fetch(`${API_URL}/admin/utr`, {
-      headers: { Authorization: `Bearer ${token}` }
+  getUTRSubmissionsAdmin: async (token, options = {}) => {
+    const res = await fetchWithTimeout(`${API_URL}/admin/utr`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
     })
     if (!res.ok) throw new Error("Failed to fetch UTR submissions")
     return res.json()
@@ -313,6 +539,7 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to approve UTR")
+    emitDataSync(["billing", "admin", "balance"])
     return res.json()
   },
 
@@ -322,6 +549,7 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to reject UTR")
+    emitDataSync(["billing", "admin"])
     return res.json()
   },
 
@@ -339,7 +567,9 @@ export const api = {
       const errorData = await res.json().catch(() => ({ error: "Unknown error" }))
       throw new Error(errorData.error || "Failed to create coin plan")
     }
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "admin", "frontpage"])
+    return data
   },
 
   createRealPlan: async (token, planData) => {
@@ -355,7 +585,9 @@ export const api = {
       const errorData = await res.json().catch(() => ({ error: "Unknown error" }))
       throw new Error(errorData.error || "Failed to create real plan")
     }
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "admin", "frontpage"])
+    return data
   },
 
   updateCoinPlan: async (token, planId, planData) => {
@@ -368,7 +600,9 @@ export const api = {
       body: JSON.stringify(planData)
     })
     if (!res.ok) throw new Error("Failed to update coin plan")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "admin", "frontpage"])
+    return data
   },
 
   updateRealPlan: async (token, planId, planData) => {
@@ -381,7 +615,9 @@ export const api = {
       body: JSON.stringify(planData)
     })
     if (!res.ok) throw new Error("Failed to update real plan")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "admin", "frontpage"])
+    return data
   },
 
   deleteCoinPlan: async (token, planId) => {
@@ -390,7 +626,9 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to delete coin plan")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "admin", "frontpage"])
+    return data
   },
 
   deleteRealPlan: async (token, planId) => {
@@ -399,7 +637,9 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to delete real plan")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "admin", "frontpage"])
+    return data
   },
 
   // Coupons (admin)
@@ -418,7 +658,9 @@ export const api = {
       body: JSON.stringify(data)
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to create coupon")
-    return res.json()
+    const payload = await res.json()
+    emitDataSync(["coupons", "admin"])
+    return payload
   },
 
   updateCoupon: async (token, id, data) => {
@@ -428,7 +670,9 @@ export const api = {
       body: JSON.stringify(data)
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to update coupon")
-    return res.json()
+    const payload = await res.json()
+    emitDataSync(["coupons", "admin"])
+    return payload
   },
 
   deleteCoupon: async (token, id) => {
@@ -437,7 +681,9 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to delete coupon")
-    return res.json()
+    const payload = await res.json()
+    emitDataSync(["coupons", "admin"])
+    return payload
   },
 
   // Ads
@@ -473,20 +719,26 @@ export const api = {
       body: formData
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to create ticket")
-    return res.json()
+    const payload = await res.json()
+    emitDataSync(["tickets", "support"])
+    return payload
   },
 
-  getMyTickets: async (token) => {
-    const res = await fetch(`${API_URL}/tickets/my`, {
-      headers: { Authorization: `Bearer ${token}` }
+  getMyTickets: async (token, options = {}) => {
+    const res = await fetchWithTimeout(`${API_URL}/tickets/my`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
     })
     if (!res.ok) throw new Error("Failed to fetch tickets")
     return res.json()
   },
 
-  getTicket: async (token, ticketId) => {
-    const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
-      headers: { Authorization: `Bearer ${token}` }
+  getTicket: async (token, ticketId, options = {}) => {
+    const res = await fetchWithTimeout(`${API_URL}/tickets/${ticketId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
     })
     if (!res.ok) throw new Error("Failed to fetch ticket")
     return res.json()
@@ -505,22 +757,27 @@ export const api = {
       body: formData
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to send reply")
+    emitDataSync(["tickets", "support"])
     return res.json()
   },
 
   // Admin Tickets
-  getAllTickets: async (token, status) => {
+  getAllTickets: async (token, status, options = {}) => {
     const url = status ? `${API_URL}/admin/tickets?status=${status}` : `${API_URL}/admin/tickets`
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` }
+    const res = await fetchWithTimeout(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
     })
     if (!res.ok) throw new Error("Failed to fetch tickets")
     return res.json()
   },
 
-  getAdminTicket: async (token, ticketId) => {
-    const res = await fetch(`${API_URL}/admin/tickets/${ticketId}`, {
-      headers: { Authorization: `Bearer ${token}` }
+  getAdminTicket: async (token, ticketId, options = {}) => {
+    const res = await fetchWithTimeout(`${API_URL}/admin/tickets/${ticketId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: options.signal,
+      timeoutMs: options.timeoutMs
     })
     if (!res.ok) throw new Error("Failed to fetch ticket")
     return res.json()
@@ -539,6 +796,7 @@ export const api = {
       body: formData
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to send reply")
+    emitDataSync(["tickets", "support", "admin"])
     return res.json()
   },
 
@@ -552,6 +810,7 @@ export const api = {
       body: JSON.stringify({ status })
     })
     if (!res.ok) throw new Error("Failed to update ticket status")
+    emitDataSync(["tickets", "support", "admin"])
     return res.json()
   },
 
@@ -561,7 +820,9 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to delete ticket")
-    return res.json()
+    const payload = await res.json()
+    emitDataSync(["tickets", "support", "admin"])
+    return payload
   },
 
   // ─── Frontpage (public) ───────────────────────────────────────────────────
@@ -606,7 +867,9 @@ export const api = {
       body: JSON.stringify({ content })
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to update section")
-    return res.json()
+    const payload = await res.json()
+    emitDataSync(["frontpage", "admin"])
+    return payload
   },
 
   // ─── Admin: Landing Plans ─────────────────────────────────────────────────
@@ -631,7 +894,9 @@ export const api = {
       body: JSON.stringify(planData)
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to create plan")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "frontpage", "admin"])
+    return data
   },
 
   updateLandingPlan: async (id, planData) => {
@@ -645,7 +910,9 @@ export const api = {
       body: JSON.stringify(planData)
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to update plan")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "frontpage", "admin"])
+    return data
   },
 
   deleteLandingPlan: async (id) => {
@@ -655,7 +922,9 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error((await res.json()).error || "Failed to delete plan")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "frontpage", "admin"])
+    return data
   },
 
   toggleLandingPlanActive: async (id) => {
@@ -665,7 +934,9 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to toggle plan status")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "frontpage", "admin"])
+    return data
   },
 
   toggleLandingPlanPopular: async (id) => {
@@ -675,7 +946,9 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to toggle popular status")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["plans", "frontpage", "admin"])
+    return data
   },
 
   // ─── Site Settings (public) ───────────────────────────────────────────────
@@ -697,7 +970,9 @@ export const api = {
       body: JSON.stringify(payload)
     })
     if (!res.ok) throw new Error((await res.json()).message || "Failed to update settings")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["site-settings", "admin", "frontpage"])
+    return data
   },
 
   uploadBackgroundImage: async (file) => {
@@ -711,7 +986,9 @@ export const api = {
       body: formData
     })
     if (!res.ok) throw new Error((await res.json()).message || "Upload failed")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["site-settings", "admin", "frontpage"])
+    return data
   },
 
   uploadFavicon: async (file) => {
@@ -725,7 +1002,9 @@ export const api = {
       body: formData
     })
     if (!res.ok) throw new Error((await res.json()).message || "Upload failed")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["site-settings", "admin", "frontpage"])
+    return data
   },
 
   uploadLogo: async (file) => {
@@ -739,7 +1018,9 @@ export const api = {
       body: formData
     })
     if (!res.ok) throw new Error((await res.json()).message || "Upload failed")
-    return res.json()
+    const data = await res.json()
+    emitDataSync(["site-settings", "admin", "frontpage"])
+    return data
   },
 
   // ─── Auth: Reset Password ─────────────────────────────────────────────────
@@ -842,7 +1123,7 @@ export const api = {
   },
 
   // Bot ZIP upload + extract
-  serverUploadBot: async (token, serverId, file, onProgress) => {
+  serverUploadBot: async (token, serverId, file, _onProgress) => {
     const formData = new FormData()
     formData.append("file", file)
     const res = await fetch(`${API_URL}/servers/${serverId}/bot/upload`, {
@@ -928,6 +1209,14 @@ export const api = {
 
   serverGetPluginVersions: async (token, serverId, slug) => {
     const res = await fetch(`${API_URL}/servers/${serverId}/plugins/${slug}/versions`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) throw new Error("Failed to fetch versions")
+    return res.json()
+  },
+
+  serverGetCurseForgeVersions: async (token, serverId, projectId) => {
+    const res = await fetch(`${API_URL}/servers/${serverId}/plugins/curseforge/${projectId}/versions`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) throw new Error("Failed to fetch versions")

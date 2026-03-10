@@ -1,106 +1,94 @@
 import { Outlet, Link } from "react-router-dom"
+import { ShieldCheck, Zap, Globe, Lock, ArrowUpRight } from "lucide-react"
 import Logo from "../components/Logo.jsx"
-import { ShieldCheck, Activity, Globe, Zap, Database, Lock, ChevronRight, ArrowUpRight } from "lucide-react"
+import Card from "../components/ui/Card.jsx"
+import ErrorBoundary from "../components/ErrorBoundary.jsx"
+
+const highlights = [
+  {
+    icon: Zap,
+    title: "Fast setup",
+    description: "Launch your hosting stack in under a minute."
+  },
+  {
+    icon: ShieldCheck,
+    title: "Protected by default",
+    description: "Built-in safety checks and abuse protection."
+  },
+  {
+    icon: Globe,
+    title: "Always connected",
+    description: "Live updates keep your dashboard in sync."
+  },
+  {
+    icon: Lock,
+    title: "Secure sign-in",
+    description: "Modern OAuth flow with reliable session handling."
+  }
+]
 
 export default function AuthLayout() {
   return (
-    <div className="min-h-screen bg-dark-950 text-slate-100 selection:bg-accent-500 selection:text-dark-950 font-sans tracking-tight overflow-hidden relative">
-      {/* Cinematic Background Engine */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(6,182,212,0.08),transparent_50%)] animate-pulse" />
-         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(139,92,246,0.05),transparent_50%)]" />
-         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-accent-500/5 blur-[120px] rounded-full animate-bounce-slow" />
-         
-         {/* Subtle Scanline Overlay */}
-         <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_4px,3px_100%] pointer-events-none opacity-[0.03]" />
+    <div className="relative min-h-screen overflow-hidden bg-dark-950 text-slate-100">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(99,102,241,0.18),transparent_38%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_80%,rgba(20,184,166,0.10),transparent_42%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.02),transparent_45%,rgba(255,255,255,0.02))]" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-12 lg:py-20">
-        <div className="mb-20 flex items-center justify-between">
-            <Link to="/" className="group flex items-center gap-4 hover:scale-105 transition-transform">
-              <Logo size="lg" />
-              <div className="h-10 w-[1px] bg-dark-700/50 hidden sm:block" />
-              <div className="hidden sm:block">
-                 <p className="text-[10px] font-black text-white italic uppercase tracking-[0.3em] leading-none mb-1">ASTRA FLEET</p>
-                 <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic">COMMAND INTERFACE V4.2</p>
-              </div>
-            </Link>
-            <div className="hidden lg:flex items-center gap-8">
-               <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-glow-emerald animate-pulse" />
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">GLOBAL_UPLINK_ACTIVE</span>
-               </div>
-               <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-accent-500 shadow-glow-accent animate-pulse" />
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">SECURE_TUNNEL_READY</span>
-               </div>
-            </div>
-        </div>
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-8 lg:py-12">
+        <header className="mb-10 flex items-center justify-between">
+          <Link to="/" className="group inline-flex items-center gap-3">
+            <Logo size="lg" />
+            <span className="hidden text-sm font-semibold text-slate-300 transition-colors group-hover:text-white sm:block">
+              AstraNodes Cloud
+            </span>
+          </Link>
 
-        <div className="grid flex-1 items-center gap-16 xl:gap-32 lg:grid-cols-2">
-          {/* Hero Branding */}
-          <div className="space-y-12 max-w-xl animate-slide-up">
-            <div className="space-y-6">
-               <div className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-dark-800/40 border border-dark-700/50">
-                  <Lock size={12} className="text-accent-500" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">Authorization Required</span>
-               </div>
-               <h1 className="text-5xl lg:text-7xl font-black text-white italic uppercase tracking-tighter leading-[0.9]">
-                 SECURE <span className="text-gradient-accent text-glow-accent">GALACTIC</span> ACCESS.
-               </h1>
-               <p className="text-lg text-slate-500 font-medium italic leading-relaxed">
-                 Initialize your operative identifiers to command high-performance clusters across 
-                 the decentralized backbone with <span className="text-white font-black">zero friction</span>.
-               </p>
+          <Link
+            to="/pricing"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-dark-700/60 bg-dark-800/55 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-dark-700/60"
+          >
+            View pricing
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </header>
+
+        <div className="grid flex-1 items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="space-y-7">
+            <div className="space-y-4">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary-500/25 bg-primary-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary-300">
+                SaaS Control Center
+              </span>
+              <h1 className="max-w-xl text-4xl font-bold leading-tight text-white sm:text-5xl">
+                Welcome to your hosting command dashboard.
+              </h1>
+              <p className="max-w-xl text-base leading-relaxed text-slate-400">
+                Sign in to manage servers, monitor activity in real time, and keep billing under control from one clean workspace.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                { label: "INSTANT_CORE", icon: Zap, desc: "Provisioning < 30s" },
-                { label: "FAILSAFE_SYNC", icon: ShieldCheck, desc: "Auto-renewal logic" },
-                { label: "DDoS_EXCLUSION", icon: Globe, desc: "L7 Mitigation active" },
-                { label: "PTERODACTYL_V2", icon: Activity, desc: "Logic automation" }
-              ].map((item, i) => (
-                <div key={i} className="group flex items-start gap-4 p-5 rounded-[2rem] border border-dark-700/50 bg-dark-900/50 backdrop-blur-3xl transition-all hover:bg-dark-800/50 hover:border-dark-600/60 hover:translate-y-[-2px]">
-                  <div className="h-10 w-10 rounded-xl bg-dark-800/60 border border-dark-700/40 flex items-center justify-center text-accent-500 group-hover:scale-110 transition-transform">
-                     <item.icon size={18} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {highlights.map((item) => (
+                <Card key={item.title} className="p-4">
+                  <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-primary-500/20 bg-primary-500/10 text-primary-300">
+                    <item.icon className="h-4 w-4" />
                   </div>
-                  <div>
-                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic mb-1">{item.label}</p>
-                    <p className="text-[11px] font-black text-white uppercase italic tracking-tighter">{item.desc}</p>
-                  </div>
-                </div>
+                  <h2 className="text-sm font-semibold text-white">{item.title}</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">{item.description}</p>
+                </Card>
               ))}
             </div>
-            
-            <div className="pt-8 border-t border-dark-700/40 opacity-40">
-               <p className="text-[9px] font-black text-slate-700 uppercase tracking-[0.4em] italic leading-loose">
-                  ASTRA_NODES // DECENTRALIZED DATA CLUSTERS // END-TO-END CRYPTOGRAPHIC SECURITY ENFORCED ON ALL LAYERS.
-               </p>
-            </div>
-          </div>
+          </section>
 
-          {/* Form Container */}
-          <div className="relative group/container perspective-1000">
-            <div className="absolute -inset-1 bg-gradient-to-r from-accent-500/20 via-purple-500/20 to-accent-500/20 rounded-[3.5rem] blur-xl opacity-20 group-hover/container:opacity-40 transition-opacity" />
-            <div className="relative bg-dark-900/60 border border-dark-700/50 rounded-[3.5rem] p-10 lg:p-14 backdrop-blur-3xl shadow-2xl transition-all duration-700 group-hover/container:rotate-y-2 group-hover/container:border-dark-600/60">
-               <div className="absolute top-0 right-0 p-8 opacity-5">
-                  <Database size={100} className="text-accent-500 rotate-12" />
-               </div>
-               <Outlet />
-            </div>
-            
-            {/* HUD Callout */}
-            <div className="absolute -bottom-12 -right-12 hidden xl:flex items-center gap-4 px-6 py-4 rounded-[1.5rem] bg-indigo-500/10 border border-indigo-500/20 backdrop-blur-3xl animate-bounce-slow">
-               <div className="h-10 w-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                  <ShieldCheck size={20} />
-               </div>
-               <div className="text-right">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic mb-0.5">ENCRYPTION</p>
-                  <p className="text-[11px] font-black text-white italic tracking-tighter uppercase">AES-256 BIT READY</p>
-               </div>
-            </div>
-          </div>
+          <section className="relative">
+            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-primary-500/20 via-accent-500/15 to-primary-500/20 blur-2xl" />
+            <Card className="relative rounded-3xl p-7 sm:p-10">
+              <ErrorBoundary>
+                <Outlet />
+              </ErrorBoundary>
+            </Card>
+          </section>
         </div>
       </div>
     </div>

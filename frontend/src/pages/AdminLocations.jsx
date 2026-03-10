@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Plus, Trash2 } from "lucide-react"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
-import ButtonSpinner from "../components/ButtonSpinner.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
+import Card from "../components/ui/Card.jsx"
+import Input from "../components/ui/Input.jsx"
 
 const STATUS_OPTIONS = ["operational", "degraded", "coming-soon", "maintenance"]
 
@@ -34,18 +36,41 @@ export default function AdminLocations() {
   const navigate = useNavigate()
   const { showSuccess, showError } = useAppUI()
 
+  const loadLocationsData = useCallback(async () => {
+    const data = await api.getAdminFrontpage()
+    const section = data?.locations_page?.data
+    if (Array.isArray(section) && section.length > 0) setLocations(section)
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) { navigate("/login"); return }
 
-    api.getAdminFrontpage()
-      .then((data) => {
-        const section = data?.locations_page?.data
-        if (Array.isArray(section) && section.length > 0) setLocations(section)
-      })
+    loadLocationsData()
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [navigate])
+  }, [navigate, loadLocationsData])
+
+  useEffect(() => {
+    const refresh = () => loadLocationsData().catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["frontpage", "admin"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadLocationsData])
 
   const update = (idx, field, value) => {
     setLocations((prev) => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l))
@@ -98,42 +123,42 @@ export default function AdminLocations() {
         subtitle="Edit server regions shown on the public /locations page."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/locations")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <Button onClick={() => navigate("/locations")} variant="secondary">
               View Page ↗
-            </button>
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            </Button>
+            <Button onClick={() => navigate("/admin")} variant="secondary">
               ← Admin
-            </button>
+            </Button>
           </div>
         }
       />
 
       <div className="space-y-4">
         {locations.map((loc, idx) => (
-          <div key={idx} className="glass rounded-2xl border border-dark-700/40 p-5 space-y-4">
+          <Card key={idx} elevated className="space-y-4 p-5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-300">{loc.flag} {loc.city || "New Location"}</span>
-              <button onClick={() => remove(idx)} className="rounded-lg p-1.5 text-slate-500 hover:bg-red-900/30 hover:text-red-400">
+              <Button onClick={() => remove(idx)} variant="ghost" size="sm" className="h-8 w-8 rounded-lg p-0 text-slate-500 hover:bg-red-900/30 hover:text-red-400">
                 <Trash2 className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
                 <label htmlFor={`loc-${idx}-flag`} className="text-xs uppercase tracking-widest text-slate-500">Flag Emoji</label>
-                <input id={`loc-${idx}-flag`} name={`loc-${idx}-flag`} className="input mt-1 w-full" value={loc.flag} onChange={(e) => update(idx, "flag", e.target.value)} placeholder="🇮🇳" />
+                <Input id={`loc-${idx}-flag`} name={`loc-${idx}-flag`} className="mt-1" value={loc.flag} onChange={(e) => update(idx, "flag", e.target.value)} placeholder="🇮🇳" />
               </div>
               <div>
                 <label htmlFor={`loc-${idx}-city`} className="text-xs uppercase tracking-widest text-slate-500">City</label>
-                <input id={`loc-${idx}-city`} name={`loc-${idx}-city`} className="input mt-1 w-full" value={loc.city} onChange={(e) => update(idx, "city", e.target.value)} placeholder="Mumbai" />
+                <Input id={`loc-${idx}-city`} name={`loc-${idx}-city`} className="mt-1" value={loc.city} onChange={(e) => update(idx, "city", e.target.value)} placeholder="Mumbai" />
               </div>
               <div>
                 <label htmlFor={`loc-${idx}-country`} className="text-xs uppercase tracking-widest text-slate-500">Country</label>
-                <input id={`loc-${idx}-country`} name={`loc-${idx}-country`} className="input mt-1 w-full" value={loc.country} onChange={(e) => update(idx, "country", e.target.value)} placeholder="India" />
+                <Input id={`loc-${idx}-country`} name={`loc-${idx}-country`} className="mt-1" value={loc.country} onChange={(e) => update(idx, "country", e.target.value)} placeholder="India" />
               </div>
               <div>
                 <label htmlFor={`loc-${idx}-latency`} className="text-xs uppercase tracking-widest text-slate-500">Latency</label>
-                <input id={`loc-${idx}-latency`} name={`loc-${idx}-latency`} className="input mt-1 w-full" value={loc.latency} onChange={(e) => update(idx, "latency", e.target.value)} placeholder="~5 ms" />
+                <Input id={`loc-${idx}-latency`} name={`loc-${idx}-latency`} className="mt-1" value={loc.latency} onChange={(e) => update(idx, "latency", e.target.value)} placeholder="~5 ms" />
               </div>
             </div>
 
@@ -158,23 +183,23 @@ export default function AdminLocations() {
               <div className="mt-2 space-y-2">
                 {(loc.features || []).map((f, fi) => (
                   <div key={fi} className="flex gap-2">
-                    <input
-                      className="input flex-1"
+                    <Input
+                      className="flex-1"
                       value={f}
                       onChange={(e) => updateFeature(idx, fi, e.target.value)}
                       placeholder="e.g. NVMe SSD"
                     />
-                    <button onClick={() => removeFeature(idx, fi)} className="rounded-lg px-2 text-slate-500 hover:text-red-400">
+                    <Button onClick={() => removeFeature(idx, fi)} variant="ghost" size="sm" className="h-11 rounded-lg px-2 text-slate-500 hover:text-red-400">
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   </div>
                 ))}
-                <button onClick={() => addFeature(idx)} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-neon-300">
+                <Button onClick={() => addFeature(idx)} variant="ghost" size="sm" className="w-fit px-1 text-xs text-slate-500 hover:text-neon-300">
                   <Plus className="h-3 w-3" /> Add feature
-                </button>
+                </Button>
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
@@ -185,13 +210,14 @@ export default function AdminLocations() {
         <Plus className="h-4 w-4" /> Add Location
       </button>
 
-      <ButtonSpinner
+      <Button
+        type="button"
         loading={saving}
         onClick={handleSave}
-        className="button-3d w-full rounded-xl bg-neon-500/20 border border-neon-500/30 px-4 py-3 text-sm font-semibold text-neon-200 hover:bg-neon-500/30"
+        className="w-full"
       >
         Save Locations Page
-      </ButtonSpinner>
+      </Button>
       </div>
     </div>
   )

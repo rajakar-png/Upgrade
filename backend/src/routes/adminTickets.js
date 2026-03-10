@@ -119,7 +119,7 @@ router.post("/:id/reply", uploadTicketImage.single("image"), handleMulterError, 
     )
 
     await runSync(
-      "UPDATE tickets SET updated_at = datetime('now') WHERE id = ?",
+      "UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       [req.params.id]
     )
 
@@ -154,7 +154,7 @@ router.patch("/:id/status", validate(statusSchema), async (req, res, next) => {
     }
 
     await runSync(
-      "UPDATE tickets SET status = ?, updated_at = datetime('now') WHERE id = ?",
+      "UPDATE tickets SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       [status, req.params.id]
     )
     auditLog({ adminId: req.user.id, action: `ticket_${status}`, targetType: "ticket", targetId: Number(req.params.id), ip: req.ip })
@@ -187,9 +187,9 @@ router.delete("/:id", async (req, res, next) => {
     }
 
     // Delete messages and ticket atomically
-    await transaction(({ runSync: txRun }) => {
-      txRun("DELETE FROM ticket_messages WHERE ticket_id = ?", [ticketId])
-      txRun("DELETE FROM tickets WHERE id = ?", [ticketId])
+    await transaction(async ({ runSync: txRun }) => {
+      await txRun("DELETE FROM ticket_messages WHERE ticket_id = ?", [ticketId])
+      await txRun("DELETE FROM tickets WHERE id = ?", [ticketId])
     })
     auditLog({ adminId: req.user.id, action: "delete_ticket", targetType: "ticket", targetId: ticketId, ip: req.ip })
 

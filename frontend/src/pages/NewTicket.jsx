@@ -1,6 +1,9 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
+import Card from "../components/ui/Card.jsx"
+import Input from "../components/ui/Input.jsx"
 
 export default function NewTicket() {
   const [formData, setFormData] = useState({
@@ -65,7 +68,7 @@ export default function NewTicket() {
         <p className="text-sm text-slate-400">Describe your issue and our team will assist you</p>
       </div>
 
-      <div className="card-3d rounded-xl border border-dark-700/50 bg-dark-800/40 backdrop-blur-sm p-6">
+      <Card elevated className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="rounded-lg bg-red-900/20 border border-red-700/30 p-3 text-sm text-red-300">
@@ -84,7 +87,7 @@ export default function NewTicket() {
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               required
-              className="w-full px-4 py-3 rounded-lg border border-dark-700 bg-dark-800 text-slate-200 focus:outline-none focus:border-primary-500"
+              className="h-11 w-full rounded-xl border border-dark-700/60 bg-dark-900/75 px-4 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
             >
               <option value="Billing">Billing</option>
               <option value="Server Issue">Server Issue</option>
@@ -104,7 +107,7 @@ export default function NewTicket() {
               value={formData.priority}
               onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
               required
-              className="w-full px-4 py-3 rounded-lg border border-dark-700 bg-dark-800 text-slate-200 focus:outline-none focus:border-primary-500"
+              className="h-11 w-full rounded-xl border border-dark-700/60 bg-dark-900/75 px-4 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
             >
               <option value="Low">Low - General question or minor issue</option>
               <option value="Medium">Medium - Affects functionality</option>
@@ -117,7 +120,7 @@ export default function NewTicket() {
             <label htmlFor="ticket-subject" className="block text-sm font-medium text-slate-300 mb-2">
               Subject *
             </label>
-            <input
+            <Input
               id="ticket-subject"
               name="subject"
               type="text"
@@ -127,7 +130,6 @@ export default function NewTicket() {
               required
               minLength={5}
               maxLength={200}
-              className="w-full px-4 py-3 rounded-lg border border-dark-700 bg-dark-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-500"
             />
             <p className="mt-1 text-xs text-slate-500">
               {formData.subject.length}/200 characters
@@ -149,7 +151,7 @@ export default function NewTicket() {
               minLength={10}
               maxLength={2000}
               rows={8}
-              className="w-full px-4 py-3 rounded-lg border border-dark-700 bg-dark-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-500 resize-none"
+              className="w-full rounded-xl border border-dark-700/60 bg-dark-900/75 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 resize-none"
             />
             <p className="mt-1 text-xs text-slate-500">
               {formData.message.length}/2000 characters
@@ -182,40 +184,43 @@ export default function NewTicket() {
                 </label>
               </div>
             ) : (
-              <div className="relative rounded-lg border border-dark-700 p-4">
+              <div className="relative rounded-xl border border-dark-700/60 bg-dark-900/55 p-4">
                 <img src={imagePreview} alt="Preview" className="max-h-64 rounded-lg mx-auto" />
-                <button
+                <Button
                   type="button"
                   onClick={removeImage}
-                  className="absolute top-2 right-2 bg-red-900/80 hover:bg-red-900 text-red-200 rounded-full p-2"
+                  variant="danger"
+                  size="sm"
+                  className="absolute right-2 top-2 h-8 w-8 rounded-full p-0"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </button>
+                </Button>
               </div>
             )}
           </div>
 
           {/* Actions */}
           <div className="flex gap-3">
-            <button
+            <Button
               type="button"
               onClick={() => navigate("/support")}
-              className="button-3d flex-1 rounded-lg border border-dark-700/50 px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-dark-800/60 transition-all"
+              variant="secondary"
+              className="flex-1"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={submitting}
-              className="button-3d flex-1 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-400 hover:to-primary-500 px-4 py-3 text-sm font-semibold text-white shadow-glow-primary disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+              loading={submitting}
+              className="flex-1"
             >
               {submitting ? "Creating..." : "Submit ticket"}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
     </div>
   )
 }

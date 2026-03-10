@@ -58,7 +58,7 @@ export default function BotUploadTab({ serverId, onDeployed }) {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="surface-card surface-elevated p-4">
         <h3 className="text-lg font-bold text-white mb-1">Deploy your bot</h3>
         <p className="text-sm text-slate-400">
           Upload a ZIP archive containing your bot code. It will be extracted to the server root automatically.
@@ -71,7 +71,7 @@ export default function BotUploadTab({ serverId, onDeployed }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition-all duration-200 ${
+        className={`surface-card card-3d relative flex flex-col items-center justify-center gap-3 border-2 border-dashed p-10 text-center cursor-pointer transition-all duration-200 ${
           dragOver
             ? "border-primary-500 bg-primary-500/10"
             : file
@@ -149,7 +149,7 @@ export default function BotUploadTab({ serverId, onDeployed }) {
       </button>
 
       {/* Help text */}
-      <div className="rounded-xl border border-dark-700/50 bg-dark-900/60 p-4 space-y-2">
+      <div className="surface-card p-4 space-y-2">
         <h4 className="text-sm font-semibold text-slate-200">How bot deployment works</h4>
         <ol className="text-xs text-slate-400 space-y-1 list-decimal list-inside">
           <li>Create a ZIP with your bot files (index.js, package.json, etc.)</li>

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { io } from "socket.io-client"
 import {
   Zap, ShieldCheck, Coins, Server, ArrowRight, Package, Sparkles,
   Star, Crown, Shield, Rocket, Gift, Gem, Trophy, Clock,
@@ -8,6 +7,7 @@ import {
 } from "lucide-react"
 import Logo from "../components/Logo.jsx"
 import { api } from "../services/api.js"
+import { getRealtimeSocket } from "../services/realtime.js"
 
 // ─── Icon map used for features ──────────────────────────────────────────────
 const ICON_MAP = {
@@ -44,15 +44,6 @@ const DEFAULTS = {
   },
   stats: { activeServers: "500+", totalUsers: "1,200+", uptime: "99.9%" },
   footer: { text: `© ${new Date().getFullYear()} AstraNodes. All rights reserved.`, links: ["Privacy", "Terms", "Status"] }
-}
-
-// ─── Socket URL detection ────────────────────────────────────────────────────
-function getSocketUrl() {
-  if (import.meta.env.VITE_SOCKET_URL) return import.meta.env.VITE_SOCKET_URL
-  if (window.location.hostname.includes("app.github.dev")) {
-    return window.location.origin.replace("-5173.", "-4000.").replace(/\/api$/, "")
-  }
-  return "http://localhost:4000"
 }
 
 export default function Landing() {
@@ -92,12 +83,8 @@ export default function Landing() {
       .then(setLiveStats)
       .catch(() => {})
 
-    // Real-time socket updates (polling first avoids WS race on strict-mode remount)
-    const socket = io(getSocketUrl(), {
-      transports: ["polling", "websocket"],
-      reconnectionAttempts: 3,
-      timeout: 5000
-    })
+    // Real-time socket updates
+    const socket = getRealtimeSocket()
     socketRef.current = socket
 
     socket.on("connect_error", () => {
@@ -115,7 +102,11 @@ export default function Landing() {
       setPlans(updatedPlans)
     })
 
-    return () => socket.disconnect()
+    return () => {
+      socket.off("connect_error")
+      socket.off("frontpage:update")
+      socket.off("plans:update")
+    }
   }, [])
 
   // Resolve a section: use API content if available, else fallback defaults

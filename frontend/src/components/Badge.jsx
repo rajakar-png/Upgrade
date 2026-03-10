@@ -13,13 +13,14 @@ const colors = {
   pending:  "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
 }
 
-export default function Badge({ label, tone = "info" }) {
+export default function Badge({ label, tone = "info", withDot = false }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium ${
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
         colors[tone] || colors.info
       }`}
     >
+      {withDot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />}
       {label}
     </span>
   )

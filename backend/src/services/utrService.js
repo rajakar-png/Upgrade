@@ -36,16 +36,16 @@ export function getUploadPath(uploadDir, filename) {
 }
 
 export async function approveSubmission(id) {
-  return await transaction(({ getOne: txGetOne, runSync: txRun }) => {
-    const submission = txGetOne("SELECT * FROM utr_submissions WHERE id = ?", [id])
+  return await transaction(async ({ getOne: txGetOne, runSync: txRun }) => {
+    const submission = await txGetOne("SELECT * FROM utr_submissions WHERE id = ?", [id])
     if (!submission || submission.status !== "pending") {
       const err = new Error("Submission not found")
       err.statusCode = 404
       throw err
     }
 
-    txRun("UPDATE utr_submissions SET status = 'approved' WHERE id = ?", [id])
-    txRun(
+    await txRun("UPDATE utr_submissions SET status = 'approved' WHERE id = ?", [id])
+    await txRun(
       "UPDATE users SET balance = balance + ? WHERE id = ?",
       [submission.amount, submission.user_id]
     )

@@ -20,7 +20,6 @@ export default function PluginsTab({ serverId }) {
   const [installedPlugins, setInstalledPlugins] = useState([])
   const [installedMods, setInstalledMods] = useState([])
   const [searching, setSearching] = useState(false)
-  const [, setInstalling] = useState("")
   const [deleting, setDeleting] = useState("")
   const [loadingInstalled, setLoadingInstalled] = useState(true)
   const [error, setError] = useState("")
@@ -30,6 +29,7 @@ export default function PluginsTab({ serverId }) {
   const [type, setType] = useState("plugin")
   const [source, setSource] = useState("all")
   const [hasCF, setHasCF] = useState(false)
+  const [serverMinecraftVersion, setServerMinecraftVersion] = useState("")
 
   // Version selection modal
   const [selectedProject, setSelectedProject] = useState(null)
@@ -74,6 +74,7 @@ export default function PluginsTab({ serverId }) {
       const data = await api.serverSearchPlugins(token, serverId, "", { type, source, offset: pg * ITEMS_PER_PAGE, limit: ITEMS_PER_PAGE })
       setResults(data.results || [])
       setTotalResults(data.total || 0)
+      setServerMinecraftVersion(data?.serverContext?.minecraftVersion || "")
     } catch (_err) {
       // Silently fail for featured load
     } finally {
@@ -85,6 +86,10 @@ export default function PluginsTab({ serverId }) {
     setPage(0)
     setTotalResults(0)
   }, [type, source])
+
+  useEffect(() => {
+    setPage(0)
+  }, [search])
 
   useEffect(() => {
     if (search.length >= 2) {
@@ -104,6 +109,7 @@ export default function PluginsTab({ serverId }) {
       const data = await api.serverSearchPlugins(token, serverId, search, { type, source, offset: pg * ITEMS_PER_PAGE, limit: ITEMS_PER_PAGE })
       setResults(data.results || [])
       setTotalResults(data.total || 0)
+      setServerMinecraftVersion(data?.serverContext?.minecraftVersion || "")
     } catch (err) {
       setError(err.message)
     } finally {
@@ -118,40 +124,16 @@ export default function PluginsTab({ serverId }) {
     doSearch(0)
   }
 
-  // Open version selector
-  const handleSelectProject = (item) => {
-    if (item.source === "modrinth") {
-      setSelectedProject(item)
-      setVersionModalOpen(true)
-    } else {
-      // CurseForge: install directly (no version selection UI yet)
-      handleQuickInstall(item)
-    }
+  const clearSearch = () => {
+    setSearch("")
+    setPage(0)
+    loadFeatured(0)
   }
 
-  // Quick install (without version selection)
-  const handleQuickInstall = async (item) => {
-    const key = item.source + "-" + (item.slug || item.id)
-    setInstalling(key)
-    setError("")
-    setSuccess("")
-    try {
-      const payload = {
-        source: item.source,
-        type: item.type || type,
-        slug: item.slug,
-        projectId: item._cfId,
-        fileId: item._cfLatestFileId
-      }
-      const data = await api.serverInstallPlugin(token, serverId, payload)
-      setSuccess(`Installed ${data.name} (${data.filename}). Restart server to load.`)
-      loadInstalled()
-      setTimeout(() => setSuccess(""), 6000)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setInstalling("")
-    }
+  // Open version selector
+  const handleSelectProject = (item) => {
+    setSelectedProject(item)
+    setVersionModalOpen(true)
   }
 
   // Handle install from version modal
@@ -249,8 +231,20 @@ export default function PluginsTab({ serverId }) {
         </div>
       </div>
 
+      {serverMinecraftVersion && (
+        <p className="text-xs text-slate-500">
+          Current server Minecraft version: <span className="text-slate-300 font-semibold">{serverMinecraftVersion}</span>
+        </p>
+      )}
+
+      {type === "modpack" && (
+        <div className="rounded-lg border border-blue-700/30 bg-blue-900/15 p-3 text-xs text-blue-200">
+          Only server-compatible modpacks are shown. If a selected version requires a different Minecraft version, you will be prompted before changing server version.
+        </div>
+      )}
+
       {/* Search */}
-      <div>
+      <div className="surface-card surface-elevated p-4">
         <form onSubmit={handleSearch} className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-600" />
@@ -270,14 +264,33 @@ export default function PluginsTab({ serverId }) {
             {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Search
           </button>
+          {search.length > 0 && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="rounded-lg border border-dark-700/40 bg-slate-900/30 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800/50"
+            >
+              Clear
+            </button>
+          )}
         </form>
+      </div>
 
-        {/* Results */}
-        {results.length > 0 && (
-          <div className="mt-4">
+      {/* Results */}
+      <div className="surface-card p-4">
             <h3 className="text-sm font-semibold text-slate-200 mb-3">
               {search.length >= 2 ? "Search Results" : `Featured ${currentTypeConfig?.label}`}
             </h3>
+
+            {searching ? (
+              <div className="flex items-center justify-center py-12 text-slate-500">
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </div>
+            ) : results.length === 0 ? (
+              <div className="rounded-xl border border-dark-700/40 bg-ink-950/60 p-6 text-center text-sm text-slate-500">
+                No results found. Try another keyword, source, or content type.
+              </div>
+            ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {results.map((p) => {
                 const key = p.source + "-" + (p.slug || p.id)
@@ -285,8 +298,7 @@ export default function PluginsTab({ serverId }) {
                 return (
                   <div
                     key={key}
-                    onClick={() => handleSelectProject(p)}
-                    className="group cursor-pointer rounded-lg border border-dark-700/40 bg-slate-900/20 p-3 hover:border-dark-700/60 hover:bg-slate-900/40 transition-all"
+                    className="group rounded-lg border border-dark-700/40 bg-slate-900/20 p-3 hover:border-dark-700/60 hover:bg-slate-900/40 transition-all"
                   >
                     <div className="flex gap-3">
                       {p.icon_url ? (
@@ -308,15 +320,30 @@ export default function PluginsTab({ serverId }) {
                           <Download className="h-3 w-3 mr-1" />
                           {(p.downloads || 0).toLocaleString()}
                         </div>
+                        {type === "modpack" && p.source === "curseforge" && (
+                          <div className={`mt-1 text-[11px] ${p.server_pack_available ? "text-green-300" : "text-amber-300"}`}>
+                            {p.server_pack_available ? "Server pack likely available" : "May be client-only, check versions"}
+                          </div>
+                        )}
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectProject(p)}
+                            className="rounded-md border border-primary-500/40 bg-primary-500/15 px-2.5 py-1 text-[11px] font-semibold text-primary-200 hover:bg-primary-500/25"
+                          >
+                            Install
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 )
               })}
             </div>
+            )}
 
             {/* Pagination */}
-            {totalResults > ITEMS_PER_PAGE && (
+            {!searching && totalResults > ITEMS_PER_PAGE && (
               <div className="mt-4 flex items-center justify-between">
                 <p className="text-xs text-slate-500">
                   Showing {page * ITEMS_PER_PAGE + 1}–{Math.min((page + 1) * ITEMS_PER_PAGE, totalResults)} of {totalResults.toLocaleString()}
@@ -342,8 +369,6 @@ export default function PluginsTab({ serverId }) {
                 </div>
               </div>
             )}
-          </div>
-        )}
       </div>
 
       {/* Installed List */}

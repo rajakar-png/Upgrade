@@ -2,15 +2,28 @@ import http from "http"
 import app from "./app.js"
 import { env } from "./config/env.js"
 import migrate from "./db/migrate.js"
+import { migratePostgresUp } from "./db/postgresMigrations.js"
 import { startExpiryCron } from "./cron/expiryCron.js"
 import { initBackupCron } from "./cron/backupCron.js"
+import { initSecurityCleanupCron } from "./cron/securityCleanupCron.js"
 import { initSocket } from "./utils/socket.js"
 
 async function startup() {
   try {
-    console.log("[Server] Starting database migration...")
-    await migrate()
-    console.log("[Server] Migration complete, starting server...")
+    if (env.NODE_ENV === "production" && env.DB_PROVIDER !== "postgres") {
+      console.error("[Server] Production requires DB_PROVIDER=postgres")
+      process.exit(1)
+    }
+
+    if (env.DB_PROVIDER === "sqlite") {
+      console.log("[Server] Starting SQLite migration...")
+      await migrate()
+      console.log("[Server] Migration complete, starting server...")
+    } else {
+      console.log("[Server] DB_PROVIDER=postgres detected; running versioned PostgreSQL migrations...")
+      await migratePostgresUp()
+      console.log("[Server] PostgreSQL migrations complete, starting server...")
+    }
 
     const httpServer = http.createServer(app)
 
@@ -28,6 +41,7 @@ async function startup() {
     httpServer.listen(env.PORT, "0.0.0.0", () => {
       console.log(`[Server] ✓ AstraNodes API listening on 0.0.0.0:${env.PORT}`)
       console.log(`[Server] ✓ Health endpoint: http://localhost:${env.PORT}/health`)
+      console.log(`[Server] ✓ Readiness endpoint: http://localhost:${env.PORT}/ready`)
     })
 
     // Graceful shutdown — stop accepting requests, let in-flight finish
@@ -50,6 +64,7 @@ async function startup() {
     console.log("[Server] Starting cron jobs...")
     startExpiryCron()
     initBackupCron()
+    initSecurityCleanupCron()
     console.log("[Server] ✓ Cron jobs started")
   } catch (error) {
     console.error("[Server] ✗ Failed to start server:", error)

@@ -81,13 +81,17 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,197,94,0.12),transparent_45%),radial-gradient(circle_at_80%_10%,rgba(99,102,241,0.14),transparent_40%)]" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-md space-y-8">
         <div className="flex justify-center">
           <Logo size="lg" />
         </div>
 
-        <div className="rounded-2xl border border-dark-700 bg-dark-900 p-8 shadow-card text-center">
+        <div className="surface-card surface-elevated card-3d rounded-2xl p-8 text-center">
           {status === 'verifying' && (
             <>
               <Loader2 className="h-16 w-16 text-primary-500 animate-spin mx-auto mb-4" />
@@ -112,7 +116,7 @@ export default function VerifyEmail() {
               <p className="text-slate-400 mb-4">{message}</p>
               <button
                 onClick={() => navigate('/login')}
-                className="w-full h-12 rounded-lg bg-primary-500 text-white font-semibold hover:bg-primary-600 transition-all"
+                className="button-3d w-full h-12 rounded-xl border border-primary-500/40 bg-primary-500/90 text-white font-semibold hover:bg-primary-500 transition-all"
               >
                 Go to Login
               </button>
@@ -127,7 +131,7 @@ export default function VerifyEmail() {
               <button
                 onClick={handleResend}
                 disabled={resending}
-                className="w-full h-12 rounded-lg bg-primary-500 text-white font-semibold hover:bg-primary-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="button-3d w-full h-12 rounded-xl border border-primary-500/40 bg-primary-500/90 text-white font-semibold hover:bg-primary-500 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {resending ? (
                   <>

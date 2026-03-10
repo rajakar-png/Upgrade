@@ -200,7 +200,8 @@ Below is every question the script asks, what it expects, and an example answer.
 
 | Prompt | Required | Example | Notes |
 |--------|----------|---------|-------|
-| SQLite database path | ✅ | `/opt/astranodes/backend/data/astranodes.sqlite` | Created automatically |
+| PostgreSQL connection URL | ✅ | `postgresql://postgres:password@127.0.0.1:5432/astranodes` | Used for runtime and migrations |
+| PostgreSQL SSL | ✅ | `n` | Set `y` for managed DBs requiring SSL |
 | Uploads directory | ✅ | `/opt/astranodes/backend/uploads` | For ticket attachments etc. |
 
 ### Section 4 — Pterodactyl Panel
@@ -269,8 +270,7 @@ Copy files          →  rsync to /opt/astranodes (or git pull if already cloned
 Write backend/.env  →  chmod 600 — API keys never exposed
 Write frontend env  →  VITE_API_URL, VITE_SOCKET_URL
 Install deps        →  npm install --omit=dev (backend), npm install (frontend)
-Run migrations      →  migrate → migrate-icons → migrate-duration →
-                        migrate-tickets → upgrade-tickets → migrate-frontpage
+Run migrations      →  migrate-up (versioned PostgreSQL migrations)
 Build frontend      →  npm run build → rsync to /var/www/astranodes
 Write PM2 config    →  ecosystem.production.config.cjs (fork mode, auto-restart, gitignored)
 Write Nginx config  →  /etc/nginx/sites-available/astranodes
@@ -356,7 +356,7 @@ The following files are gitignored and will **never** be touched by `git pull`:
 |------|---------|
 | `backend/.env` | All backend secrets |
 | `frontend/.env.production` | Frontend API URL |
-| `backend/data/` | SQLite database + WAL files |
+| `backend/data/` | Local data and generated backup artifacts |
 | `backend/data/backups/` | Automatic DB backups |
 | `backend/uploads/` | User-uploaded files |
 | `ecosystem.production.config.cjs` | PM2 config with your paths |
@@ -370,7 +370,7 @@ If you prefer to update manually:
 cd /opt/astranodes
 
 # 1. Backup database first!
-cp backend/data/astranodes.sqlite backend/data/astranodes.sqlite.bak
+npm --prefix backend run backup-postgres
 
 # 2. Pull code
 git pull --ff-only
@@ -380,8 +380,7 @@ npm --prefix backend install --omit=dev --quiet
 npm --prefix frontend install --quiet
 
 # 4. Run migrations
-npm --prefix backend run migrate
-npm --prefix backend run migrate-oauth
+npm --prefix backend run migrate-up
 
 # 5. Rebuild frontend
 npm --prefix frontend run build
@@ -432,17 +431,13 @@ certbot renew                         # force renewal
 ls -la /opt/astranodes/backend/data/backups/
 
 # Manual backup
-cp /opt/astranodes/backend/data/astranodes.sqlite \
-   /opt/astranodes/backend/data/astranodes.sqlite.bak
+npm --prefix /opt/astranodes/backend run backup-postgres
 
-# Restore from backup (stop API first!)
+# Restore from backup (stop API first; example with psql)
 pm2 stop astranodes-api
-cp /opt/astranodes/backend/data/backups/astranodes-YYYYMMDD-HHMMSS.sqlite \
-   /opt/astranodes/backend/data/astranodes.sqlite
+psql "postgresql://postgres:password@127.0.0.1:5432/astranodes" \
+  < /opt/astranodes/backend/data/backups/astranodes-predeploy-YYYYMMDD-HHMMSS.sql
 pm2 start astranodes-api
-
-# Open with sqlite3
-sqlite3 /opt/astranodes/backend/data/astranodes.sqlite
 ```
 
 ### Firewall
@@ -554,7 +549,10 @@ pm2 save
 | `FRONTEND_URL` | ✅ | Full URL of the frontend (e.g. `https://astranodes.cloud`) |
 | `JWT_SECRET` | ✅ | Min 32 chars, used to sign login tokens |
 | `JWT_EXPIRES_IN` | ✅ | Token lifetime (e.g. `7d`) |
-| `DB_PATH` | ✅ | Absolute path to the SQLite database file |
+| `DB_PROVIDER` | ✅ | Use `postgres` in production |
+| `DATABASE_URL` | ✅ | PostgreSQL connection string |
+| `DB_SSL` | Optional | Set `true` when provider requires TLS |
+| `DB_PATH` | Optional | SQLite path for local sqlite mode only |
 | `UPLOAD_DIR` | ✅ | Absolute path to the uploads directory |
 | `PTERODACTYL_URL` | ✅ | Pterodactyl panel URL |
 | `PTERODACTYL_API_KEY` | ✅ | Application API key |

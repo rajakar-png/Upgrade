@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
@@ -79,6 +79,27 @@ export default function AdminPanel() {
   const openConfirm = (opts) => setConfirmModal({ open: true, loading: false, ...opts })
   const closeConfirm = () => setConfirmModal({ open: false, title: "", message: "", detail: "", onConfirm: null, loading: false })
 
+  const loadAdminData = useCallback(async ({ forceRefresh = false } = {}) => {
+    const token = localStorage.getItem("token")
+    if (!token) return
+
+    const [usersData, serversData, utrsData, coinPlansData, realPlansData, couponsData] = await Promise.all([
+      api.getUsers(token, { forceRefresh }),
+      api.getServers(token, { forceRefresh }),
+      api.getUTRSubmissionsAdmin(token, { forceRefresh }),
+      api.getCoinPlans(undefined, { forceRefresh }),
+      api.getRealPlans(undefined, { forceRefresh }),
+      api.getCoupons(token, { forceRefresh })
+    ])
+
+    setUsers(usersData || [])
+    setServers(serversData || [])
+    setUtrs(utrsData || [])
+    setCoinPlans(coinPlansData || [])
+    setRealPlans(realPlansData || [])
+    setCoupons(couponsData || [])
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) {
@@ -86,32 +107,35 @@ export default function AdminPanel() {
       return
     }
 
-    const loadAdminData = async () => {
-      try {
-        const [usersData, serversData, utrsData, coinPlansData, realPlansData, couponsData] = await Promise.all([
-          api.getUsers(token),
-          api.getServers(token),
-          api.getUTRSubmissionsAdmin(token),
-          api.getCoinPlans(),
-          api.getRealPlans(),
-          api.getCoupons(token)
-        ])
+    loadAdminData()
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [navigate, loadAdminData])
 
-        setUsers(usersData || [])
-        setServers(serversData || [])
-        setUtrs(utrsData || [])
-        setCoinPlans(coinPlansData || [])
-        setRealPlans(realPlansData || [])
-        setCoupons(couponsData || [])
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+  useEffect(() => {
+    const refresh = () => {
+      loadAdminData({ forceRefresh: true }).catch(() => {})
+    }
+
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "admin-panel") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["admin", "tickets", "billing", "servers", "balance"].includes(domain))) {
+        refresh()
       }
     }
 
-    loadAdminData()
-  }, [navigate])
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadAdminData])
 
   const handleFlagUser = async (userId, currentlyFlagged) => {
     setFlagging((prev) => ({ ...prev, [userId]: true }))
@@ -490,13 +514,13 @@ export default function AdminPanel() {
       )}
 
       {/* Users Section */}
-      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+      <div className="surface-card surface-elevated card-3d p-6">
         <h2 className="text-base font-semibold text-slate-200 mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-aurora-400 inline-block" /> Users ({users.length})</h2>
           <div className="space-y-3">
             {users.map((user) => (
               <div
                 key={user.id}
-                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
+                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3 shadow-lg shadow-black/15"
               >
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <p className="font-semibold text-slate-100 truncate">{user.email}</p>
@@ -543,13 +567,13 @@ export default function AdminPanel() {
         </div>
 
       {/* Servers Section */}
-      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+      <div className="surface-card surface-elevated card-3d p-6">
         <h2 className="text-base font-semibold text-slate-200 mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-neon-400 inline-block" /> Servers ({servers.length})</h2>
           <div className="space-y-3">
             {servers.map((server) => (
               <div
                 key={server.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3 shadow-lg shadow-black/15"
               >
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-100">{server.name}</p>
@@ -594,13 +618,13 @@ export default function AdminPanel() {
         </div>
 
       {/* UTR Section */}
-      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+      <div className="surface-card surface-elevated card-3d p-6">
         <h2 className="text-base font-semibold text-slate-200 mb-3 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block" /> UTR Submissions ({utrs.length})</h2>
           <div className="space-y-3">
             {utrs.map((utr) => (
               <div
                 key={utr.id}
-                className="rounded-xl border border-dark-700/60 bg-ink-950/60 p-4"
+                className="rounded-xl border border-dark-700/60 bg-ink-950/60 p-4 shadow-lg shadow-black/15"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
@@ -661,7 +685,7 @@ export default function AdminPanel() {
       {/* Plans Section */}
       <div className="space-y-6">
           {/* Coin Plans Section */}
-          <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+          <div className="surface-card surface-elevated card-3d p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-100">Coin Plans</h3>
               <button
@@ -678,7 +702,7 @@ export default function AdminPanel() {
                 return (
                   <div
                     key={plan.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3 shadow-lg shadow-black/15"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-aurora-900/20 flex items-center justify-center text-aurora-300">
@@ -718,7 +742,7 @@ export default function AdminPanel() {
           </div>
 
           {/* Real Money Plans Section */}
-          <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+          <div className="surface-card surface-elevated card-3d p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-100">Real Money Plans</h3>
               <button
@@ -735,7 +759,7 @@ export default function AdminPanel() {
                 return (
                   <div
                     key={plan.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3 shadow-lg shadow-black/15"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-aurora-900/20 flex items-center justify-center text-aurora-300">
@@ -776,7 +800,7 @@ export default function AdminPanel() {
         </div>
 
       {/* Coupons Section */}
-      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+      <div className="surface-card surface-elevated card-3d p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-slate-200 flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-ember-400 inline-block" /> Coupon Codes ({coupons.length})</h2>
             <button
@@ -791,7 +815,7 @@ export default function AdminPanel() {
             {coupons.map((c) => (
               <div
                 key={c.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dark-700/60 bg-ink-950/60 px-4 py-3 shadow-lg shadow-black/15"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

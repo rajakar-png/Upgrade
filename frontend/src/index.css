@@ -14,6 +14,17 @@
   /* Dynamic background CSS variables */
   --site-bg-image: none;
   --site-overlay-opacity: 0.4;
+
+  /* SaaS surface tokens */
+  --surface-1: rgba(16, 16, 19, 0.62);
+  --surface-2: rgba(16, 16, 19, 0.82);
+  --surface-border: rgba(30, 30, 35, 0.65);
+  --surface-border-strong: rgba(52, 52, 62, 0.8);
+  --glass-blur: 16px;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --ring-primary: rgba(99, 102, 241, 0.4);
 }
 
 * {
@@ -66,10 +77,33 @@ img {
 
 /* ─── Glassmorphism ─────────────────────────────────────────────── */
 .glass {
-  background: rgba(20, 20, 23, 0.4);
-  border: 1px solid rgba(14, 14, 17, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.surface-card {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.surface-elevated {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-border-strong);
+}
+
+.heading-page {
+  font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.copy-muted {
+  color: #94a3b8;
 }
 
 /* ─── 3D Button Effect ──────────────────────────────────────────── */
@@ -181,6 +215,15 @@ select:focus {
   outline: none;
   border-color: rgba(99, 102, 241, 0.5);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring-primary);
 }
 
 /* ─── Card 3D Hover Effect ──────────────────────────────────────── */

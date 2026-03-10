@@ -9,6 +9,7 @@ import { env } from "./config/env.js"
 import { rateLimiter } from "./middlewares/rateLimit.js"
 import { errorHandler } from "./middlewares/errorHandler.js"
 import { maintenanceGuard } from "./middlewares/maintenance.js"
+import { requestContext, getRequestMetrics } from "./middlewares/requestContext.js"
 import { query } from "./config/db.js"
 import routes from "./routes/index.js"
 import passport from "./config/passport.js"
@@ -46,7 +47,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "idempotency-key"],
   exposedHeaders: ["Content-Length", "X-JSON-Response"],
   optionsSuccessStatus: 200,
   maxAge: 86400,
@@ -66,8 +67,10 @@ app.use(helmet({
         "'unsafe-eval'",
         "blob:",
         "https://www.highperformanceformat.com",
+        "https://*.highperformanceformat.com",
         "https://pl28770653.effectivegatecpm.com",
         "https://pl28771198.effectivegatecpm.com",
+        "https://*.effectivegatecpm.com",
         "https://environmenttalentrabble.com",
         "https://preferencenail.com",
         "https://weirdopt.com",
@@ -78,7 +81,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       connectSrc: ["'self'", "https:", "wss:", "ws:"],
-      frameSrc: ["'self'", "https:"],
+      frameSrc: ["'self'", "https:", "https://*.adsterratools.com", "https://*.effectivegatecpm.com", "https://*.highperformanceformat.com"],
       workerSrc: ["'self'", "blob:"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: []
@@ -99,8 +102,19 @@ app.use(helmet({
     policy: 'strict-origin-when-cross-origin'
   }
 }))
+app.use(requestContext)
 app.use(express.json({ limit: "2mb" }))
-app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"))
+morgan.token("request-id", (req) => req.requestId || "-")
+app.use(morgan((tokens, req, res) => {
+  return JSON.stringify({
+    requestId: tokens["request-id"](req, res),
+    method: tokens.method(req, res),
+    path: tokens.url(req, res),
+    status: Number(tokens.status(req, res) || 0),
+    durationMs: Number(tokens["response-time"](req, res) || 0),
+    contentLength: tokens.res(req, res, "content-length") || "0"
+  })
+}))
 app.use(rateLimiter)
 
 // Session configuration for OAuth
@@ -167,6 +181,37 @@ app.get("/health", async (req, res) => {
   } catch {
     res.json({ status: "ok", service: "astranodes-api" })
   }
+})
+
+app.get("/ready", async (req, res) => {
+  try {
+    await query("SELECT 1 AS db_ok")
+    res.json({
+      status: "ready",
+      service: "astranodes-api",
+      checks: {
+        db: "ok"
+      }
+    })
+  } catch (error) {
+    res.status(503).json({
+      status: "not_ready",
+      service: "astranodes-api",
+      checks: {
+        db: "failed"
+      }
+    })
+  }
+})
+
+app.get("/metrics", async (req, res) => {
+  const requestMetrics = getRequestMetrics()
+  res.json({
+    status: "ok",
+    uptimeSec: Math.floor(process.uptime()),
+    memory: process.memoryUsage(),
+    ...requestMetrics
+  })
 })
 
 // Maintenance mode guard — must come after static file serving and health check,

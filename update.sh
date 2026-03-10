@@ -66,6 +66,16 @@ info "Install directory: ${APP_DIR}"
 [[ -f "${APP_DIR}/backend/package.json" ]] || err "Backend not found at ${APP_DIR}/backend. Run deploy.sh first."
 [[ -f "${APP_DIR}/backend/.env" ]] || err "Backend .env not found at ${APP_DIR}/backend/.env — API will not start. Run deploy.sh first."
 
+# Read DB configuration from backend/.env (used for backup + migration mode).
+BACKEND_ENV_FILE="${APP_DIR}/backend/.env"
+DB_PROVIDER="$(grep -E '^DB_PROVIDER=' "$BACKEND_ENV_FILE" | tail -n1 | cut -d'=' -f2- | tr -d '"' || true)"
+DATABASE_URL="$(grep -E '^DATABASE_URL=' "$BACKEND_ENV_FILE" | tail -n1 | cut -d'=' -f2- | tr -d '"' || true)"
+DB_PATH="$(grep -E '^DB_PATH=' "$BACKEND_ENV_FILE" | tail -n1 | cut -d'=' -f2- | tr -d '"' || true)"
+if [[ -z "$DB_PROVIDER" && -n "$DATABASE_URL" ]]; then
+  DB_PROVIDER="postgres"
+fi
+DB_PROVIDER="${DB_PROVIDER:-sqlite}"
+
 # ── Pre-flight: Verify Node.js & PM2 ─────────────────────────────────────────
 header "Pre-flight checks"
 
@@ -94,17 +104,33 @@ fi
 # ── Pre-flight: Backup database ──────────────────────────────────────────────
 header "Backing up database"
 
-DB_PATH="${DB_PATH:-${APP_DIR}/backend/data/astranodes.sqlite}"
-if [[ -f "$DB_PATH" ]]; then
-  BACKUP_DIR="${APP_DIR}/backend/data/backups"
-  mkdir -p "$BACKUP_DIR"
-  BACKUP_FILE="${BACKUP_DIR}/astranodes-$(date +%Y%m%d-%H%M%S).sqlite"
-  cp "$DB_PATH" "$BACKUP_FILE"
-  success "Database backed up to ${BACKUP_FILE}"
-  # Keep only the last 5 backups
-  ls -t "${BACKUP_DIR}"/astranodes-*.sqlite 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null || true
+if [[ "$DB_PROVIDER" == "postgres" ]]; then
+  if [[ -n "${DATABASE_URL:-}" ]] && command -v pg_dump &>/dev/null; then
+    BACKUP_DIR="${APP_DIR}/backend/data/backups"
+    mkdir -p "$BACKUP_DIR"
+    BACKUP_FILE="${BACKUP_DIR}/astranodes-$(date +%Y%m%d-%H%M%S).sql"
+    if pg_dump "$DATABASE_URL" > "$BACKUP_FILE"; then
+      success "PostgreSQL backup saved to ${BACKUP_FILE}"
+      ls -t "${BACKUP_DIR}"/astranodes-*.sql 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null || true
+    else
+      warn "pg_dump failed — continuing without DB backup"
+      rm -f "$BACKUP_FILE"
+    fi
+  else
+    warn "DB_PROVIDER=postgres but DATABASE_URL or pg_dump is missing — skipping DB backup."
+  fi
 else
-  warn "No database found at ${DB_PATH} — skipping backup."
+  DB_PATH="${DB_PATH:-${APP_DIR}/backend/data/astranodes.sqlite}"
+  if [[ -f "$DB_PATH" ]]; then
+    BACKUP_DIR="${APP_DIR}/backend/data/backups"
+    mkdir -p "$BACKUP_DIR"
+    BACKUP_FILE="${BACKUP_DIR}/astranodes-$(date +%Y%m%d-%H%M%S).sqlite"
+    cp "$DB_PATH" "$BACKUP_FILE"
+    success "SQLite backup saved to ${BACKUP_FILE}"
+    ls -t "${BACKUP_DIR}"/astranodes-*.sqlite 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null || true
+  else
+    warn "No SQLite database found at ${DB_PATH} — skipping backup."
+  fi
 fi
 
 # ── Git pull ─────────────────────────────────────────────────────────────────
@@ -170,28 +196,43 @@ success "Backend dependencies updated"
 header "Running database migrations"
 info "Migrations are idempotent — safe to run on existing data."
 
-MIGRATE_SCRIPTS=(
-  migrate
-  migrate-icons
-  migrate-duration
-  migrate-tickets
-  upgrade-tickets
-  migrate-frontpage
-  migrate-oauth
-)
-
-MIGRATE_FAILED=0
-for script in "${MIGRATE_SCRIPTS[@]}"; do
-  if npm --prefix "${APP_DIR}/backend" run --if-present "$script" 2>&1; then
-    success "${script} OK"
+if [[ "$DB_PROVIDER" == "postgres" ]]; then
+  info "Checking PostgreSQL connectivity before migrations..."
+  if npm --prefix "${APP_DIR}/backend" run check-postgres 2>&1; then
+    success "PostgreSQL health check OK"
   else
-    warn "${script} reported errors (may be safe — already applied)"
-    MIGRATE_FAILED=$((MIGRATE_FAILED + 1))
+    err "PostgreSQL health check failed. Aborting update to prevent partial deployment."
   fi
-done
 
-if [[ $MIGRATE_FAILED -gt 0 ]]; then
-  warn "${MIGRATE_FAILED} migration(s) had warnings — likely already applied."
+  if npm --prefix "${APP_DIR}/backend" run migrate-up 2>&1; then
+    success "migrate-up OK"
+  else
+    err "migrate-up failed"
+  fi
+else
+  MIGRATE_SCRIPTS=(
+    migrate
+    migrate-icons
+    migrate-duration
+    migrate-tickets
+    upgrade-tickets
+    migrate-frontpage
+    migrate-oauth
+  )
+
+  MIGRATE_FAILED=0
+  for script in "${MIGRATE_SCRIPTS[@]}"; do
+    if npm --prefix "${APP_DIR}/backend" run --if-present "$script" 2>&1; then
+      success "${script} OK"
+    else
+      warn "${script} reported errors (may be safe — already applied)"
+      MIGRATE_FAILED=$((MIGRATE_FAILED + 1))
+    fi
+  done
+
+  if [[ $MIGRATE_FAILED -gt 0 ]]; then
+    warn "${MIGRATE_FAILED} migration(s) had warnings — likely already applied."
+  fi
 fi
 
 # ── Frontend dependencies ────────────────────────────────────────────────────
@@ -351,7 +392,7 @@ server {
         proxy_set_header Host \$host;
     }
 
-    # ── Block direct access to SQLite DB ──────────────────────────────────
+    # ── Block direct access to local DB files ─────────────────────────────
     location ~* \.sqlite3?\$ {
         deny all;
     }

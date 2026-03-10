@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
 import Badge from "../components/Badge.jsx"
 import ConfirmModal from "../components/ConfirmModal.jsx"
+import Button from "../components/ui/Button.jsx"
+import Card from "../components/ui/Card.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api, getBackendBaseUrl } from "../services/api.js"
 
@@ -66,7 +68,7 @@ export default function AdminTicketDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [ticket?.messages])
 
-  const loadTicket = async () => {
+  const loadTicket = useCallback(async () => {
     try {
       const token = localStorage.getItem("token")
       const data = await api.getAdminTicket(token, id)
@@ -76,7 +78,29 @@ export default function AdminTicketDetail() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    const refresh = () => loadTicket()
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "admin-ticket-detail") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["tickets", "support", "admin"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 30000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadTicket])
 
   const handleReply = async (e) => {
     e.preventDefault()
@@ -90,6 +114,7 @@ export default function AdminTicketDetail() {
       await api.adminReplyToTicket(token, id, replyMessage, replyImage)
       setReplyMessage("")
       removeReplyImage()
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["tickets", "support", "admin"], source: "admin-ticket-detail" } }))
       await loadTicket()
     } catch (err) {
       setError(err.message)
@@ -105,6 +130,7 @@ export default function AdminTicketDetail() {
     try {
       const token = localStorage.getItem("token")
       await api.updateTicketStatus(token, id, newStatus)
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["tickets", "support", "admin"], source: "admin-ticket-detail" } }))
       await loadTicket()
     } catch (err) {
       setError(err.message)
@@ -118,6 +144,7 @@ export default function AdminTicketDetail() {
     try {
       const token = localStorage.getItem("token")
       await api.deleteTicket(token, id)
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["tickets", "support", "admin"], source: "admin-ticket-detail" } }))
       showSuccess("Ticket deleted successfully")
       navigate("/admin/tickets")
     } catch (err) {
@@ -145,12 +172,13 @@ export default function AdminTicketDetail() {
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <p className="text-slate-400 mb-4">Ticket not found</p>
-        <button
+        <Button
           onClick={() => navigate("/admin/tickets")}
-          className="button-3d rounded-xl bg-neon-500/20 px-4 py-2 text-sm font-semibold text-neon-200 hover:bg-neon-500/30"
+          variant="secondary"
+          size="md"
         >
           Back to Tickets
-        </button>
+        </Button>
       </div>
     )
   }
@@ -163,17 +191,18 @@ export default function AdminTicketDetail() {
         title={`Ticket #${ticket.id}`}
         subtitle={ticket.subject}
         action={
-          <button
+          <Button
             onClick={() => navigate("/admin/tickets")}
-            className="button-3d rounded-xl border border-dark-600/60 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-slate-500/80"
+            variant="secondary"
+            size="md"
           >
             ← Back to Tickets
-          </button>
+          </Button>
         }
       />
 
       {/* User Info Panel */}
-      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+      <Card className="surface-card surface-elevated card-3d p-6">
         <h3 className="text-lg font-semibold text-slate-100 mb-4">User Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -193,10 +222,10 @@ export default function AdminTicketDetail() {
             <p className="text-sm text-slate-200">{ticket.user_created_at ? formatTime(ticket.user_created_at) : "N/A"}</p>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Ticket Info & Actions */}
-      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+      <Card className="surface-card surface-elevated card-3d p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4">
             <Badge
@@ -223,34 +252,37 @@ export default function AdminTicketDetail() {
           
           <div className="flex gap-2">
             {ticket.status === "open" ? (
-              <button
+              <Button
                 onClick={() => handleStatusChange("closed")}
                 disabled={statusChanging}
-                className="button-3d rounded-lg bg-slate-700/30 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-700/50 disabled:opacity-60 disabled:cursor-not-allowed"
+                variant="secondary"
+                size="md"
               >
                 Close Ticket
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 onClick={() => handleStatusChange("open")}
                 disabled={statusChanging}
-                className="button-3d rounded-lg bg-aurora-500/20 px-4 py-2 text-sm font-semibold text-aurora-200 hover:bg-aurora-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                variant="secondary"
+                size="md"
               >
                 Reopen Ticket
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               onClick={() => setDeleteConfirmOpen(true)}
-              className="button-3d rounded-lg bg-red-900/20 border border-red-700/30 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-900/30"
+              variant="danger"
+              size="md"
             >
               Delete
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Messages */}
-      <div className="rounded-2xl border border-dark-700/60 bg-ink-900/70 p-6">
+      <Card className="surface-card surface-elevated card-3d p-6">
         <h3 className="text-lg font-semibold text-slate-100 mb-4">Conversation</h3>
         
         <div className="space-y-4 mb-6 max-h-[500px] overflow-y-auto">
@@ -294,19 +326,20 @@ export default function AdminTicketDetail() {
         {/* Reply Form */}
         <form onSubmit={handleReply} className="space-y-3">
           {error && (
-            <div className="rounded-lg bg-red-900/20 border border-red-700/30 p-3 text-sm text-red-300">
+            <div className="surface-card rounded-lg bg-red-900/20 border border-red-700/30 p-3 text-sm text-red-300">
               {error}
             </div>
           )}
           
           {/* Image Preview */}
           {replyImagePreview && (
-            <div className="relative rounded-lg border border-dark-700/60 p-3">
+            <div className="surface-card relative rounded-lg border border-dark-700/60 p-3">
               <img src={replyImagePreview} alt="Preview" className="max-h-32 rounded-lg" />
               <button
                 type="button"
                 onClick={removeReplyImage}
                 className="absolute top-1 right-1 bg-red-900/80 hover:bg-red-900 text-red-200 rounded-full p-1"
+                aria-label="Remove selected image"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -324,7 +357,7 @@ export default function AdminTicketDetail() {
             required
             rows={4}
             maxLength={2000}
-            className="w-full px-4 py-3 rounded-lg border border-dark-700/60 bg-ink-950/60 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-ember-500/50 resize-none"
+            className="w-full px-4 py-3 rounded-lg border border-dark-700/60 bg-dark-900/80 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-ember-500/50 resize-none"
           />
           <div className="flex justify-between items-center gap-3">
             <div className="flex items-center gap-3">
@@ -342,16 +375,17 @@ export default function AdminTicketDetail() {
                 />
               </label>
             </div>
-            <button
+            <Button
               type="submit"
               disabled={sending || !replyMessage.trim()}
-              className="button-3d rounded-lg bg-ember-500/20 px-6 py-2 text-sm font-semibold text-ember-200 hover:bg-ember-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
+              size="md"
+              variant="secondary"
             >
               {sending ? "Sending..." : "Send Response"}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
       
       {/* Image Enlargement Modal */}
       {enlargedImage && (
@@ -368,6 +402,7 @@ export default function AdminTicketDetail() {
             <button
               onClick={() => setEnlargedImage(null)}
               className="absolute top-4 right-4 bg-red-900/80 hover:bg-red-900 text-red-200 rounded-full p-3"
+              aria-label="Close enlarged image"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

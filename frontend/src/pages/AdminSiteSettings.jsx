@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
 import ButtonSpinner from "../components/ButtonSpinner.jsx"
+import Button from "../components/ui/Button.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api, getBackendBaseUrl } from "../services/api.js"
 import { Image, Globe, Eye, EyeOff, AlertTriangle, CheckCircle, ChevronRight } from "lucide-react"
@@ -29,6 +30,29 @@ export default function AdminSiteSettings() {
   const navigate = useNavigate()
   const { showSuccess, showError, refreshSiteSettings } = useAppUI()
 
+  const loadSiteSettings = useCallback(async () => {
+    const data = await api.getSiteSettings()
+    if (!data) return
+
+    setSettings({
+      siteName: data.siteName || "AstraNodes",
+      backgroundOverlayOpacity: data.backgroundOverlayOpacity ?? 0.45,
+      heroTitle: data.heroTitle || "",
+      heroSubtitle: data.heroSubtitle || "",
+      maintenanceMode: Boolean(data.maintenanceMode)
+    })
+
+    if (data.backgroundImage) {
+      setBackgroundPreview(`${getBackendBaseUrl()}${data.backgroundImage}`)
+    }
+    if (data.faviconPath) {
+      setFaviconPreview(`${getBackendBaseUrl()}${data.faviconPath}`)
+    }
+    if (data.logoPath) {
+      setLogoPreview(`${getBackendBaseUrl()}${data.logoPath}`)
+    }
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) {
@@ -36,27 +60,29 @@ export default function AdminSiteSettings() {
       return
     }
 
-    api.getSiteSettings().then((data) => {
-      if (data) {
-        setSettings({
-          siteName: data.siteName || "AstraNodes",
-          backgroundOverlayOpacity: data.backgroundOverlayOpacity ?? 0.45,
-          heroTitle: data.heroTitle || "",
-          heroSubtitle: data.heroSubtitle || "",
-          maintenanceMode: Boolean(data.maintenanceMode)
-        })
-        if (data.backgroundImage) {
-          setBackgroundPreview(`${getBackendBaseUrl()}${data.backgroundImage}`)
-        }
-        if (data.faviconPath) {
-          setFaviconPreview(`${getBackendBaseUrl()}${data.faviconPath}`)
-        }
-        if (data.logoPath) {
-          setLogoPreview(`${getBackendBaseUrl()}${data.logoPath}`)
-        }
+    loadSiteSettings().catch(() => {}).finally(() => setLoading(false))
+  }, [navigate, loadSiteSettings])
+
+  useEffect(() => {
+    const refresh = () => loadSiteSettings().catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["site-settings", "admin", "frontpage"].includes(domain))) {
+        refresh()
       }
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [navigate])
+    }
+
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadSiteSettings])
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -148,12 +174,9 @@ export default function AdminSiteSettings() {
         title="Site Settings"
         subtitle="Control site name, background, favicon, and maintenance mode."
         action={
-          <button
-            onClick={() => navigate("/admin")}
-            className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300"
-          >
+          <Button onClick={() => navigate("/admin")} variant="secondary">
             ← Back to Admin
-          </button>
+          </Button>
         }
       />
 

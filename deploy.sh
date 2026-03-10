@@ -84,7 +84,7 @@ CONFIG_FILE="${HOME}/.astranodes-deploy.conf"
 CONFIG_VARS=(
   DOMAIN SSL_EMAIL USE_WWW USE_CLOUDFLARE APP_DIR APP_PORT
   JWT_SECRET JWT_EXPIRES SESSION_SECRET
-  DB_PATH UPLOAD_DIR
+  DATABASE_URL DB_SSL UPLOAD_DIR
   GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_CALLBACK_URL
   DISCORD_CLIENT_ID DISCORD_CLIENT_SECRET DISCORD_CALLBACK_URL
   PTERO_URL PTERO_KEY PTERO_CLIENT_KEY PTERO_EGG PTERO_IMAGE PTERO_STARTUP PTERO_ENV
@@ -138,7 +138,15 @@ if [[ -f "$CONFIG_FILE" ]]; then
       USE_CLOUDFLARE="no"
       warn "USE_CLOUDFLARE was missing from saved config — defaulting to 'no'."
     fi
-    success "Loaded saved config — jumping to review."
+
+    if [[ -z "${DATABASE_URL:-}" ]]; then
+      warn "Saved config is from pre-PostgreSQL deploy flow. Re-running wizard for DB settings."
+      SKIPPED_WIZARD=false
+      DB_SSL="no"
+    else
+      [[ -z "${DB_SSL:-}" ]] && DB_SSL="no"
+      success "Loaded saved config — jumping to review."
+    fi
   fi
 fi
 
@@ -220,7 +228,8 @@ echo -e "  ${GREEN}Discord callback URL: ${DISCORD_CALLBACK_URL}${RESET}"
 # ─────────────────────────────────────────────────────────────────────────────
 header "4 / 9  Database & Storage"
 
-ask DB_PATH     "SQLite database path" "${APP_DIR}/backend/data/astranodes.sqlite"
+ask DATABASE_URL "PostgreSQL connection URL (e.g. postgresql://user:pass@host:5432/dbname)"
+ask_yn DB_SSL "Use SSL for PostgreSQL connection?" "n"
 ask UPLOAD_DIR  "Uploads directory"    "${APP_DIR}/backend/uploads"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -296,7 +305,8 @@ echo -e "  ${BOLD}Domain:${RESET}       https://${DOMAIN}"
 echo -e "  ${BOLD}SSL email:${RESET}    ${SSL_EMAIL}"
 echo -e "  ${BOLD}Install dir:${RESET}  ${APP_DIR}"
 echo -e "  ${BOLD}API port:${RESET}     ${APP_PORT} (internal)"
-echo -e "  ${BOLD}DB path:${RESET}      ${DB_PATH}"
+echo -e "  ${BOLD}DB provider:${RESET}  postgres"
+echo -e "  ${BOLD}DB SSL:${RESET}       ${DB_SSL}"
 echo -e "  ${BOLD}Uploads:${RESET}      ${UPLOAD_DIR}"
 echo -e "  ${BOLD}Pterodactyl:${RESET}          ${PTERO_URL}"
 echo -e "  ${BOLD}Node selection:${RESET}       automatic (selectBestNode)"
@@ -399,7 +409,7 @@ else
   fi
 fi
 
-mkdir -p "$(dirname "$DB_PATH")" "$UPLOAD_DIR"
+mkdir -p "$UPLOAD_DIR"
 
 # =============================================================================
 #  WRITE BACKEND .env
@@ -425,6 +435,9 @@ PTERO_CLIENT_LINE=""
 [[ -n "$ADSTERRA_BANNER_ID_VAL" ]]   && ADSTERRA_BID_LINE="ADSTERRA_BANNER_ID=${ADSTERRA_BANNER_ID_VAL}"
 [[ -n "$PTERO_CLIENT_KEY" ]]         && PTERO_CLIENT_LINE="PTERODACTYL_CLIENT_KEY=${PTERO_CLIENT_KEY}"
 
+DB_SSL_FLAG="false"
+[[ "$DB_SSL" == "yes" ]] && DB_SSL_FLAG="true"
+
 cat > "$BACKEND_ENV" <<EOF
 NODE_ENV=production
 PORT=${APP_PORT}
@@ -445,7 +458,9 @@ DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
 DISCORD_CALLBACK_URL=${DISCORD_CALLBACK_URL}
 
 # Database & storage
-DB_PATH=${DB_PATH}
+DB_PROVIDER=postgres
+DATABASE_URL=${DATABASE_URL}
+DB_SSL=${DB_SSL_FLAG}
 UPLOAD_DIR=${UPLOAD_DIR}
 
 # Rate limiting
@@ -515,31 +530,14 @@ npm --prefix "${APP_DIR}/frontend" install --quiet
 # =============================================================================
 header "Running database migrations"
 
-info "A fresh database will be created automatically if one doesn't exist."
-info "Location: ${DB_PATH}"
+info "Applying versioned PostgreSQL migrations (up)."
 echo ""
 
-# Migration scripts in the order they must be applied.
-# --if-present silently skips any script not defined in package.json.
-# These migrations are idempotent (safe to run multiple times).
-MIGRATE_SCRIPTS=(
-  migrate
-  migrate-icons
-  migrate-duration
-  migrate-tickets
-  upgrade-tickets
-  migrate-frontpage
-  migrate-oauth
-)
-
-for script in "${MIGRATE_SCRIPTS[@]}"; do
-  info "Running migration: ${script}..."
-  if npm --prefix "${APP_DIR}/backend" run --if-present "$script"; then
-    success "${script} OK"
-  else
-    warn "${script} reported errors — check output above (may be safe to ignore if already applied)"
-  fi
-done
+if npm --prefix "${APP_DIR}/backend" run migrate-up; then
+  success "migrate-up OK"
+else
+  error "migrate-up failed"
+fi
 
 # =============================================================================
 #  BUILD FRONTEND
@@ -565,7 +563,7 @@ mkdir -p /var/log/pm2
 
 cat > "${APP_DIR}/ecosystem.production.config.cjs" <<'ECOSYSTEM'
 // PM2 Ecosystem — AstraNodes
-// SQLite requires fork mode (single writer — do NOT use cluster)
+// Keep a single process by default for predictable runtime behavior.
 module.exports = {
   apps: [
     {
@@ -653,7 +651,7 @@ server {
         proxy_set_header Host \$host;
     }
 
-    # ── Block direct access to SQLite DB ──────────────────────────────────
+    # ── Block direct access to local DB files ─────────────────────────────
     location ~* \.sqlite3?\$ {
         deny all;
     }
@@ -785,7 +783,7 @@ server {
         proxy_set_header Host \$host;
     }
 
-    # ── Block direct access to SQLite DB ──────────────────────────────────
+    # ── Block direct access to local DB files ─────────────────────────────
     location ~* \.sqlite3?\$ {
         deny all;
     }

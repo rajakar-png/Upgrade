@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { Menu, X } from "lucide-react"
 import Logo from "./Logo.jsx"
@@ -18,6 +18,19 @@ export default function PublicNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const isLoggedIn = Boolean(localStorage.getItem("token"))
   const { pathname } = useLocation()
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const handleKeydown = (event) => {
+      if (event.key === "Escape") setMobileOpen(false)
+    }
+    window.addEventListener("keydown", handleKeydown)
+    return () => window.removeEventListener("keydown", handleKeydown)
+  }, [mobileOpen])
 
   return (
     <header className="mb-12">
@@ -74,6 +87,8 @@ export default function PublicNavbar() {
           onClick={() => setMobileOpen((o) => !o)}
           className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-dark-800/50 transition-colors"
           aria-label="Toggle menu"
+          aria-expanded={mobileOpen}
+          aria-controls="public-mobile-nav"
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -81,7 +96,7 @@ export default function PublicNavbar() {
 
       {/* Mobile dropdown */}
       {mobileOpen && (
-        <div className="md:hidden mt-3 rounded-xl border border-dark-700/50 bg-dark-800 p-4 shadow-xl">
+        <div id="public-mobile-nav" className="md:hidden mt-3 rounded-xl border border-dark-700/50 bg-dark-800 p-4 shadow-xl">
           <nav className="flex flex-col gap-1 mb-4">
             {NAV_LINKS.map(({ to, label }) => (
               <Link

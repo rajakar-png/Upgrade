@@ -32,7 +32,10 @@
 // Using these specific domains guarantees the probe matches what ad blockers actually target.
 const AD_PROBE_DOMAINS = [
   "https://pl28770653.effectivegatecpm.com",
-  "https://www.highperformanceformat.com"
+  "https://www.highperformanceformat.com",
+  "https://environmenttalentrabble.com",
+  "https://preferencenail.com",
+  "https://weirdopt.com"
 ]
 
 // ─── Method 1: Real ad-domain fetch probe ────────────────────────────────────
@@ -63,7 +66,7 @@ function checkAdNetworkScript() {
   return new Promise((resolve) => {
     const script = document.createElement("script")
     // Use the known invoke.js path from actual ad logs
-    script.src = `https://pl28770653.effectivegatecpm.com/ea5f1c0a65197deceee484aa52672b4d/invoke.js?_=${Date.now()}`
+    script.src = `https://www.highperformanceformat.com/ea5f1c0a65197deceee484aa52672b4d/invoke.js?_=${Date.now()}`
     script.async = true
 
     let settled = false

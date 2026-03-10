@@ -88,6 +88,38 @@ export function AppUIProvider({ children }) {
   }, [refreshSiteSettings])
 
   useEffect(() => {
+    const onFocus = () => {
+      refreshSiteSettings().catch(() => {})
+    }
+
+    const onOnline = () => {
+      refreshSiteSettings().catch(() => {})
+    }
+
+    const onDataSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.includes("settings")) {
+        refreshSiteSettings().catch(() => {})
+      }
+    }
+
+    const interval = setInterval(() => {
+      refreshSiteSettings().catch(() => {})
+    }, 120000)
+
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("online", onOnline)
+    window.addEventListener("astra:data-sync", onDataSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("online", onOnline)
+      window.removeEventListener("astra:data-sync", onDataSync)
+    }
+  }, [refreshSiteSettings])
+
+  useEffect(() => {
     document.title = siteSettings.siteName || "AstraNodes"
 
     const bgUrl = toFullUrl(siteSettings.backgroundImage)

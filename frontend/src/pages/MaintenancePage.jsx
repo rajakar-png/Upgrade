@@ -11,7 +11,7 @@ export default function MaintenancePage() {
 
       <div className="relative z-10 max-w-lg w-full text-center space-y-8 animate-fade-in">
         {/* Icon */}
-        <div className="mx-auto h-20 w-20 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+        <div className="mx-auto h-20 w-20 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center card-3d">
           <Construction className="h-10 w-10 text-amber-400" />
         </div>
 
@@ -28,7 +28,7 @@ export default function MaintenancePage() {
         </div>
 
         {/* Status card */}
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm p-6 space-y-4">
+        <div className="surface-card surface-elevated card-3d rounded-2xl p-6 space-y-4 border border-amber-500/20 bg-amber-500/5">
           <div className="flex items-center justify-center gap-3">
             <div className="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse" />
             <span className="text-sm font-bold text-amber-300 uppercase tracking-widest">
@@ -41,13 +41,22 @@ export default function MaintenancePage() {
         </div>
 
         {/* Action */}
-        <button
-          onClick={() => window.location.reload()}
-          className="inline-flex items-center gap-2 rounded-xl border border-dark-700/60 bg-dark-900/80 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-dark-800 hover:border-dark-600 transition-all"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh Page
-        </button>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            onClick={() => window.history.back()}
+            className="button-3d inline-flex items-center gap-2 rounded-xl border border-dark-700/60 bg-dark-900/80 px-5 py-3 text-sm font-semibold text-slate-300 hover:bg-dark-800 hover:border-dark-600 transition-all"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Go Back
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="button-3d inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-6 py-3 text-sm font-semibold text-amber-200 hover:bg-amber-500/15 transition-all"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh Page
+          </button>
+        </div>
       </div>
     </div>
   )

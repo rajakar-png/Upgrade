@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import Badge from "../components/Badge.jsx"
 import { api, getBackendBaseUrl } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
+import Card from "../components/ui/Card.jsx"
 
 export default function TicketDetail() {
   const { id } = useParams()
@@ -50,8 +52,10 @@ export default function TicketDetail() {
       return
     }
 
-    loadTicket()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const controller = new AbortController()
+    loadTicket(controller.signal)
+
+    return () => controller.abort()
   }, [id, navigate])
 
   useEffect(() => {
@@ -59,17 +63,42 @@ export default function TicketDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [ticket?.messages])
 
-  const loadTicket = async () => {
+  const loadTicket = useCallback(async (signal, { forceRefresh = false } = {}) => {
     try {
       const token = localStorage.getItem("token")
-      const data = await api.getTicket(token, id)
+      const data = await api.getTicket(token, id, { signal, forceRefresh })
       setTicket(data)
     } catch (err) {
+      if (err.name === "AbortError") return
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const refresh = () => loadTicket(controller.signal, { forceRefresh: true })
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "ticket-detail") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["tickets", "support", "admin"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 30000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+      controller.abort()
+    }
+  }, [loadTicket])
 
   const handleReply = async (e) => {
     e.preventDefault()
@@ -83,7 +112,8 @@ export default function TicketDetail() {
       await api.replyToTicket(token, id, replyMessage, replyImage)
       setReplyMessage("")
       removeReplyImage()
-      await loadTicket()
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["tickets", "support"], source: "ticket-detail" } }))
+      await loadTicket(undefined, { forceRefresh: true })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -108,12 +138,13 @@ export default function TicketDetail() {
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <p className="text-slate-400 mb-4">Ticket not found</p>
-        <button
+        <Button
           onClick={() => navigate("/support")}
-          className="button-3d rounded-xl bg-neon-500/20 px-4 py-2 text-sm font-semibold text-neon-200 hover:bg-neon-500/30"
+          variant="secondary"
+          size="md"
         >
           Back to Tickets
-        </button>
+        </Button>
       </div>
     )
   }
@@ -125,16 +156,17 @@ export default function TicketDetail() {
           <h1 className="text-2xl font-bold text-white">Ticket #{ticket.id}</h1>
           <p className="text-sm text-slate-400">{ticket.subject}</p>
         </div>
-        <button
+        <Button
           onClick={() => navigate("/support")}
-          className="button-3d h-10 px-4 rounded-lg border border-dark-700/50 text-sm font-medium text-slate-300 hover:bg-dark-800/60 transition-all"
+          variant="secondary"
+          size="md"
         >
           ← Back to tickets
-        </button>
+        </Button>
       </div>
 
       {/* Ticket Info */}
-      <div className="rounded-xl border border-dark-700 bg-dark-900 p-4">
+      <Card className="surface-card surface-elevated card-3d p-4">
         <div className="flex flex-wrap items-center gap-4">
           <Badge
             label={ticket.status === "open" ? "Open" : "Closed"}
@@ -146,7 +178,7 @@ export default function TicketDetail() {
               tone={
                 ticket.priority === "High" ? "rejected" : 
                 ticket.priority === "Medium" ? "warning" : 
-                "neutral"
+                "info"
               }
             />
           )}
@@ -157,10 +189,10 @@ export default function TicketDetail() {
             Created {formatTime(ticket.created_at)}
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Messages */}
-      <div className="rounded-xl border border-dark-700 bg-dark-900 p-6">
+      <Card className="surface-card surface-elevated card-3d p-6">
         <h3 className="text-lg font-semibold text-slate-100 mb-4">Messages</h3>
         
         <div className="space-y-4 mb-6 max-h-[500px] overflow-y-auto">
@@ -172,7 +204,7 @@ export default function TicketDetail() {
               <div className={`max-w-[80%] rounded-xl p-4 ${
                 msg.sender_type === "user"
                   ? "bg-primary-500/15 border border-primary-500/30"
-                  : "bg-dark-800 border border-dark-700"
+                  : "bg-dark-800/80 border border-dark-700/80"
               }`}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={`text-xs font-semibold ${
@@ -205,19 +237,20 @@ export default function TicketDetail() {
         {ticket.status === "open" ? (
           <form onSubmit={handleReply} className="space-y-3">
             {error && (
-              <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-300">
+              <div className="surface-card rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-300">
                 {error}
               </div>
             )}
             
             {/* Image Preview */}
             {replyImagePreview && (
-              <div className="relative rounded-lg border border-dark-700 p-3">
+              <div className="surface-card relative rounded-lg border border-dark-700 p-3">
                 <img src={replyImagePreview} alt="Preview" className="max-h-32 rounded-lg" />
                 <button
                   type="button"
                   onClick={removeReplyImage}
                   className="absolute top-1 right-1 bg-red-900/80 hover:bg-red-900 text-red-200 rounded-full p-1"
+                  aria-label="Remove selected image"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -235,7 +268,7 @@ export default function TicketDetail() {
               required
               rows={4}
               maxLength={2000}
-              className="w-full px-4 py-3 rounded-lg border border-dark-700 bg-dark-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-500 resize-none"
+              className="w-full px-4 py-3 rounded-lg border border-dark-700/70 bg-dark-900/80 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-500 resize-none"
             />
             <div className="flex justify-between items-center gap-3">
               <div className="flex items-center gap-3">
@@ -253,21 +286,21 @@ export default function TicketDetail() {
                   />
                 </label>
               </div>
-              <button
+              <Button
                 type="submit"
                 disabled={sending || !replyMessage.trim()}
-                className="rounded-lg bg-primary-500 px-6 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                size="md"
               >
                 {sending ? "Sending..." : "Send"}
-              </button>
+              </Button>
             </div>
           </form>
         ) : (
-          <div className="rounded-lg bg-dark-800 border border-dark-700 p-4 text-center text-sm text-slate-400">
+          <div className="surface-card rounded-lg bg-dark-800/70 border border-dark-700 p-4 text-center text-sm text-slate-400">
             This ticket is closed. Cannot send new messages.
           </div>
         )}
-      </div>
+      </Card>
       
       {/* Image Enlargement Modal */}
       {enlargedImage && (
@@ -284,6 +317,7 @@ export default function TicketDetail() {
             <button
               onClick={() => setEnlargedImage(null)}
               className="absolute top-4 right-4 bg-red-900/80 hover:bg-red-900 text-red-200 rounded-full p-3"
+              aria-label="Close enlarged image"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

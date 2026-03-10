@@ -1,8 +1,9 @@
-import { Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { useState, useEffect } from "react"
 import { Users, Cpu, Globe, Zap, ShieldCheck, HeartHandshake } from "lucide-react"
 import PublicNavbar from "../components/PublicNavbar.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
 
 const STAT_ICONS = [Cpu, Globe, Zap, Users]
 const STAT_COLORS = ["text-neon-300", "text-aurora-300", "text-amber-300", "text-neon-300"]
@@ -44,6 +45,7 @@ function normalizeStats(stats) {
 
 export default function About() {
   const [data, setData] = useState(DEFAULT_DATA)
+  const navigate = useNavigate()
 
   useEffect(() => {
     // Load frontpage CMS content and live stats in parallel
@@ -95,7 +97,7 @@ export default function About() {
             const Icon = STAT_ICONS[i % STAT_ICONS.length]
             const col = STAT_COLORS[i % STAT_COLORS.length]
             return (
-              <div key={label} className="glass rounded-2xl border border-dark-700/40 p-5 text-center shadow-soft">
+              <div key={label} className="surface-card surface-elevated card-3d rounded-2xl border border-dark-700/40 p-5 text-center">
                 <Icon className={`mx-auto mb-2 h-5 w-5 ${col}`} />
                 <div className="text-2xl font-bold text-slate-100">{value}</div>
                 <div className="text-xs text-slate-400 mt-1">{label}</div>
@@ -104,7 +106,7 @@ export default function About() {
           })}
         </div>
 
-        <section className="mb-16 glass rounded-2xl border border-dark-700/40 p-8 shadow-soft text-slate-300 leading-relaxed space-y-4">
+        <section className="mb-16 surface-card surface-elevated card-3d rounded-2xl border border-dark-700/40 p-8 text-slate-300 leading-relaxed space-y-4">
           <h2 className="text-xl font-semibold text-slate-100">{data.storyTitle}</h2>
           <p>{data.storyText}</p>
           <p>{data.storyText2}</p>
@@ -117,7 +119,7 @@ export default function About() {
             {(data.values || DEFAULT_DATA.values).map(({ title, description }, i) => {
               const Icon = VALUE_ICONS[i % VALUE_ICONS.length]
               return (
-                <div key={title} className="glass rounded-2xl border border-dark-700/40 p-6 shadow-soft">
+                <div key={title} className="surface-card surface-elevated card-3d rounded-2xl border border-dark-700/40 p-6">
                   <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${VALUE_BGS[i % VALUE_BGS.length]}`}>
                     <Icon className={`h-5 w-5 ${VALUE_COLORS[i % VALUE_COLORS.length]}`} />
                   </div>
@@ -129,15 +131,12 @@ export default function About() {
           </div>
         </section>
 
-        <div className="text-center glass rounded-2xl border border-dark-700/40 p-10 shadow-soft space-y-4">
+        <div className="text-center surface-card surface-elevated card-3d rounded-2xl border border-dark-700/40 p-10 space-y-4">
           <h2 className="text-2xl font-semibold text-slate-100">Ready to join us?</h2>
           <p className="text-slate-400">Start your free server in under 60 seconds.</p>
-          <Link
-            to="/register"
-            className="button-3d inline-flex items-center gap-2 rounded-xl bg-neon-500/20 border border-neon-500/30 px-6 py-3 font-semibold text-neon-200 hover:bg-neon-500/30 transition-colors"
-          >
+          <Button onClick={() => navigate("/register")} className="inline-flex items-center gap-2 px-6">
             Create Free Account
-          </Link>
+          </Button>
         </div>
 
         <footer className="mt-12 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">

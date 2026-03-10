@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Plus, Trash2, GripVertical, Zap, ShieldCheck, Coins, Server, Globe, Cpu, HardDrive, Clock, Lock, LifeBuoy, Wifi, Shield, Rocket, Gift, Gem, Star, ArrowRight } from "lucide-react"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
-import ButtonSpinner from "../components/ButtonSpinner.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
+import Card from "../components/ui/Card.jsx"
+import Input from "../components/ui/Input.jsx"
 
 const ICON_OPTIONS = ["Zap", "ShieldCheck", "Coins", "Server", "Globe", "Cpu", "HardDrive", "Clock", "Lock", "LifeBuoy", "Wifi", "Shield", "Rocket", "Gift", "Gem", "Star"]
 const COLOR_OPTIONS = [
@@ -43,20 +45,43 @@ export default function AdminFeatures() {
   const navigate = useNavigate()
   const { showSuccess, showError } = useAppUI()
 
+  const loadFeaturesData = useCallback(async () => {
+    const data = await api.getAdminFrontpage()
+    const section = data?.features_page?.data
+    if (Array.isArray(section) && section.length > 0) {
+      setFeatures(section)
+    }
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) { navigate("/login"); return }
 
-    api.getAdminFrontpage()
-      .then((data) => {
-        const section = data?.features_page?.data
-        if (Array.isArray(section) && section.length > 0) {
-          setFeatures(section)
-        }
-      })
+    loadFeaturesData()
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [navigate])
+  }, [navigate, loadFeaturesData])
+
+  useEffect(() => {
+    const refresh = () => loadFeaturesData().catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["frontpage", "admin"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadFeaturesData])
 
   const update = (idx, field, value) => {
     setFeatures((prev) => prev.map((f, i) => i === idx ? { ...f, [field]: value } : f))
@@ -91,39 +116,41 @@ export default function AdminFeatures() {
         subtitle="Edit the feature cards shown on the public /features page."
         action={
           <div className="flex gap-3">
-            <button onClick={() => navigate("/features")} target="_blank" className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            <Button onClick={() => navigate("/features")} variant="secondary">
               View Page ↗
-            </button>
-            <button onClick={() => navigate("/admin")} className="button-3d rounded-xl border border-dark-700/60 px-4 py-2 text-sm font-semibold text-slate-300">
+            </Button>
+            <Button onClick={() => navigate("/admin")} variant="secondary">
               ← Admin
-            </button>
+            </Button>
           </div>
         }
       />
 
       <div className="space-y-3">
         {features.map((feat, idx) => (
-          <div key={idx} className="glass rounded-2xl border border-dark-700/40 p-5 space-y-4">
+          <Card key={idx} elevated className="space-y-4 p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <GripVertical className="h-4 w-4 text-slate-600" />
                 <span className="text-sm font-semibold text-slate-300">Feature #{idx + 1}</span>
               </div>
-              <button
+              <Button
                 onClick={() => remove(idx)}
-                className="rounded-lg p-1.5 text-slate-500 hover:bg-red-900/30 hover:text-red-400"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 rounded-lg p-0 text-slate-500 hover:bg-red-900/30 hover:text-red-400"
               >
                 <Trash2 className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor={`feat-${idx}-title`} className="text-xs uppercase tracking-widest text-slate-500">Title</label>
-                <input
+                <Input
                   id={`feat-${idx}-title`}
                   name={`feat-${idx}-title`}
-                  className="input mt-1 w-full"
+                  className="mt-1"
                   value={feat.title}
                   onChange={(e) => update(idx, "title", e.target.value)}
                   placeholder="Feature title"
@@ -134,7 +161,7 @@ export default function AdminFeatures() {
                 <select
                   id={`feat-${idx}-icon`}
                   name={`feat-${idx}-icon`}
-                  className="input mt-1 w-full"
+                  className="mt-1 h-11 w-full rounded-xl border border-dark-700/60 bg-dark-900/75 px-4 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
                   value={feat.icon}
                   onChange={(e) => update(idx, "icon", e.target.value)}
                 >
@@ -163,7 +190,7 @@ export default function AdminFeatures() {
                 <select
                   id={`feat-${idx}-color`}
                   name={`feat-${idx}-color`}
-                  className="input mt-1 w-full"
+                  className="mt-1 h-11 w-full rounded-xl border border-dark-700/60 bg-dark-900/75 px-4 text-sm text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
                   value={feat.color}
                   onChange={(e) => update(idx, "color", e.target.value)}
                 >
@@ -173,24 +200,26 @@ export default function AdminFeatures() {
                 </select>
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
-      <button
+      <Button
         onClick={addFeature}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-dark-600 py-4 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300 transition"
+        variant="ghost"
+        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-dark-600 text-sm text-slate-400 hover:border-neon-500/50 hover:text-neon-300"
       >
         <Plus className="h-4 w-4" /> Add Feature
-      </button>
+      </Button>
 
-      <ButtonSpinner
+      <Button
+        type="button"
         loading={saving}
         onClick={handleSave}
-        className="button-3d w-full rounded-xl bg-neon-500/20 border border-neon-500/30 px-4 py-3 text-sm font-semibold text-neon-200 hover:bg-neon-500/30"
+        className="w-full"
       >
         Save Features Page
-      </ButtonSpinner>
+      </Button>
       </div>
     </div>
   )

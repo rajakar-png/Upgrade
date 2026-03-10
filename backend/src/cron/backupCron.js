@@ -1,6 +1,23 @@
 import cron from 'node-cron';
 import { query, runSync, getOne } from '../config/db.js';
 import { pterodactyl } from '../services/pterodactyl.js';
+import { env } from '../config/env.js';
+
+async function runWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length)
+  let cursor = 0
+
+  const workers = Array.from({ length: Math.max(1, concurrency) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor
+      cursor += 1
+      results[index] = await worker(items[index], index)
+    }
+  })
+
+  await Promise.all(workers)
+  return results
+}
 
 /**
  * Resolve the Pterodactyl server identifier for a server row.
@@ -39,7 +56,7 @@ async function createBackups() {
 
     console.log(`[BACKUP CRON] ${servers.length} active servers to check`);
 
-    for (const server of servers) {
+    await runWithConcurrency(servers, env.BACKUP_CRON_CONCURRENCY, async (server) => {
       try {
         // Get plan backup limit
         const plan = await getOne(
@@ -48,12 +65,12 @@ async function createBackups() {
         );
 
         const backupLimit = plan?.backup_count || 0;
-        if (backupLimit === 0) continue; // plan has no backup slots
+        if (backupLimit === 0) return;
 
         const identifier = await resolveIdentifier(server);
         if (!identifier) {
           console.warn(`[BACKUP CRON] No identifier for server ${server.id} — skipping`);
-          continue;
+          return;
         }
 
         // Rotate: delete auto-backups older than 24 h
@@ -92,7 +109,7 @@ async function createBackups() {
       } catch (err) {
         console.error(`[BACKUP CRON] Error processing server ${server.id}:`, err.message);
       }
-    }
+    })
 
     console.log('[BACKUP CRON] Run complete');
   } catch (error) {

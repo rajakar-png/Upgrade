@@ -5,7 +5,7 @@ import { api } from "../../services/api.js"
 function ResourceCard({ icon: Icon, label, value, max, unit }) {
   const pct = max ? Math.min(100, (value / max) * 100) : 0
   return (
-    <div className="rounded-lg border border-dark-700/40 bg-ink-950/50 p-3 space-y-2">
+    <div className="surface-card p-3 space-y-2">
       <div className="flex items-center gap-2 text-xs text-slate-400">
         <Icon className="h-4 w-4" />
         <span className="font-semibold">{label}</span>
@@ -101,7 +101,7 @@ export default function SettingsTab({ serverId, isBot = false }) {
       {/* ── Server Info ─────────────────────────────────────────────────── */}
       <div>
         <h3 className="text-sm font-semibold text-slate-200 mb-3">Server Information</h3>
-        <div className="rounded-lg border border-dark-700/40 divide-y divide-dark-700/40">
+        <div className="surface-card divide-y divide-dark-700/40">
           {[
             ["Identifier", settings.identifier],
             ["Node", settings.node_fqdn || "—"],
@@ -125,7 +125,7 @@ export default function SettingsTab({ serverId, isBot = false }) {
       {!isBot && settings.allocations?.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-slate-200 mb-3">Port Allocations</h3>
-          <div className="rounded-lg border border-dark-700/40 divide-y divide-dark-700/40">
+          <div className="surface-card divide-y divide-dark-700/40">
             {settings.allocations.map((alloc, i) => {
               const allocIp = resolveDisplayIp(alloc)
               const addr = `${allocIp}:${alloc.port}`
@@ -215,7 +215,7 @@ function StartupVariables({ serverId, variables, isBot }) {
             <FileCode className="h-4 w-4 text-neon-400" />
             Main File
           </h3>
-          <div className="rounded-xl border border-neon-500/20 bg-neon-500/5 p-4 space-y-3">
+          <div className="surface-card surface-elevated p-4 space-y-3">
             <p className="text-xs text-slate-400">
               Set the file your bot should run when started (e.g. <code className="text-neon-300">main.py</code>, <code className="text-neon-300">bot.py</code>, <code className="text-neon-300">index.js</code>).
             </p>
@@ -253,7 +253,7 @@ function StartupVariables({ serverId, variables, isBot }) {
       {otherVars.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-slate-200 mb-3">Startup Variables</h3>
-          <div className="rounded-lg border border-dark-700/40 divide-y divide-dark-700/40 max-h-[400px] overflow-y-auto">
+          <div className="surface-card divide-y divide-dark-700/40 max-h-[400px] overflow-y-auto">
             {otherVars.map((v) => {
               const isEditable = isBot && v.is_editable !== false
               const current = editValues[v.env_variable] ?? ""

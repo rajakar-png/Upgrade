@@ -1,9 +1,11 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
-import { MessageSquare, Mail, ExternalLink, Send, Loader2, LogIn, UserPlus } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
+import { MessageSquare, Mail, ExternalLink, Send, LogIn, UserPlus } from "lucide-react"
 import PublicNavbar from "../components/PublicNavbar.jsx"
 import { useAppUI } from "../context/AppUIContext.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
+import Input from "../components/ui/Input.jsx"
 
 const CHANNELS = [
   {
@@ -33,6 +35,7 @@ export default function Contact() {
   const [form, setForm] = useState({ subject: "", message: "" })
   const [sending, setSending] = useState(false)
   const isLoggedIn = Boolean(localStorage.getItem("token"))
+  const navigate = useNavigate()
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -80,7 +83,7 @@ export default function Contact() {
               href={href}
               target={href.startsWith("http") ? "_blank" : undefined}
               rel="noopener noreferrer"
-              className={`glass group flex flex-col gap-3 rounded-2xl border ${border} p-6 shadow-soft transition-transform hover:-translate-y-0.5`}
+              className={`surface-card surface-elevated card-3d group flex flex-col gap-3 rounded-2xl border ${border} p-6 transition-transform`}
             >
               <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${bg}`}>
                 <Icon className={`h-5 w-5 ${color}`} />
@@ -96,38 +99,31 @@ export default function Contact() {
           ))}
         </div>
 
-        <div className="glass rounded-2xl border border-dark-700/40 p-8 shadow-soft">
+        <div className="surface-card surface-elevated card-3d rounded-2xl border border-dark-700/40 p-8">
           <h2 className="mb-6 text-lg font-semibold text-slate-100">Send a message</h2>
 
           {!isLoggedIn ? (
             <div className="text-center space-y-4 py-6">
               <p className="text-slate-400">You need an account to send us a message so we can track and reply to your request.</p>
               <div className="flex justify-center gap-3">
-                <Link
-                  to="/register"
-                  className="button-3d inline-flex items-center gap-2 rounded-xl bg-neon-500/20 border border-neon-500/30 px-5 py-2.5 text-sm font-semibold text-neon-200 hover:bg-neon-500/30 transition-colors"
-                >
+                <Button onClick={() => navigate("/register")} className="inline-flex items-center gap-2">
                   <UserPlus className="h-4 w-4" /> Create Account
-                </Link>
-                <Link
-                  to="/login"
-                  className="button-3d inline-flex items-center gap-2 rounded-xl border border-dark-700/40 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800/40 transition-colors"
-                >
+                </Button>
+                <Button onClick={() => navigate("/login")} variant="secondary" className="inline-flex items-center gap-2">
                   <LogIn className="h-4 w-4" /> Login
-                </Link>
+                </Button>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="contact-subject" className="mb-1.5 block text-xs font-medium text-slate-400">Subject</label>
-                <input
+                <Input
                   id="contact-subject"
                   name="subject"
                   value={form.subject}
                   onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
                   placeholder="Brief description of your issue"
-                  className="w-full rounded-xl border border-dark-700/60 bg-ink-900/60 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30"
                 />
               </div>
               <div>
@@ -139,21 +135,17 @@ export default function Contact() {
                   onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))}
                   rows={5}
                   placeholder="Describe your issue or question..."
-                  className="w-full rounded-xl border border-dark-700/60 bg-ink-900/60 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30 resize-none"
+                  className="w-full rounded-xl border border-dark-700/60 bg-dark-900/75 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-neon-500/50 focus:ring-1 focus:ring-neon-500/30 resize-none"
                 />
               </div>
               <div className="flex items-center justify-between gap-4">
-                <button
+                <Button
                   type="submit"
-                  disabled={sending}
-                  className="button-3d flex items-center gap-2 rounded-xl bg-neon-500/20 border border-neon-500/30 px-5 py-2.5 text-sm font-semibold text-neon-200 hover:bg-neon-500/30 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  loading={sending}
+                  className="flex items-center gap-2"
                 >
-                  {sending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
-                  ) : (
-                    <><Send className="h-4 w-4" /> Send Message</>
-                  )}
-                </button>
+                  {sending ? "Sending..." : <><Send className="h-4 w-4" /> Send Message</>}
+                </Button>
                 <Link to="/support" className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
                   View your tickets →
                 </Link>

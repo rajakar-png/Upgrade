@@ -195,7 +195,7 @@ export default function FilesTab({ serverId }) {
         <textarea
           value={editorContent}
           onChange={(e) => setEditorContent(e.target.value)}
-          className="h-[450px] w-full rounded-lg border border-dark-700/40 bg-[#0c0c0c] p-3 font-mono text-xs leading-relaxed text-slate-300 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none resize-none"
+          className="surface-card card-3d h-[450px] w-full bg-[#0c0c0c] p-3 font-mono text-xs leading-relaxed text-slate-300 placeholder:text-slate-600 focus:border-neon-500/50 focus:outline-none resize-none"
           spellCheck={false}
         />
       </div>
@@ -213,6 +213,7 @@ export default function FilesTab({ serverId }) {
       )}
 
       {/* Breadcrumbs + actions */}
+      <div className="surface-card surface-elevated p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1 text-xs text-slate-400 overflow-x-auto">
           <button onClick={() => navigateTo("/")} className="hover:text-slate-200 shrink-0">
@@ -257,10 +258,11 @@ export default function FilesTab({ serverId }) {
           </label>
         </div>
       </div>
+      </div>
 
       {/* New folder input */}
       {showNewFolder && (
-        <div className="flex gap-2">
+        <div className="surface-card p-2.5 flex gap-2">
           <input
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
@@ -276,7 +278,7 @@ export default function FilesTab({ serverId }) {
 
       {/* New file input */}
       {showNewFile && (
-        <div className="flex gap-2">
+        <div className="surface-card p-2.5 flex gap-2">
           <input
             value={newFileName}
             onChange={(e) => setNewFileName(e.target.value)}
@@ -298,7 +300,7 @@ export default function FilesTab({ serverId }) {
       ) : files.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-500">Empty directory</p>
       ) : (
-        <div className="divide-y divide-dark-700/40 rounded-lg border border-dark-700/40 overflow-hidden">
+        <div className="surface-card card-3d divide-y divide-dark-700/40 overflow-hidden">
           {files.map((f) => (
             <div
               key={f.name}

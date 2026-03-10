@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { Zap, ShieldCheck, Coins, Server, Globe, Cpu, HardDrive, Clock, Lock, LifeBuoy, ArrowRight, Wifi, Shield, Rocket, Gift, Gem, Star } from "lucide-react"
 import PublicNavbar from "../components/PublicNavbar.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
 
 const ICON_MAP = { Zap, ShieldCheck, Coins, Server, Globe, Cpu, HardDrive, Clock, Lock, LifeBuoy, Wifi, Shield, Rocket, Gift, Gem, Star }
 
@@ -21,6 +22,7 @@ const DEFAULTS = [
 
 export default function Features() {
   const [features, setFeatures] = useState(DEFAULTS)
+  const navigate = useNavigate()
 
   useEffect(() => {
     api.getFrontpage()
@@ -68,12 +70,9 @@ export default function Features() {
         <div className="mt-16 glass rounded-3xl border border-dark-700/40 p-10 text-center space-y-4">
           <h2 className="text-2xl font-semibold text-slate-100">Ready to get started?</h2>
           <p className="text-slate-400">Deploy your first Minecraft server in under 60 seconds.</p>
-          <Link
-            to="/register"
-            className="button-3d inline-flex items-center gap-2 rounded-xl bg-neon-500/20 border border-neon-500/30 px-6 py-3 text-sm font-semibold text-neon-200 hover:bg-neon-500/30"
-          >
+          <Button onClick={() => navigate("/register")} className="inline-flex items-center gap-2 px-6">
             Create Account <ArrowRight className="h-4 w-4" />
-          </Link>
+          </Button>
         </div>
 
         <footer className="mt-12 border-t border-dark-700/60 pt-6 text-center text-xs text-slate-500">

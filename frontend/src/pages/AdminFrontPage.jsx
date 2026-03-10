@@ -1,8 +1,9 @@
-import { useState, useEffect, cloneElement, isValidElement } from "react"
-import { Link } from "react-router-dom"
+import { useState, useEffect, useCallback, cloneElement, isValidElement } from "react"
+import { useNavigate } from "react-router-dom"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
 import {
   Save, Plus, Trash2, ChevronDown, ChevronUp, ArrowLeft,
   Layout, Type, List, BarChart2, AlignLeft, X
@@ -28,13 +29,9 @@ export default function AdminFrontPage() {
   const [content, setContent] = useState({})
   const [openSections, setOpenSections] = useState({ hero: true })
   const [toast, setToast] = useState(null)
+  const navigate = useNavigate()
 
-  useEffect(() => {
-    loadContent()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  async function loadContent() {
+  const loadContent = useCallback(async () => {
     try {
       setLoading(true)
       const data = await api.getAdminFrontpage()
@@ -49,7 +46,32 @@ export default function AdminFrontPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadContent()
+  }, [loadContent])
+
+  useEffect(() => {
+    const refresh = () => loadContent().catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["frontpage", "admin"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadContent])
 
   function showToast(msg, type = "success") {
     setToast({ msg, type })
@@ -141,13 +163,15 @@ export default function AdminFrontPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-4">
-        <Link to="/admin" className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200">
-          <ArrowLeft className="h-4 w-4" /> Back to Admin
-        </Link>
-      </div>
-
-      <SectionHeader title="Front Page Editor" subtitle="Edit all sections shown on the public landing page. Changes go live instantly." />
+      <SectionHeader
+        title="Front Page Editor"
+        subtitle="Edit all sections shown on the public landing page. Changes go live instantly."
+        action={
+          <Button onClick={() => navigate("/admin")} variant="secondary">
+            <ArrowLeft className="h-4 w-4" /> Back to Admin
+          </Button>
+        }
+      />
 
       <div className="space-y-4">
         {SECTIONS.map(({ key, label, icon: Icon }) => (
@@ -259,14 +283,14 @@ export default function AdminFrontPage() {
                 )}
 
                 <div className="flex justify-end pt-2">
-                  <button
+                  <Button
                     onClick={() => saveSection(key)}
                     disabled={saving === key}
-                    className="button-3d flex items-center gap-2 rounded-xl bg-neon-500/20 px-5 py-2.5 text-sm font-semibold text-neon-200 disabled:opacity-60"
+                    className="flex items-center gap-2"
                   >
                     <Save className="h-4 w-4" />
                     {saving === key ? "Saving..." : "Save Section"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

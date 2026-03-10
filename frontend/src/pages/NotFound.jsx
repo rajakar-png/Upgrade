@@ -9,7 +9,7 @@ export default function NotFound() {
       <div className="relative group perspective-1000">
         <div className="absolute -inset-10 bg-red-500/10 blur-[100px] rounded-full animate-pulse" />
         
-        <div className="relative bg-dark-900/60 border border-dark-700/50 rounded-[4rem] p-16 lg:p-24 backdrop-blur-3xl flex flex-col items-center text-center max-w-2xl shadow-2xl">
+        <div className="surface-card surface-elevated card-3d relative rounded-[4rem] p-16 lg:p-24 flex flex-col items-center text-center max-w-2xl shadow-2xl border border-dark-700/50">
            <div className="h-32 w-32 rounded-[3.5rem] bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-12 shadow-glow-red/20 group-hover:scale-110 transition-transform duration-700 animate-shake">
               <AlertCircle size={64} />
            </div>
@@ -41,7 +41,7 @@ export default function NotFound() {
 
            <button 
              onClick={() => navigate("/")}
-             className="h-20 w-full rounded-[2rem] bg-dark-800/40 border border-dark-700/50 text-white font-black italic text-[11px] uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-dark-700/50 hover:border-red-500/20 transition-all hover:scale-[1.02] active:scale-95 group/btn"
+             className="button-3d h-20 w-full rounded-[2rem] bg-dark-800/40 border border-dark-700/50 text-white font-black italic text-[11px] uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-dark-700/50 hover:border-red-500/20 transition-all hover:scale-[1.02] active:scale-95 group/btn"
            >
              <ChevronLeft size={20} className="group-hover/btn:-translate-x-1 transition-transform" />
              RE-ENTER CONTROLLED SPACE

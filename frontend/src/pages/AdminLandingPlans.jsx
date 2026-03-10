@@ -1,33 +1,62 @@
-import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { useState, useEffect, useCallback } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import AdminNav from "../components/AdminNav.jsx"
 import SectionHeader from "../components/SectionHeader.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
 import { ArrowLeft, Server, Coins, Wallet, Info } from "lucide-react"
 
 export default function AdminLandingPlans() {
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+
+  const loadPlans = useCallback(async () => {
+    const data = await api.getAdminLandingPlans()
+    setPlans(data || [])
+  }, [])
 
   useEffect(() => {
-    api.getAdminLandingPlans()
-      .then(setPlans)
+    loadPlans()
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [loadPlans])
+
+  useEffect(() => {
+    const refresh = () => loadPlans().catch(() => {})
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["plans", "frontpage", "admin"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 45000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+    }
+  }, [loadPlans])
 
   return (
     <div className="min-h-screen bg-dark-950">
       <AdminNav />
       <div className="max-w-7xl mx-auto p-6 space-y-6">
 
-        <div className="flex items-center gap-4">
-          <Link to="/admin" className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200">
-            <ArrowLeft className="h-4 w-4" /> Back to Admin
-          </Link>
-        </div>
-
-        <SectionHeader title="Landing Page Plans" subtitle="Plans are now auto-synced from your Coin & Real Money plans." />
+        <SectionHeader
+          title="Landing Page Plans"
+          subtitle="Plans are now auto-synced from your Coin & Real Money plans."
+          action={
+            <Button onClick={() => navigate("/admin")} variant="secondary">
+              <ArrowLeft className="h-4 w-4" /> Back to Admin
+            </Button>
+          }
+        />
 
         {/* Info banner */}
         <div className="flex items-start gap-3 rounded-2xl border border-primary-500/30 bg-primary-500/5 p-5">

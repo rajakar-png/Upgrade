@@ -50,17 +50,17 @@ async function processExpiring() {
       // Atomic balance deduction + expiry extension inside a transaction
       // to prevent double-charging from concurrent cron ticks
       try {
-        await transaction(({ getOne: txGetOne, runSync: txRun }) => {
+        await transaction(async ({ getOne: txGetOne, runSync: txRun }) => {
           // Re-check balance inside the lock to prevent double-spend
-          const freshUser = txGetOne("SELECT id, coins, balance FROM users WHERE id = ?", [server.user_id])
+          const freshUser = await txGetOne("SELECT id, coins, balance FROM users WHERE id = ?", [server.user_id])
           if (!freshUser || freshUser[balanceField] < price) {
             throw new Error("INSUFFICIENT_BALANCE")
           }
-          txRun(`UPDATE users SET ${balanceField} = ${balanceField} - ? WHERE id = ?`, [price, user.id])
+          await txRun(`UPDATE users SET ${balanceField} = ${balanceField} - ? WHERE id = ?`, [price, user.id])
           const baseDate = new Date(server.expires_at)
           const startDate = baseDate > now ? server.expires_at : nowIso
           const nextExpiry = addDays(startDate, getDurationDays(plan.duration_type, plan.duration_days))
-          txRun("UPDATE servers SET expires_at = ? WHERE id = ? AND status = 'active'", [nextExpiry, server.id])
+          await txRun("UPDATE servers SET expires_at = ? WHERE id = ? AND status = 'active'", [nextExpiry, server.id])
         })
         continue
       } catch (txErr) {

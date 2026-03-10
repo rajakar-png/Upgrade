@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import Topbar from "../components/Topbar.jsx"
 import { api } from "../services/api.js"
@@ -7,12 +7,35 @@ import { Server, Search, AlertCircle, Clock, Plus, ArrowRight, Copy, RefreshCw, 
 
 export default function MyServers() {
   const [servers, setServers] = useState([])
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 })
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [loadingPage, setLoadingPage] = useState(false)
   const [renewing, setRenewing] = useState({})
   const [countdowns, setCountdowns] = useState({})
   const [searchQuery, setSearchQuery] = useState("")
   const navigate = useNavigate()
   const { showSuccess, showError } = useAppUI()
+
+  const loadServers = useCallback(async (token, signal, targetPage, { showFullLoading = false } = {}) => {
+    if (showFullLoading) {
+      setLoading(true)
+    } else {
+      setLoadingPage(true)
+    }
+
+    try {
+      const data = await api.getUserServers(token, { signal, limit: 10, page: targetPage })
+      setServers(data?.servers || [])
+      setPagination(data?.pagination || { page: targetPage, limit: 10, total: 0, totalPages: 1 })
+    } catch (err) {
+      if (err.name === "AbortError") return
+      showError(err.message || "Failed to load servers.")
+    } finally {
+      setLoading(false)
+      setLoadingPage(false)
+    }
+  }, [showError])
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -21,19 +44,43 @@ export default function MyServers() {
       return
     }
 
-    const loadServers = async () => {
-      try {
-        const data = await api.getUserServers(token)
-        setServers(data || [])
-      } catch (err) {
-        showError(err.message || "Failed to load servers.")
-      } finally {
-        setLoading(false)
+    const controller = new AbortController()
+
+    loadServers(token, controller.signal, page, { showFullLoading: true })
+
+    return () => controller.abort()
+  }, [navigate, page, loadServers])
+
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+    if (!token) return undefined
+
+    const controller = new AbortController()
+
+    const refresh = () => {
+      loadServers(token, controller.signal, page, { showFullLoading: false })
+    }
+
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "servers") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["servers", "dashboard", "balance"].includes(domain))) {
+        refresh()
       }
     }
 
-    loadServers()
-  }, [navigate, showError])
+    const interval = setInterval(refresh, 30000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+      controller.abort()
+    }
+  }, [page, loadServers])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -88,9 +135,10 @@ export default function MyServers() {
       const token = localStorage.getItem("token")
       await api.renewServer(token, serverId)
       showSuccess("Server renewed successfully.")
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["servers", "balance"], source: "servers" } }))
 
-      const data = await api.getUserServers(token)
-      setServers(data || [])
+      const controller = new AbortController()
+      await loadServers(token, controller.signal, page)
     } catch (err) {
       showError(err.message || "Failed to renew server.")
     } finally {
@@ -318,6 +366,30 @@ export default function MyServers() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between rounded-xl border border-dark-700/50 bg-dark-800/30 px-4 py-3">
+          <p className="text-sm text-slate-400">
+            Page {pagination.page} of {pagination.totalPages} ({pagination.total} total servers)
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page <= 1 || loadingPage}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              className="button-3d rounded-lg border border-dark-700/50 bg-dark-700/60 px-3 py-2 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              disabled={page >= pagination.totalPages || loadingPage}
+              onClick={() => setPage((prev) => Math.min(pagination.totalPages, prev + 1))}
+              className="button-3d rounded-lg border border-dark-700/50 bg-dark-700/60 px-3 py-2 text-sm font-semibold text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -17,9 +17,9 @@ export async function claimAfkCoins({ userId }) {
   const reward = Math.max(1, settings?.coins_per_minute ?? 1)
 
   // Use transaction with BEGIN IMMEDIATE to prevent concurrent double-claims
-  return await transaction(({ getOne: txGetOne, runSync: txRun }) => {
+  return await transaction(async ({ getOne: txGetOne, runSync: txRun }) => {
     const now = new Date()
-    const user = txGetOne("SELECT last_claim_time FROM users WHERE id = ?", [userId])
+    const user = await txGetOne("SELECT last_claim_time FROM users WHERE id = ?", [userId])
 
     if (user?.last_claim_time) {
       const last = new Date(user.last_claim_time)
@@ -32,7 +32,7 @@ export async function claimAfkCoins({ userId }) {
       }
     }
 
-    txRun(
+    await txRun(
       "UPDATE users SET coins = coins + ?, last_claim_time = ? WHERE id = ?",
       [reward, now.toISOString(), userId]
     )

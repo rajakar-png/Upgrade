@@ -1,7 +1,8 @@
 import crypto from "crypto"
+import { logger } from "../utils/logger.js"
 
 export function errorHandler(err, req, res, next) {
-  const requestId = crypto.randomUUID().slice(0, 8)
+  const requestId = req.requestId || crypto.randomUUID().slice(0, 8)
 
   if (err.name === "ZodError") {
     return res.status(400).json({ success: false, error: "Validation failed", message: "Validation failed", requestId, data: { details: err.errors } })
@@ -12,7 +13,12 @@ export function errorHandler(err, req, res, next) {
   }
 
   // Log full error server-side with request ID for correlation
-  console.error(`[ERROR] [${requestId}] ${req.method} ${req.path}:`, err.message)
-  if (err.stack) console.error(`[ERROR] [${requestId}] Stack:`, err.stack)
+  logger.error("Unhandled request error", {
+    requestId,
+    method: req.method,
+    path: req.path,
+    message: err.message,
+    stack: err.stack || null
+  })
   res.status(500).json({ success: false, error: "Internal server error", message: "Internal server error", requestId, data: {} })
 }

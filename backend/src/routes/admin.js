@@ -11,6 +11,53 @@ const router = Router()
 
 router.use(requireAuth, requireAdmin)
 
+router.get("/idempotency/overview", async (req, res, next) => {
+  try {
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ")
+
+    const [processingRow] = await query(
+      "SELECT COUNT(*) AS count FROM idempotency_keys WHERE status = 'processing'"
+    )
+    const [completed24hRow] = await query(
+      "SELECT COUNT(*) AS count FROM idempotency_keys WHERE status = 'completed' AND created_at >= ?",
+      [since24h]
+    )
+    const endpointBreakdownRows = await query(
+      `SELECT endpoint, COUNT(*) AS count
+       FROM idempotency_keys
+       WHERE created_at >= ?
+       GROUP BY endpoint
+       ORDER BY count DESC`,
+      [since24h]
+    )
+
+    const endpointBreakdown = endpointBreakdownRows.map((row) => ({
+      endpoint: row.endpoint,
+      count: Number(row.count || 0)
+    }))
+
+    res.json({
+      processing: Number(processingRow?.count || 0),
+      completedLast24h: Number(completed24hRow?.count || 0),
+      endpointBreakdown
+    })
+  } catch (error) {
+    // Fail-open for observability endpoint so dashboards don't break
+    // if a migration is temporarily missing in a fresh environment.
+    if (String(error.message || "").includes("no such table")) {
+      return res.json({
+        processing: 0,
+        completedLast24h: 0,
+        endpointBreakdown: []
+      })
+    }
+    next(error)
+  }
+})
+
 const coinPlanSchema = z.object({
   body: z.object({
     name: z.string().min(2),
@@ -171,13 +218,13 @@ router.delete("/users/:id", async (req, res, next) => {
     }
 
     // ── 3. Cascade delete all site data atomically ─────────────────
-    await transaction(({ runSync }) => {
-      runSync("DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)", [userId])
-      runSync("DELETE FROM tickets WHERE user_id = ?", [userId])
-      runSync("DELETE FROM coupon_redemptions WHERE user_id = ?", [userId])
-      runSync("DELETE FROM utr_submissions WHERE user_id = ?", [userId])
-      runSync("DELETE FROM servers WHERE user_id = ?", [userId])
-      runSync("DELETE FROM users WHERE id = ?", [userId])
+    await transaction(async ({ runSync }) => {
+      await runSync("DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)", [userId])
+      await runSync("DELETE FROM tickets WHERE user_id = ?", [userId])
+      await runSync("DELETE FROM coupon_redemptions WHERE user_id = ?", [userId])
+      await runSync("DELETE FROM utr_submissions WHERE user_id = ?", [userId])
+      await runSync("DELETE FROM servers WHERE user_id = ?", [userId])
+      await runSync("DELETE FROM users WHERE id = ?", [userId])
     })
     auditLog({ adminId: req.user.id, action: "delete_user", targetType: "user", targetId: userId, details: { serversDeleted: userServers.length }, ip: req.ip })
 

@@ -26,6 +26,36 @@ const client = axios.create({
   timeout: 15000
 })
 
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504])
+const RETRY_BASE_DELAY_MS = 300
+const RETRY_MAX_ATTEMPTS = 3
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRetryable(error) {
+  if (!error.response) return true
+  return RETRYABLE_STATUS_CODES.has(error.response.status)
+}
+
+async function requestWithRetry(requestFn, action, options = {}) {
+  const { retryable = true, maxAttempts = RETRY_MAX_ATTEMPTS } = options
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await requestFn()
+    } catch (error) {
+      const canRetry = retryable && attempt < maxAttempts && isRetryable(error)
+      if (!canRetry) throw error
+
+      const backoffMs = RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)
+      console.warn(`[PTERODACTYL] ${action} transient failure, retry ${attempt}/${maxAttempts - 1} in ${backoffMs}ms`) 
+      await delay(backoffMs)
+    }
+  }
+}
+
 function parseEnv() {
   try {
     return JSON.parse(env.PTERODACTYL_DEFAULT_ENV || "{}")
@@ -56,9 +86,12 @@ export const pterodactyl = {
     try {
       console.log("[PTERODACTYL] Fetching available allocations for node:", nodeId)
       
-      const response = await client.get(`/nodes/${nodeId}/allocations`, {
-        params: { per_page: 100 }
-      })
+      const response = await requestWithRetry(
+        () => client.get(`/nodes/${nodeId}/allocations`, {
+          params: { per_page: 100 }
+        }),
+        "allocation fetch"
+      )
       
       const allocations = response.data.data
       const available = allocations.find(a => !a.attributes.assigned)
@@ -107,12 +140,15 @@ export const pterodactyl = {
     try {
       console.log("[PTERODACTYL] Looking up user by email:", email)
       
-      const response = await client.get("/users", {
-        params: { 
-          'filter[email]': email,
-          per_page: 1
-        }
-      })
+      const response = await requestWithRetry(
+        () => client.get("/users", {
+          params: {
+            'filter[email]': email,
+            per_page: 1
+          }
+        }),
+        "user lookup"
+      )
       
       if (response.data.data && response.data.data.length > 0) {
         const userId = response.data.data[0].attributes.id
@@ -135,11 +171,17 @@ export const pterodactyl = {
   async getEggConfig(eggId) {
     try {
       // Need to find which nest this egg belongs to — iterate nests
-      const nestsResponse = await client.get("/nests")
+      const nestsResponse = await requestWithRetry(
+        () => client.get("/nests"),
+        "nests fetch"
+      )
       for (const nest of nestsResponse.data.data) {
         try {
           const nestId = nest.attributes.id
-          const eggResponse = await client.get(`/nests/${nestId}/eggs/${eggId}?include=variables`)
+          const eggResponse = await requestWithRetry(
+            () => client.get(`/nests/${nestId}/eggs/${eggId}?include=variables`),
+            "egg config fetch"
+          )
           const attr = eggResponse.data.attributes
           
           // Build default environment from egg variables
@@ -270,9 +312,21 @@ export const pterodactyl = {
   },
 
   async deleteServer(serverId) {
+    if (!serverId) {
+      console.log("[PTERODACTYL] Skipping delete: missing server id")
+      return
+    }
+
     try {
       await client.delete(`/servers/${serverId}`)
+      console.log("[PTERODACTYL] ✓ Server deleted:", serverId)
     } catch (error) {
+      // Deletion is idempotent: if the panel no longer has this server,
+      // treat it as success and let local state converge.
+      if (error.response?.status === 404) {
+        console.log("[PTERODACTYL] Server already gone (404):", serverId)
+        return
+      }
       handleError(error, "delete")
     }
   },
@@ -295,9 +349,12 @@ export const pterodactyl = {
     try {
       console.log("[PTERODACTYL] Fetching server details:", serverId)
       
-      const response = await client.get(`/servers/${serverId}`, {
-        params: { include: 'allocations' }
-      })
+      const response = await requestWithRetry(
+        () => client.get(`/servers/${serverId}`, {
+          params: { include: 'allocations' }
+        }),
+        "server details fetch"
+      )
       
       const server = response.data.attributes
       const allocations = response.data.attributes.relationships?.allocations?.data || []
@@ -341,13 +398,19 @@ export const pterodactyl = {
   async getAvailableEggs() {
     try {
       console.log("[PTERODACTYL] Fetching available eggs...")
-      const nestsResponse = await client.get("/nests")
+      const nestsResponse = await requestWithRetry(
+        () => client.get("/nests"),
+        "available eggs nests fetch"
+      )
       const eggs = []
       
       for (const nest of nestsResponse.data.data) {
         try {
           const nestId = nest.attributes.id
-          const eggsResponse = await client.get(`/nests/${nestId}/eggs`)
+          const eggsResponse = await requestWithRetry(
+            () => client.get(`/nests/${nestId}/eggs`),
+            "eggs list fetch"
+          )
           
           for (const egg of eggsResponse.data.data) {
             const attr = egg.attributes

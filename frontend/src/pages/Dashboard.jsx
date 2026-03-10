@@ -18,25 +18,62 @@ export default function Dashboard() {
       return
     }
 
-    loadData()
+    const controller = new AbortController()
+    loadData(controller.signal)
+
+    return () => controller.abort()
   }, [navigate])
 
-  const loadData = async () => {
+  const loadData = async (signal, { forceRefresh = false } = {}) => {
     try {
       const token = localStorage.getItem("token")
       const userData = JSON.parse(localStorage.getItem("user") || "{}")
-      const balance = await api.getBalance(token)
-      const userServers = await api.getUserServers(token)
+      const balance = await api.getBalance(token, { signal, forceRefresh })
+      const userServers = await api.getUserServers(token, { signal, page: 1, limit: 20, forceRefresh })
 
-      setUser({ ...userData, ...balance })
-      setServers(userServers || [])
+      const mergedUser = { ...userData, ...balance }
+
+      localStorage.setItem("user", JSON.stringify(mergedUser))
+      window.dispatchEvent(new CustomEvent("astra:data-sync", { detail: { domains: ["balance", "dashboard"], source: "dashboard" } }))
+
+      setUser(mergedUser)
+      setServers(userServers?.servers || [])
     } catch (err) {
+      if (err.name === "AbortError") return
       console.error(err)
       setError(err.message || "Failed to load dashboard data")
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const refresh = () => {
+      loadData(controller.signal, { forceRefresh: true })
+    }
+
+    const onFocus = () => refresh()
+    const onSync = (event) => {
+      if (event?.detail?.source === "dashboard") return
+      const domains = event?.detail?.domains || []
+      if (domains.some((domain) => ["balance", "servers", "dashboard"].includes(domain))) {
+        refresh()
+      }
+    }
+
+    const interval = setInterval(refresh, 30000)
+    window.addEventListener("focus", onFocus)
+    window.addEventListener("astra:data-sync", onSync)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("focus", onFocus)
+      window.removeEventListener("astra:data-sync", onSync)
+      controller.abort()
+    }
+  }, [])
 
   if (loading) {
     return (
@@ -99,7 +136,7 @@ export default function Dashboard() {
             color: "emerald",
             gradient: "from-emerald-500/10 to-emerald-500/5"
           }
-        ].map(({ icon: Icon, label, value, desc, color, gradient }) => (
+        ].map(({ icon: Icon, label, value, desc, color }) => (
           <div key={label} className="card-3d group relative rounded-2xl p-6 border border-dark-700/50 bg-dark-800/40 backdrop-blur-sm overflow-hidden">
             {/* Glow on hover */}
             <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-primary-500 to-accent-500 opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300 -z-10" />

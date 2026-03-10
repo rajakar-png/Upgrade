@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import { MapPin, Zap, Shield, Wifi, ArrowRight } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { Zap, Shield, ArrowRight } from "lucide-react"
 import PublicNavbar from "../components/PublicNavbar.jsx"
 import { api } from "../services/api.js"
+import Button from "../components/ui/Button.jsx"
 
 const LOCATIONS = [
   {
@@ -58,6 +59,7 @@ function StatusBadge({ status }) {
 
 export default function Locations() {
   const [locations, setLocations] = useState(LOCATIONS)
+  const navigate = useNavigate()
 
   useEffect(() => {
     api.getFrontpage()
@@ -87,7 +89,7 @@ export default function Locations() {
           {locations.map((loc) => (
             <div
               key={loc.city}
-              className={`glass rounded-2xl border p-6 shadow-soft transition-transform hover:-translate-y-0.5 ${
+              className={`surface-card surface-elevated card-3d rounded-2xl border p-6 transition-transform ${
                 loc.status === "coming-soon" ? "border-dark-700/60 opacity-70" : "border-dark-700/40"
               }`}
             >
@@ -117,18 +119,19 @@ export default function Locations() {
               </ul>
 
               {loc.status === "operational" && (
-                <Link
-                  to="/register"
-                  className="button-3d mt-5 flex items-center justify-center gap-2 rounded-xl border border-dark-700/60 py-2 text-sm font-semibold text-slate-300 hover:border-neon-500/30 hover:text-neon-200"
+                <Button
+                  onClick={() => navigate("/register")}
+                  variant="secondary"
+                  className="button-3d mt-5 flex w-full items-center justify-center gap-2"
                 >
                   Deploy Here <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                </Button>
               )}
             </div>
           ))}
         </div>
 
-        <div className="mt-10 glass rounded-2xl border border-dark-700/40 p-6 text-sm text-slate-400 space-y-2">
+        <div className="mt-10 surface-card surface-elevated card-3d rounded-2xl border border-dark-700/40 p-6 text-sm text-slate-400 space-y-2">
           <div className="flex items-center gap-2 text-slate-300 font-semibold">
             <Shield className="h-4 w-4 text-neon-300" />
             All locations include DDoS protection

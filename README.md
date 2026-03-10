@@ -4,7 +4,7 @@ Full-stack Minecraft hosting platform with a premium dashboard UI, secure backen
 
 ## Stack
 - Frontend: React (Vite) + TailwindCSS v4
-- Backend: Node.js (Express) + SQLite
+- Backend: Node.js (Express) + PostgreSQL
 - Auth: OAuth 2.0 (Google & Discord) + JWT
 - Automation: cron-based expiry checks + automatic backups
 
@@ -28,12 +28,31 @@ cp .env.example .env
 # - DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET (from Discord Developer Portal)
 # - OAUTH_CALLBACK_URL (your backend URL)
 npm install
+# For local sqlite development only:
 npm run migrate
-npm run migrate-tickets
-npm run upgrade-tickets
-npm run migrate-frontpage
+
+# For postgres environments (recommended/prod):
+npm run migrate-up
+
+# Optional: one-time sqlite -> postgres migration
+# npm run migrate-to-postgres && npm run verify-postgres-migration
+
 npm run dev
 ```
+
+## Staging to Production Flow (1-3)
+
+1. Staging migration and health checks:
+  - `npm run predeploy-rollout`
+  - Optional expanded sequence: `backup-postgres` -> `migrate-up` -> `restart-service` -> `smoke-check`
+2. Merge policy:
+  - all backend changes go through pull request
+  - `backend-ci / test-and-verify-postgres` must pass before merge
+3. Production pre-switch snapshot:
+  - `npm run backup-postgres`
+  - run migration and smoke-check as done on staging
+
+Detailed operational checklist: [STAGING_ROLLOUT.md](STAGING_ROLLOUT.md)
 
 > **📝 Note:** Database files are automatically excluded from git (see `.gitignore`). 
 > A fresh database is created automatically when running migrations. 
@@ -63,7 +82,7 @@ The landing page is fully editable from the admin panel — no code changes requ
 - `/admin/landing-plans` — Create/edit/delete public pricing plans shown on the front page
 
 ### How It Works
-- All content is stored in the `site_content` SQLite table (one row per section, JSON content)
+- All content is stored in the `site_content` database table (one row per section, JSON content)
 - Pricing plans are stored in the `landing_plans` table (separate from coin/real plans)
 - The front page fetches content from `GET /api/frontpage` and plans from `GET /api/frontpage/landing-plans`
 - Changes made by an admin are broadcast via **Socket.io** to all connected browsers instantly — no page refresh needed
@@ -90,21 +109,19 @@ The landing page is fully editable from the admin panel — no code changes requ
 
 ## Database Migrations
 
-### Add Icon Support to Plans (Run once for existing databases)
+Use versioned PostgreSQL migrations in all production/staging environments:
+
 ```bash
 cd backend
-npm run migrate-icons
+npm run migrate-up
 ```
 
-This adds the `icon` column to both `plans_coin` and `plans_real` tables. Required if you're upgrading from a version without icon support.
+Rollback last migration when required:
 
-### Update Duration Types (Run once for existing databases)
 ```bash
 cd backend
-npm run migrate-duration
+npm run migrate-down
 ```
-
-This updates the database constraints to support new duration types ("days" and "lifetime") and makes `duration_days` required. Run this if you see validation errors when creating plans.
 
 ## Plan Management
 
@@ -189,7 +206,9 @@ Set these in backend/.env:
 ### Required Configuration
 - **JWT_SECRET** - Secret key for JWT tokens (minimum 10 characters)
 - **JWT_EXPIRES_IN** - Token expiration time (default: 7d)
-- **DB_PATH** - Path to SQLite database file
+- **DB_PROVIDER** - `sqlite` or `postgres` (`postgres` required in production)
+- **DATABASE_URL** - Required when `DB_PROVIDER=postgres`
+- **DB_PATH** - Path to SQLite database file (sqlite mode only)
 - **DISCORD_WEBHOOK_URL** - Discord webhook for UTR notifications
 
 ### Monetization
@@ -351,7 +370,7 @@ The following files are **gitignored** and will never be overwritten by `git pul
 
 - `backend/.env` — all backend secrets
 - `frontend/.env.production` — frontend API URL
-- `backend/data/` — SQLite database + WAL files
+- `backend/data/` — local data and generated backup artifacts
 - `backend/data/backups/` — automatic DB backups (created by `update.sh`)
 - `backend/uploads/` — user-uploaded files
 - `ecosystem.production.config.cjs` — PM2 config with your install paths
