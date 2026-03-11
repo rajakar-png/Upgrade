@@ -1,0 +1,380 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum Role {
+  user
+  admin
+}
+
+enum PlanCategory {
+  minecraft
+  bot
+}
+
+enum DurationType {
+  weekly
+  monthly
+  custom
+  days
+  lifetime
+}
+
+enum PlanType {
+  coin
+  real
+}
+
+enum ServerStatus {
+  active
+  suspended
+  deleted
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  closed
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+}
+
+enum UtrStatus {
+  pending
+  approved
+  rejected
+}
+
+enum IdempotencyStatus {
+  processing
+  completed
+}
+
+enum OAuthProvider {
+  google
+  discord
+}
+
+// ─── Core Models ─────────────────────────────────────────────────────────────
+
+model User {
+  id                     Int       @id @default(autoincrement())
+  email                  String    @unique
+  passwordHash           String?   @map("password_hash")
+  role                   Role      @default(user)
+  coins                  Int       @default(0)
+  balance                Float     @default(0)
+  ipAddress              String?   @map("ip_address")
+  lastLoginIp            String?   @map("last_login_ip")
+  pterodactylUserId      Int?      @map("pterodactyl_user_id")
+  flagged                Boolean   @default(false)
+  lastClaimTime          DateTime? @map("last_claim_time")
+  oauthProvider          OAuthProvider? @map("oauth_provider")
+  oauthId                String?   @map("oauth_id")
+  emailVerified          Boolean   @default(false) @map("email_verified")
+  verificationToken      String?   @map("verification_token")
+  verificationTokenExpires DateTime? @map("verification_token_expires")
+  createdAt              DateTime  @default(now()) @map("created_at")
+
+  servers        Server[]
+  couponRedemptions CouponRedemption[]
+  idempotencyKeys   IdempotencyKey[]
+  utrSubmissions    UtrSubmission[]
+  tickets           Ticket[]
+  ticketMessages    TicketMessage[]
+  auditLogs         AuditLog[]
+
+  @@index([email])
+  @@index([oauthProvider, oauthId])
+  @@map("users")
+}
+
+// ─── Plans ───────────────────────────────────────────────────────────────────
+
+model PlanCoin {
+  id             Int          @id @default(autoincrement())
+  name           String
+  icon           String?      @default("Package")
+  category       PlanCategory @default(minecraft)
+  ram            Float
+  cpu            Float
+  storage        Float
+  coinPrice      Int          @map("coin_price")
+  initialPrice   Int          @default(0) @map("initial_price")
+  renewalPrice   Int          @default(0) @map("renewal_price")
+  durationType   DurationType @map("duration_type")
+  durationDays   Int          @map("duration_days")
+  limitedStock   Boolean      @default(false) @map("limited_stock")
+  stockAmount    Int?         @map("stock_amount")
+  oneTimePurchase Boolean     @default(false) @map("one_time_purchase")
+  backupCount    Int          @default(0) @map("backup_count")
+  extraPorts     Int          @default(0) @map("extra_ports")
+  swap           Int          @default(0)
+
+  servers Server[]
+
+  @@map("plans_coin")
+}
+
+model PlanReal {
+  id           Int          @id @default(autoincrement())
+  name         String
+  icon         String?      @default("Server")
+  category     PlanCategory @default(minecraft)
+  ram          Float
+  cpu          Float
+  storage      Float
+  price        Float
+  durationType DurationType @map("duration_type")
+  durationDays Int          @map("duration_days")
+  limitedStock Boolean      @default(false) @map("limited_stock")
+  stockAmount  Int?         @map("stock_amount")
+  backupCount  Int          @default(0) @map("backup_count")
+  extraPorts   Int          @default(0) @map("extra_ports")
+  swap         Int          @default(0)
+
+  servers Server[]
+
+  @@map("plans_real")
+}
+
+// ─── Servers ─────────────────────────────────────────────────────────────────
+
+model Server {
+  id                   Int          @id @default(autoincrement())
+  userId               Int          @map("user_id")
+  name                 String       @default("")
+  planType             PlanType     @map("plan_type")
+  planCoinId           Int?         @map("plan_coin_id")
+  planRealId           Int?         @map("plan_real_id")
+  pterodactylServerId  Int?         @map("pterodactyl_server_id")
+  identifier           String?
+  expiresAt            DateTime     @map("expires_at")
+  suspendedAt          DateTime?    @map("suspended_at")
+  graceExpiresAt       DateTime?    @map("grace_expires_at")
+  status               ServerStatus @default(active)
+  location             String       @default("")
+  software             String       @default("minecraft")
+  category             PlanCategory @default(minecraft)
+  eggId                Int?         @map("egg_id")
+  subdomain            String?      @unique
+  createdAt            DateTime     @default(now()) @map("created_at")
+
+  user     User      @relation(fields: [userId], references: [id])
+  planCoin PlanCoin? @relation(fields: [planCoinId], references: [id])
+  planReal PlanReal? @relation(fields: [planRealId], references: [id])
+  backups  ServerBackup[]
+
+  @@index([status])
+  @@index([expiresAt])
+  @@index([userId])
+  @@map("servers")
+}
+
+// ─── Coupons ─────────────────────────────────────────────────────────────────
+
+model Coupon {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique
+  coinReward   Int      @map("coin_reward")
+  maxUses      Int      @map("max_uses")
+  perUserLimit Int      @map("per_user_limit")
+  expiresAt    DateTime @map("expires_at")
+  active       Boolean  @default(true)
+
+  redemptions CouponRedemption[]
+
+  @@index([code])
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id         Int      @id @default(autoincrement())
+  couponId   Int      @map("coupon_id")
+  userId     Int      @map("user_id")
+  ipAddress  String   @map("ip_address")
+  redeemedAt DateTime @default(now()) @map("redeemed_at")
+
+  coupon Coupon @relation(fields: [couponId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([couponId])
+  @@index([userId])
+  @@map("coupon_redemptions")
+}
+
+// ─── Tickets ─────────────────────────────────────────────────────────────────
+
+model Ticket {
+  id        Int            @id @default(autoincrement())
+  userId    Int            @map("user_id")
+  subject   String
+  status    TicketStatus   @default(open)
+  priority  TicketPriority @default(medium)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  user     User            @relation(fields: [userId], references: [id])
+  messages TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int      @map("ticket_id")
+  userId    Int      @map("user_id")
+  message   String
+  isAdmin   Boolean  @default(false) @map("is_admin")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+// ─── Billing / UTR ───────────────────────────────────────────────────────────
+
+model UtrSubmission {
+  id             Int       @id @default(autoincrement())
+  userId         Int       @map("user_id")
+  amount         Float
+  utrNumber      String    @map("utr_number")
+  screenshotPath String    @map("screenshot_path")
+  status         UtrStatus @default(pending)
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("utr_submissions")
+}
+
+// ─── Backups ─────────────────────────────────────────────────────────────────
+
+model ServerBackup {
+  id                     Int      @id @default(autoincrement())
+  serverId               Int      @map("server_id")
+  pterodactylBackupUuid  String   @unique @map("pterodactyl_backup_uuid")
+  name                   String   @default("backup")
+  isAutomatic            Boolean  @default(false) @map("is_automatic")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  server Server @relation(fields: [serverId], references: [id])
+
+  @@index([serverId])
+  @@map("server_backups")
+}
+
+// ─── Idempotency ─────────────────────────────────────────────────────────────
+
+model IdempotencyKey {
+  id           Int               @id @default(autoincrement())
+  userId       Int               @map("user_id")
+  endpoint     String
+  key          String
+  status       IdempotencyStatus @default(processing)
+  statusCode   Int?              @map("status_code")
+  responseJson String?           @map("response_json")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, endpoint, key])
+  @@index([userId, endpoint, key])
+  @@map("idempotency_keys")
+}
+
+// ─── Audit Log ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  adminId    Int      @map("admin_id")
+  action     String
+  targetType String?  @map("target_type")
+  targetId   Int?     @map("target_id")
+  details    String?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+// ─── CMS / Site Content ──────────────────────────────────────────────────────
+
+model SiteContent {
+  id          Int      @id @default(autoincrement())
+  sectionName String   @unique @map("section_name")
+  contentJson String   @default("{}") @map("content_json")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("site_content")
+}
+
+model LandingPlan {
+  id        Int      @id @default(autoincrement())
+  name      String
+  price     Float    @default(0)
+  ram       Int      @default(1)
+  cpu       Int      @default(1)
+  storage   Int      @default(10)
+  features  String   @default("[]")
+  popular   Boolean  @default(false)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([active])
+  @@map("landing_plans")
+}
+
+model SiteSetting {
+  id                       Int     @id @default(autoincrement())
+  siteName                 String? @map("site_name")
+  backgroundImage          String? @map("background_image")
+  backgroundOverlayOpacity Float?  @map("background_overlay_opacity")
+  faviconPath              String? @map("favicon_path")
+  logoPath                 String? @default("") @map("logo_path")
+  heroTitle                String? @map("hero_title")
+  heroSubtitle             String? @map("hero_subtitle")
+  maintenanceMode          Boolean @default(false) @map("maintenance_mode")
+
+  @@map("site_settings")
+}
+
+model Feature {
+  id          Int     @id @default(autoincrement())
+  title       String?
+  description String?
+  icon        String?
+
+  @@map("features")
+}
+
+model CoinSetting {
+  id             Int @id @default(1)
+  coinsPerMinute Int @default(1) @map("coins_per_minute")
+
+  @@map("coin_settings")
+}
