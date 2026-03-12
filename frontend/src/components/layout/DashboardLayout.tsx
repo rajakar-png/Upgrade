@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { Sidebar } from './Sidebar';
@@ -10,6 +10,7 @@ import { PopupMessages } from '@/components/ui/PopupMessages';
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
@@ -31,10 +32,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-[#0f0f0f]">
       <PopupMessages />
-      <Sidebar />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-1 flex-col overflow-auto">
-        <Topbar />
-        <main className="flex-1 px-6 py-8">{children}</main>
+        <Topbar onToggleSidebar={() => setSidebarOpen((s) => !s)} />
+        <main className="flex-1 px-4 py-4 sm:px-6 sm:py-8">{children}</main>
       </div>
     </div>
   );

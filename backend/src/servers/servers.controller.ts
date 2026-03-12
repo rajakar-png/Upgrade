@@ -3,6 +3,7 @@ import {
   ParseIntPipe, HttpCode,
 } from '@nestjs/common';
 import { ServersService } from './servers.service';
+import { ServerProvisioningService } from './server-provisioning.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PurchaseServerDto } from './dto/server.dto';
@@ -10,7 +11,10 @@ import { PurchaseServerDto } from './dto/server.dto';
 @Controller('servers')
 @UseGuards(JwtAuthGuard)
 export class ServersController {
-  constructor(private serversService: ServersService) {}
+  constructor(
+    private serversService: ServersService,
+    private provisioningService: ServerProvisioningService,
+  ) {}
 
   @Get()
   list(
@@ -42,18 +46,18 @@ export class ServersController {
     @Body() dto: PurchaseServerDto,
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.serversService.purchaseServer(user.id, dto, idempotencyKey);
+    return this.provisioningService.purchaseServer(user.id, dto, idempotencyKey);
   }
 
   @Post(':id/renew')
   @HttpCode(200)
   renew(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
-    return this.serversService.renewServer(id, user.id);
+    return this.provisioningService.renewServer(id, user.id);
   }
 
   @Delete(':id')
   @HttpCode(200)
   remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
-    return this.serversService.deleteServer(id, user.id);
+    return this.provisioningService.deleteServer(id, user.id);
   }
 }

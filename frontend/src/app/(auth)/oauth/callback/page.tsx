@@ -1,23 +1,28 @@
 'use client';
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
+import { api } from '@/lib/api';
 
 function OAuthHandler() {
   const params = useSearchParams();
   const router = useRouter();
   const { login } = useAuth();
+  const exchanged = useRef(false);
 
   useEffect(() => {
-    const token = params.get('token');
-    if (token) {
-      login(token).then(() => {
-        router.replace('/dashboard');
-      });
-    } else {
-      router.replace('/login?error=oauth_failed');
+    const code = params.get('code');
+    if (!code || exchanged.current) {
+      if (!code) router.replace('/login?error=oauth_failed');
+      return;
     }
+    exchanged.current = true;
+
+    api.post('/auth/exchange', { code })
+      .then((res) => login(res.data.token))
+      .then(() => router.replace('/dashboard'))
+      .catch(() => router.replace('/login?error=oauth_failed'));
   }, [params, router, login]);
 
   return (

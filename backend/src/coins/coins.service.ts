@@ -3,13 +3,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { randomBytes } from 'crypto';
 
-const MIN_VIEW_MS = 4000;   // Token is invalid if claimed < 4s after issue
-const TOKEN_TTL_S = 40;     // Tokens expire after 40s
-const CLAIM_COOLDOWN_S = 60; // 1 minute between claims
+const MIN_VIEW_MS = 4000;    // Token is invalid if claimed < 4s after issue
+const TOKEN_DISPLAY_S = 30;  // 30s countdown timer before claim
+const TOKEN_REDIS_TTL_S = 60; // Redis TTL — buffer so token survives past timer
+const CLAIM_COOLDOWN_S = 10;  // 10s anti-bot cooldown between claims
 
 interface EarnToken {
   userId: number;
   issuedAt: number;
+  adRequired?: boolean;
 }
 
 @Injectable()
@@ -22,20 +24,42 @@ export class CoinsService {
   async getBalance(userId: number) {
     return this.prisma.user.findUnique({
       where: { id: userId },
-      select: { coins: true, balance: true, lastClaimTime: true },
+      select: { coins: true },
     });
   }
 
-  async issueEarnToken(userId: number, flagged: boolean): Promise<string> {
-    if (flagged) throw new ForbiddenException('Account flagged. Contact support.');
-
-    const token = randomBytes(32).toString('hex');
-    const data: EarnToken = { userId, issuedAt: Date.now() };
-    await this.redis.set(`earn:${token}`, JSON.stringify(data), TOKEN_TTL_S);
-    return token;
+  async getAdConfig() {
+    const settings = await this.prisma.adSetting.upsert({
+      where: { id: 1 },
+      create: { id: 1 },
+      update: {},
+    });
+    // Return only public-safe fields — no admin-only data
+    return {
+      adProvider: settings.adProvider,
+      adBlockerDetection: settings.adBlockerDetection,
+      requireAdView: settings.requireAdView,
+      adsensePublisherId: settings.adsensePublisherId,
+      adsenseSlotId: settings.adsenseSlotId,
+      adsterraBannerKey: settings.adsterraBannerKey,
+      adsterraNativeKey: settings.adsterraNativeKey,
+    };
   }
 
-  async claimCoins(userId: number, token: string, flagged: boolean) {
+  async issueEarnToken(userId: number, flagged: boolean): Promise<{ token: string; expiresAt: number }> {
+    if (flagged) throw new ForbiddenException('Account flagged. Contact support.');
+
+    // Check if ads are required
+    const adSettings = await this.prisma.adSetting.findUnique({ where: { id: 1 } });
+    const adRequired = adSettings?.adProvider !== 'none' && adSettings?.requireAdView === true;
+
+    const token = randomBytes(32).toString('hex');
+    const data: EarnToken = { userId, issuedAt: Date.now(), adRequired };
+    await this.redis.set(`earn:${token}`, JSON.stringify(data), TOKEN_REDIS_TTL_S);
+    return { token, expiresAt: Date.now() + TOKEN_DISPLAY_S * 1000 };
+  }
+
+  async claimCoins(userId: number, token: string, flagged: boolean, adViewed?: boolean) {
     if (flagged) throw new ForbiddenException('Account flagged. Contact support.');
 
     // Validate token
@@ -45,6 +69,9 @@ export class CoinsService {
     const data: EarnToken = JSON.parse(raw);
     if (data.userId !== userId) return { error: 'Token user mismatch', valid: false };
     if (Date.now() - data.issuedAt < MIN_VIEW_MS) return { error: 'Must wait before claiming', valid: false };
+
+    // Validate ad was viewed if required
+    if (data.adRequired && !adViewed) return { error: 'You must view the ad before claiming', valid: false };
 
     // Consume token (one-time use)
     await this.redis.del(`earn:${token}`);
@@ -67,11 +94,11 @@ export class CoinsService {
     const settings = await this.prisma.coinSetting.findUnique({ where: { id: 1 } });
     const earned = settings?.coinsPerMinute || 1;
 
-    await this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { coins: { increment: earned }, lastClaimTime: new Date() },
     });
 
-    return { earned, valid: true };
+    return { earned, balance: updatedUser.coins, valid: true };
   }
 }

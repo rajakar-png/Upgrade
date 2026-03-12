@@ -6,20 +6,30 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { AdminService } from './admin.service';
+import { AdminDashboardService } from './admin-dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import {
+  UpdateUserDto, CreateCoinPlanDto, UpdateCoinPlanDto, CreateRealPlanDto, UpdateRealPlanDto,
+  CreateCouponDto, UpdateCouponDto, UpdateAdSettingsDto, CreatePopupDto, UpdatePopupDto,
+  UpdateSiteSettingsDto, AdminReplyTicketDto, UpdateTicketStatusDto,
+} from './dto/admin.dto';
+import { imageFileFilter } from '../utils/upload.util';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private dashboardService: AdminDashboardService,
+  ) {}
 
   // ── Stats ───────────────────────────────────────────────────────────────────
 
   @Get('stats')
   stats() {
-    return this.adminService.getDashboardStats();
+    return this.dashboardService.getDashboardStats();
   }
 
   // ── Users ───────────────────────────────────────────────────────────────────
@@ -30,13 +40,13 @@ export class AdminController {
   }
 
   @Patch('users/:id')
-  updateUser(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+  updateUser(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateUserDto) {
     return this.adminService.updateUser(id, data);
   }
 
   @Delete('users/:id')
   deleteUser(@Param('id', ParseIntPipe) id: number, @CurrentUser() admin: any, @Req() req: any) {
-    this.adminService.logAction(admin.id, 'user_deleted', 'user', id, undefined, req.ip);
+    this.dashboardService.logAction(admin.id, 'user_deleted', 'user', id, undefined, req.ip);
     return this.adminService.deleteUser(id);
   }
 
@@ -65,20 +75,20 @@ export class AdminController {
   @Post('servers/:id/suspend')
   @HttpCode(200)
   suspendServer(@Param('id', ParseIntPipe) id: number, @CurrentUser() admin: any, @Req() req: any) {
-    this.adminService.logAction(admin.id, 'server_suspended', 'server', id, undefined, req.ip);
+    this.dashboardService.logAction(admin.id, 'server_suspended', 'server', id, undefined, req.ip);
     return this.adminService.adminSuspendServer(id);
   }
 
   @Post('servers/:id/unsuspend')
   @HttpCode(200)
   unsuspendServer(@Param('id', ParseIntPipe) id: number, @CurrentUser() admin: any, @Req() req: any) {
-    this.adminService.logAction(admin.id, 'server_unsuspended', 'server', id, undefined, req.ip);
+    this.dashboardService.logAction(admin.id, 'server_unsuspended', 'server', id, undefined, req.ip);
     return this.adminService.adminUnsuspendServer(id);
   }
 
   @Delete('servers/:id')
   deleteServer(@Param('id', ParseIntPipe) id: number, @CurrentUser() admin: any, @Req() req: any) {
-    this.adminService.logAction(admin.id, 'server_deleted', 'server', id, undefined, req.ip);
+    this.dashboardService.logAction(admin.id, 'server_deleted', 'server', id, undefined, req.ip);
     return this.adminService.adminDeleteServer(id);
   }
 
@@ -104,10 +114,10 @@ export class AdminController {
   // ── Plans ───────────────────────────────────────────────────────────────────
 
   @Post('plans/coin')
-  createCoinPlan(@Body() data: any) { return this.adminService.createCoinPlan(data); }
+  createCoinPlan(@Body() data: CreateCoinPlanDto) { return this.adminService.createCoinPlan(data); }
 
   @Put('plans/coin/:id')
-  updateCoinPlan(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+  updateCoinPlan(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateCoinPlanDto) {
     return this.adminService.updateCoinPlan(id, data);
   }
 
@@ -115,10 +125,10 @@ export class AdminController {
   deleteCoinPlan(@Param('id', ParseIntPipe) id: number) { return this.adminService.deleteCoinPlan(id); }
 
   @Post('plans/real')
-  createRealPlan(@Body() data: any) { return this.adminService.createRealPlan(data); }
+  createRealPlan(@Body() data: CreateRealPlanDto) { return this.adminService.createRealPlan(data); }
 
   @Put('plans/real/:id')
-  updateRealPlan(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+  updateRealPlan(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateRealPlanDto) {
     return this.adminService.updateRealPlan(id, data);
   }
 
@@ -131,10 +141,10 @@ export class AdminController {
   coupons() { return this.adminService.getCoupons(); }
 
   @Post('coupons')
-  createCoupon(@Body() data: any) { return this.adminService.createCoupon(data); }
+  createCoupon(@Body() data: CreateCouponDto) { return this.adminService.createCoupon(data); }
 
   @Put('coupons/:id')
-  updateCoupon(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+  updateCoupon(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateCouponDto) {
     return this.adminService.updateCoupon(id, data);
   }
 
@@ -156,9 +166,9 @@ export class AdminController {
   replyTicket(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: any,
-    @Body('message') message: string,
+    @Body() dto: AdminReplyTicketDto,
   ) {
-    return this.adminService.replyTicket(id, user.id, message);
+    return this.adminService.replyTicket(id, user.id, dto.message);
   }
 
   @Patch('tickets/:id/close')
@@ -167,8 +177,8 @@ export class AdminController {
 
   @Patch('tickets/:id/status')
   @HttpCode(200)
-  updateTicketStatus(@Param('id', ParseIntPipe) id: number, @Body('status') status: string) {
-    return this.adminService.updateTicketStatus(id, status);
+  updateTicketStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTicketStatusDto) {
+    return this.adminService.updateTicketStatus(id, dto.status);
   }
 
   // ── UTR ─────────────────────────────────────────────────────────────────────
@@ -184,14 +194,14 @@ export class AdminController {
     @CurrentUser() user: any,
     @Req() req: any,
   ) {
-    this.adminService.logAction(user.id, 'utr_approved', 'utr', id, `balance=${balance}`, req.ip);
+    this.dashboardService.logAction(user.id, 'utr_approved', 'utr', id, `balance=${balance}`, req.ip);
     return this.adminService.processUtr(id, true, balance);
   }
 
   @Post('utr/:id/reject')
   @HttpCode(200)
   rejectUtr(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any, @Req() req: any) {
-    this.adminService.logAction(user.id, 'utr_rejected', 'utr', id, undefined, req.ip);
+    this.dashboardService.logAction(user.id, 'utr_rejected', 'utr', id, undefined, req.ip);
     return this.adminService.processUtr(id, false);
   }
 
@@ -199,7 +209,7 @@ export class AdminController {
 
   @Get('audit')
   audit(@Query('page') page = 1, @Query('limit') limit = 50) {
-    return this.adminService.getAuditLog(+page, +limit);
+    return this.dashboardService.getAuditLog(+page, +limit);
   }
 
   // ── Coin Settings ───────────────────────────────────────────────────────────
@@ -210,6 +220,16 @@ export class AdminController {
   @Put('settings/coins')
   updateCoinSettings(@Body('coinsPerMinute', ParseIntPipe) coinsPerMinute: number) {
     return this.adminService.updateCoinSettings(coinsPerMinute);
+  }
+
+  // ── Ad Settings ─────────────────────────────────────────────────────────────
+
+  @Get('ad-settings')
+  getAdSettings() { return this.adminService.getAdSettings(); }
+
+  @Put('ad-settings')
+  updateAdSettings(@Body() data: UpdateAdSettingsDto) {
+    return this.adminService.updateAdSettings(data);
   }
 
   // ── Popup Messages ──────────────────────────────────────────────────────────
@@ -228,13 +248,10 @@ export class AdminController {
         },
       }),
       limits: { fileSize: 5 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) return cb(new BadRequestException('Only images allowed'), false);
-        cb(null, true);
-      },
+      fileFilter: imageFileFilter,
     }),
   )
-  createPopup(@Body() data: any, @UploadedFile() file?: Express.Multer.File) {
+  createPopup(@Body() data: CreatePopupDto, @UploadedFile() file?: Express.Multer.File) {
     if (file) data.imageUrl = `/uploads/${file.filename}`;
     return this.adminService.createPopup(data);
   }
@@ -250,13 +267,10 @@ export class AdminController {
         },
       }),
       limits: { fileSize: 5 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) return cb(new BadRequestException('Only images allowed'), false);
-        cb(null, true);
-      },
+      fileFilter: imageFileFilter,
     }),
   )
-  updatePopup(@Param('id', ParseIntPipe) id: number, @Body() data: any, @UploadedFile() file?: Express.Multer.File) {
+  updatePopup(@Param('id', ParseIntPipe) id: number, @Body() data: UpdatePopupDto, @UploadedFile() file?: Express.Multer.File) {
     if (file) data.imageUrl = `/uploads/${file.filename}`;
     return this.adminService.updatePopup(id, data);
   }
@@ -277,13 +291,10 @@ export class AdminController {
         },
       }),
       limits: { fileSize: 5 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) return cb(new BadRequestException('Only images allowed'), false);
-        cb(null, true);
-      },
+      fileFilter: imageFileFilter,
     }),
   )
-  updateSiteSettings(@Body() data: any, @UploadedFile() file?: Express.Multer.File) {
+  updateSiteSettings(@Body() data: UpdateSiteSettingsDto, @UploadedFile() file?: Express.Multer.File) {
     return this.adminService.updateSiteSettings(data, file?.filename);
   }
 }

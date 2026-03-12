@@ -68,7 +68,7 @@ export function LandingPlans() {
 
   if (loading) {
     return (
-      <section id="plans" className="relative py-24">
+      <section id="plans" className="relative py-16 sm:py-24">
         <div className="flex items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-[#ff7a18]" />
         </div>
@@ -81,7 +81,7 @@ export function LandingPlans() {
   const plans = tab === 'free' ? coinPlans : realPlans;
 
   return (
-    <section id="plans" className="relative py-24">
+    <section id="plans" className="relative py-16 sm:py-24">
       {/* Background glow */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-[#ff7a18]/[0.04] blur-[150px]" />
@@ -160,7 +160,7 @@ export function LandingPlans() {
                 key={plan.id}
                 className={`group relative flex flex-col rounded-xl border p-6 transition-all duration-300 hover:-translate-y-1 ${
                   featured
-                    ? 'border-[#ff7a18]/40 bg-[#161616] shadow-lg shadow-[#ff7a18]/10 scale-[1.03]'
+                    ? 'border-[#ff7a18]/40 bg-[#161616] shadow-lg shadow-[#ff7a18]/10 sm:scale-[1.03]'
                     : 'border-gray-800 bg-[#161616] hover:border-gray-700 hover:shadow-lg'
                 }`}
               >
@@ -174,7 +174,7 @@ export function LandingPlans() {
                 <p className="mt-1 text-sm text-gray-400 capitalize">{plan.category}</p>
 
                 <p className="mt-6">
-                  <span className="text-4xl font-extrabold tracking-tight text-white">
+                  <span className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl">
                     {isFreeStart ? 'Free' : isCoin ? `${coinPlan.initialPrice || coinPlan.coinPrice} Coins` : `₹${(plan as RealPlan).price.toFixed(2)}`}
                   </span>
                   <span className="ml-1 text-base font-normal text-gray-500">

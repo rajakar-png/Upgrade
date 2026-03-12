@@ -2,7 +2,8 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { TicketStatus, TicketPriority } from '@prisma/client';
 import { IsString, MinLength, MaxLength, IsEnum, IsOptional } from 'class-validator';
-import { DiscordBotService } from '../discord-bot/discord-bot.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { TICKET_CREATED, TICKET_REPLIED } from '../events/events';
 
 export class CreateTicketDto {
   @IsString() @MinLength(5) @MaxLength(120) subject: string;
@@ -18,7 +19,7 @@ export class ReplyTicketDto {
 export class TicketsService {
   constructor(
     private prisma: PrismaService,
-    private discordBot: DiscordBotService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async getUserTickets(userId: number) {
@@ -58,13 +59,15 @@ export class TicketsService {
       return t;
     });
 
-    // Send Discord bot notification
-    this.discordBot.sendTicketNotification('new', {
+    // Emit event for notifications (decoupled from Discord)
+    this.eventEmitter.emit(TICKET_CREATED, {
+      type: 'new',
       id: ticket.id,
       subject: ticket.subject,
       priority: ticket.priority,
       user: ticket.user,
-    }, dto.message).catch(() => {});
+      message: dto.message,
+    });
 
     return ticket;
   }
@@ -84,13 +87,15 @@ export class TicketsService {
     });
     await this.prisma.ticket.update({ where: { id: ticketId }, data: { status: TicketStatus.open } });
 
-    // Send Discord bot notification for user reply
-    this.discordBot.sendTicketNotification('reply', {
+    // Emit event for notifications (decoupled from Discord)
+    this.eventEmitter.emit(TICKET_REPLIED, {
+      type: 'reply',
       id: ticket.id,
       subject: ticket.subject,
       priority: ticket.priority,
       user: ticket.user,
-    }, dto.message).catch(() => {});
+      message: dto.message,
+    });
 
     return message;
   }

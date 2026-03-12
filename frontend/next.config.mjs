@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   async rewrites() {
     // Server-side rewrite uses internal URL (localhost) — not the external Codespaces URL
     // which requires GitHub auth that the server-side fetch doesn't have.

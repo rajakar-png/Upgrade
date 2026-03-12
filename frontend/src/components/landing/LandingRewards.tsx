@@ -43,7 +43,7 @@ export function LandingRewards() {
   }, []);
 
   return (
-    <section className="relative py-24">
+    <section className="relative py-16 sm:py-24">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute right-0 top-1/2 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-[#ff7a18]/[0.05] blur-[120px]" />
       </div>
@@ -81,9 +81,9 @@ export function LandingRewards() {
               return (
                 <div
                   key={r.title}
-                  className="group flex items-center gap-5 rounded-xl border border-gray-800 bg-[#161616] p-5 transition-all duration-300 hover:border-[#ff7a18]/30 hover:shadow-lg hover:shadow-[#ff7a18]/5"
+                  className="group flex items-center gap-3 rounded-xl border border-gray-800 bg-[#161616] p-3 transition-all duration-300 hover:border-[#ff7a18]/30 hover:shadow-lg hover:shadow-[#ff7a18]/5 sm:gap-5 sm:p-5"
                 >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ff7a18]/10 transition-colors group-hover:bg-[#ff7a18]/20">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ff7a18]/10 transition-colors group-hover:bg-[#ff7a18]/20 sm:h-12 sm:w-12">
                     <Icon className="h-6 w-6 text-[#ff7a18]" />
                   </div>
                   <div className="flex-1">

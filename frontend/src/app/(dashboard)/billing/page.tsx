@@ -57,7 +57,12 @@ export default function BillingPage() {
       const fd = new FormData();
       fd.append('utrNumber', data.utrNumber);
       fd.append('amount', String(data.amount));
-      if (file) fd.append('screenshot', file);
+      if (!file) {
+        toast.error('Screenshot is required');
+        setSubmitting(false);
+        return;
+      }
+      fd.append('screenshot', file);
 
       const r = await api.post<Submission>('/billing/utr', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -83,7 +88,7 @@ export default function BillingPage() {
       {upi && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
           <h2 className="mb-4 font-semibold">Payment Details</h2>
-          <div className="flex gap-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
             {upi.qrUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={upi.qrUrl} alt="UPI QR" className="h-32 w-32 rounded-lg object-contain" />
@@ -115,10 +120,11 @@ export default function BillingPage() {
           {...register('amount')}
         />
         <div>
-          <label className="mb-1 block text-sm text-gray-300">Screenshot (optional)</label>
+          <label className="mb-1 block text-sm text-gray-300">Screenshot <span className="text-red-400">*</span></label>
           <input
             type="file"
             accept="image/*"
+            required
             className="text-sm text-gray-400 file:mr-3 file:rounded-lg file:border-0 file:bg-[#ff7a18] file:px-3 file:py-1.5 file:text-sm file:text-white"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />

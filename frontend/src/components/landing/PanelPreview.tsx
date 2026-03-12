@@ -27,7 +27,7 @@ const features = [
 
 export function PanelPreview() {
   return (
-    <section className="relative overflow-hidden py-24">
+    <section className="relative overflow-hidden py-16 sm:py-24">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-[#ff7a18]/[0.04] blur-[150px]" />
       </div>

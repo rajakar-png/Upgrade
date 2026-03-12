@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PterodactylService } from '../pterodactyl/pterodactyl.service';
 import { DnsService } from '../dns/dns.service';
 import { ServerStatus } from '@prisma/client';
+import { sanitizePath } from '../utils/path.util';
 
 @Injectable()
 export class ServerManageService {
@@ -56,7 +57,7 @@ export class ServerManageService {
 
   async listFiles(serverId: number, userId: number, directory: string) {
     const server = await this.getServer(serverId, userId);
-    const files = await this.pterodactyl.listFiles(this.pid(server), directory);
+    const files = await this.pterodactyl.listFiles(this.pid(server), sanitizePath(directory));
     return files.map((f: any) => ({
       name: f.attributes.name,
       mode: f.attributes.mode,
@@ -71,31 +72,33 @@ export class ServerManageService {
 
   async getFileContents(serverId: number, userId: number, file: string) {
     const server = await this.getServer(serverId, userId);
-    const content = await this.pterodactyl.getFileContents(this.pid(server), file);
+    const content = await this.pterodactyl.getFileContents(this.pid(server), sanitizePath(file));
     return { content };
   }
 
   async writeFile(serverId: number, userId: number, file: string, content: string) {
     const server = await this.getServer(serverId, userId);
-    await this.pterodactyl.writeFile(this.pid(server), file, content);
+    await this.pterodactyl.writeFile(this.pid(server), sanitizePath(file), content);
     return { message: 'File saved' };
   }
 
   async deleteFiles(serverId: number, userId: number, root: string, files: string[]) {
     const server = await this.getServer(serverId, userId);
-    await this.pterodactyl.deleteFiles(this.pid(server), root, files);
+    const safeRoot = sanitizePath(root);
+    const safeFiles = files.map((f) => sanitizePath(f));
+    await this.pterodactyl.deleteFiles(this.pid(server), safeRoot, safeFiles);
     return { message: 'Files deleted' };
   }
 
   async createDirectory(serverId: number, userId: number, root: string, name: string) {
     const server = await this.getServer(serverId, userId);
-    await this.pterodactyl.createDirectory(this.pid(server), root, name);
+    await this.pterodactyl.createDirectory(this.pid(server), sanitizePath(root), sanitizePath(name));
     return { message: 'Directory created' };
   }
 
   async renameFile(serverId: number, userId: number, root: string, from: string, to: string) {
     const server = await this.getServer(serverId, userId);
-    await this.pterodactyl.renameFile(this.pid(server), root, from, to);
+    await this.pterodactyl.renameFile(this.pid(server), sanitizePath(root), sanitizePath(from), sanitizePath(to));
     return { message: 'File renamed' };
   }
 

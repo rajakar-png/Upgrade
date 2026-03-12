@@ -10,25 +10,6 @@ export class AdminService {
     private pterodactyl: PterodactylService,
   ) {}
 
-  // ── Dashboard stats ─────────────────────────────────────────────────────────
-
-  async getDashboardStats() {
-    const [totalUsers, totalServers, activeServers, openTickets, pendingUtrs] = await this.prisma.$transaction([
-      this.prisma.user.count(),
-      this.prisma.server.count(),
-      this.prisma.server.count({ where: { status: ServerStatus.active } }),
-      this.prisma.ticket.count({ where: { status: TicketStatus.open } }),
-      this.prisma.utrSubmission.count({ where: { status: UtrStatus.pending } }),
-    ]);
-    // Sum approved UTR amounts as revenue
-    const revenueResult = await this.prisma.utrSubmission.aggregate({
-      where: { status: UtrStatus.approved },
-      _sum: { amount: true },
-    });
-    const totalRevenue = revenueResult._sum.amount ?? 0;
-    return { totalUsers, totalServers, activeServers, openTickets, pendingUtrs, totalRevenue };
-  }
-
   // ── Users ───────────────────────────────────────────────────────────────────
 
   async getUsers(page = 1, limit = 30, search?: string) {
@@ -193,16 +174,6 @@ export class AdminService {
       }
     }
     return { message: `Sync complete. ${synced} orphaned server(s) removed.`, removed: synced };
-  }
-
-  // ── Public Stats ────────────────────────────────────────────────────────────
-
-  async getPublicStats() {
-    const [activeUsers, activeServers] = await this.prisma.$transaction([
-      this.prisma.user.count(),
-      this.prisma.server.count({ where: { status: ServerStatus.active } }),
-    ]);
-    return { activeUsers, activeServers, uptime: '99.9%' };
   }
 
   // ── Node Allocation ─────────────────────────────────────────────────────────
@@ -379,28 +350,6 @@ export class AdminService {
     });
   }
 
-  // ── Audit Log ───────────────────────────────────────────────────────────────
-
-  async logAction(adminId: number, action: string, targetType?: string, targetId?: number, details?: string, ip?: string) {
-    return this.prisma.auditLog.create({
-      data: { adminId, action, targetType, targetId, details, ipAddress: ip },
-    });
-  }
-
-  async getAuditLog(page = 1, limit = 50) {
-    const skip = (page - 1) * limit;
-    const [logs, total] = await this.prisma.$transaction([
-      this.prisma.auditLog.findMany({
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: { admin: { select: { email: true } } },
-      }),
-      this.prisma.auditLog.count(),
-    ]);
-    return { logs, pagination: { page, limit, total, pages: Math.ceil(total / limit) } };
-  }
-
   // ── Coin Settings ───────────────────────────────────────────────────────────
 
   async getCoinSettings() {
@@ -416,6 +365,36 @@ export class AdminService {
       where: { id: 1 },
       create: { id: 1, coinsPerMinute },
       update: { coinsPerMinute },
+    });
+  }
+
+  // ── Ad Settings ─────────────────────────────────────────────────────────────
+
+  async getAdSettings() {
+    return this.prisma.adSetting.upsert({
+      where: { id: 1 },
+      create: { id: 1 },
+      update: {},
+    });
+  }
+
+  async updateAdSettings(data: any) {
+    const update: any = {};
+    if (data.adProvider !== undefined) {
+      const allowed = ['none', 'adsense', 'adsterra'];
+      if (!allowed.includes(data.adProvider)) throw new BadRequestException('Invalid ad provider');
+      update.adProvider = data.adProvider;
+    }
+    if (data.adBlockerDetection !== undefined) update.adBlockerDetection = data.adBlockerDetection === true || data.adBlockerDetection === 'true';
+    if (data.requireAdView !== undefined) update.requireAdView = data.requireAdView === true || data.requireAdView === 'true';
+    if (data.adsensePublisherId !== undefined) update.adsensePublisherId = data.adsensePublisherId || null;
+    if (data.adsenseSlotId !== undefined) update.adsenseSlotId = data.adsenseSlotId || null;
+    if (data.adsterraBannerKey !== undefined) update.adsterraBannerKey = data.adsterraBannerKey || null;
+    if (data.adsterraNativeKey !== undefined) update.adsterraNativeKey = data.adsterraNativeKey || null;
+    return this.prisma.adSetting.upsert({
+      where: { id: 1 },
+      create: { id: 1, ...update },
+      update,
     });
   }
 

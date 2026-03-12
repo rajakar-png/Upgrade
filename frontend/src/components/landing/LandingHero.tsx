@@ -25,7 +25,7 @@ export function LandingHero() {
   }, []);
 
   return (
-    <section className="relative overflow-hidden py-24 lg:py-36">
+    <section className="relative overflow-hidden py-16 sm:py-24 lg:py-36">
       {/* Background effects */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-[#ff7a18]/10 blur-[150px] animate-pulse-glow" />
@@ -49,18 +49,18 @@ export function LandingHero() {
             </div>
 
             {/* Heading */}
-            <h1 className="animate-fade-in-up text-5xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="animate-fade-in-up text-3xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-7xl">
               {d.headingBefore}{' '}
               <span className="text-gradient animate-gradient">{d.headingHighlight}</span>
             </h1>
 
             {/* Subtext */}
-            <p className="animate-fade-in-up-d1 mt-6 max-w-xl text-lg leading-relaxed text-gray-400 md:text-xl">
+            <p className="animate-fade-in-up-d1 mt-4 max-w-xl text-base leading-relaxed text-gray-400 sm:mt-6 sm:text-lg md:text-xl">
               {d.subtitle}
             </p>
 
             {/* Buttons */}
-            <div className="animate-fade-in-up-d2 mt-10 flex flex-wrap gap-4">
+            <div className="animate-fade-in-up-d2 mt-8 flex flex-wrap gap-3 sm:mt-10 sm:gap-4">
               <Link
                 href={d.primaryLink}
                 className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#ff7a18] to-orange-500 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#ff7a18]/25 transition-all duration-200 hover:from-[#ff8c3a] hover:to-orange-400 hover:shadow-xl hover:shadow-[#ff7a18]/40"

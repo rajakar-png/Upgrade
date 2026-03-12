@@ -14,8 +14,18 @@ import {
   ButtonStyle,
   TextChannel,
   Interaction,
+  AttachmentBuilder,
 } from 'discord.js';
 import { UtrStatus } from '@prisma/client';
+import { join } from 'path';
+import { OnEvent } from '@nestjs/event-emitter';
+import {
+  BILLING_UTR_SUBMITTED,
+  TICKET_CREATED,
+  TICKET_REPLIED,
+  UtrSubmittedEvent,
+  TicketEvent,
+} from '../events/events';
 
 @Injectable()
 export class DiscordBotService implements OnModuleInit, OnModuleDestroy {
@@ -84,6 +94,29 @@ export class DiscordBotService implements OnModuleInit, OnModuleDestroy {
     await this.tryConnect();
   }
 
+  // ── Event Listeners ─────────────────────────────────────────────────────
+
+  @OnEvent(BILLING_UTR_SUBMITTED)
+  async handleUtrSubmitted(payload: UtrSubmittedEvent) {
+    this.sendUtrNotification(payload).catch((err) =>
+      this.logger.error('Failed to handle UTR submitted event', err),
+    );
+  }
+
+  @OnEvent(TICKET_CREATED)
+  async handleTicketCreated(payload: TicketEvent) {
+    this.sendTicketNotification(payload.type, payload, payload.message).catch((err) =>
+      this.logger.error('Failed to handle ticket created event', err),
+    );
+  }
+
+  @OnEvent(TICKET_REPLIED)
+  async handleTicketReplied(payload: TicketEvent) {
+    this.sendTicketNotification(payload.type, payload, payload.message).catch((err) =>
+      this.logger.error('Failed to handle ticket replied event', err),
+    );
+  }
+
   // ── Send UTR Notification ──────────────────────────────────────────────────
 
   async sendUtrNotification(submission: {
@@ -94,7 +127,14 @@ export class DiscordBotService implements OnModuleInit, OnModuleDestroy {
     user: { email: string };
   }) {
     const settings = await this.getSettings();
-    if (!this.ready || !this.client || !settings?.discordUtrChannelId) return;
+    if (!this.ready || !this.client) {
+      this.logger.warn(`UTR notification skipped: bot ready=${this.ready}, client=${!!this.client}`);
+      return;
+    }
+    if (!settings?.discordUtrChannelId) {
+      this.logger.warn('UTR notification skipped: discordUtrChannelId not configured');
+      return;
+    }
 
     try {
       const channel = await this.client.channels.fetch(
@@ -117,9 +157,18 @@ export class DiscordBotService implements OnModuleInit, OnModuleDestroy {
         )
         .setTimestamp();
 
+      // Attach screenshot as a file so Discord can display it
+      const files: any[] = [];
       if (submission.screenshotPath) {
-        const baseUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL || 'http://localhost:4000';
-        embed.setImage(`${baseUrl}/uploads/${submission.screenshotPath}`);
+        const uploadDir = process.env.UPLOAD_DIR || './uploads';
+        const filePath = join(uploadDir, submission.screenshotPath);
+        try {
+          const attachment = new AttachmentBuilder(filePath, { name: 'screenshot.png' });
+          files.push(attachment);
+          embed.setImage('attachment://screenshot.png');
+        } catch (fileErr) {
+          this.logger.warn('Could not attach screenshot file', fileErr);
+        }
       }
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -143,6 +192,7 @@ export class DiscordBotService implements OnModuleInit, OnModuleDestroy {
           : 'New payment requires review!',
         embeds: [embed],
         components: [row],
+        files,
       });
     } catch (err) {
       this.logger.error('Failed to send UTR notification', err);
@@ -162,13 +212,23 @@ export class DiscordBotService implements OnModuleInit, OnModuleDestroy {
     message?: string,
   ) {
     const settings = await this.getSettings();
-    if (!this.ready || !this.client || !settings?.discordTicketChannelId) return;
+    if (!this.ready || !this.client) {
+      this.logger.warn(`Ticket notification skipped: bot ready=${this.ready}, client=${!!this.client}`);
+      return;
+    }
+    if (!settings?.discordTicketChannelId) {
+      this.logger.warn('Ticket notification skipped: discordTicketChannelId not configured');
+      return;
+    }
 
     try {
       const channel = await this.client.channels.fetch(
         settings.discordTicketChannelId,
       );
-      if (!channel || !(channel instanceof TextChannel)) return;
+      if (!channel || !(channel instanceof TextChannel)) {
+        this.logger.warn(`Ticket channel ${settings.discordTicketChannelId} not found or not a text channel`);
+        return;
+      }
 
       const isNew = type === 'new';
       const embed = new EmbedBuilder()

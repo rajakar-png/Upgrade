@@ -27,6 +27,12 @@ export class PterodactylService {
   private serverInfoCache = new Map<number, { uuid: string; node: number; ts: number }>();
   private readonly SERVER_CACHE_TTL = 10 * 60 * 1000; // 10 min
 
+  // ── Circuit breaker state ────────────────────────────────────────────────
+  private circuitFailures = 0;
+  private circuitOpenedAt: number | null = null;
+  private readonly CIRCUIT_THRESHOLD = 5;
+  private readonly CIRCUIT_RESET_MS = 30_000; // 30s
+
   constructor(private config: ConfigService) {
     this.pteroUrl = config.get<string>('app.pterodactyl.url')!.replace(/\/$/, '');
     const apiKey = config.get<string>('app.pterodactyl.apiKey')!;
@@ -42,15 +48,53 @@ export class PterodactylService {
     });
   }
 
+  // ── Circuit breaker ─────────────────────────────────────────────────────────
+
+  private checkCircuit(): void {
+    if (this.circuitOpenedAt) {
+      if (Date.now() - this.circuitOpenedAt > this.CIRCUIT_RESET_MS) {
+        this.logger.warn('Circuit breaker: half-open, allowing request through');
+        this.circuitOpenedAt = null;
+        this.circuitFailures = 0;
+      } else {
+        throw new ServiceUnavailableException(
+          'Pterodactyl panel is temporarily unavailable. Please try again shortly.',
+        );
+      }
+    }
+  }
+
+  private recordSuccess(): void {
+    this.circuitFailures = 0;
+    this.circuitOpenedAt = null;
+  }
+
+  private recordFailure(): void {
+    this.circuitFailures++;
+    if (this.circuitFailures >= this.CIRCUIT_THRESHOLD) {
+      this.circuitOpenedAt = Date.now();
+      this.logger.error(
+        `Circuit breaker OPEN after ${this.circuitFailures} consecutive failures. ` +
+        `Will retry after ${this.CIRCUIT_RESET_MS / 1000}s.`,
+      );
+    }
+  }
+
   // ── Retry wrapper ───────────────────────────────────────────────────────────
 
   private async withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+    this.checkCircuit();
     for (let i = 1; i <= attempts; i++) {
       try {
-        return await fn();
+        const result = await fn();
+        this.recordSuccess();
+        return result;
       } catch (err) {
         const shouldRetry = !err.response || RETRY_STATUS.has(err.response?.status);
-        if (!shouldRetry || i === attempts) throw err;
+        if (!shouldRetry || i === attempts) {
+          this.recordFailure();
+          throw err;
+        }
         await new Promise((r) => setTimeout(r, 300 * i));
       }
     }

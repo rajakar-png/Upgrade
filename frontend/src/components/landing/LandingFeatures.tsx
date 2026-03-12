@@ -39,7 +39,7 @@ export function LandingFeatures() {
   }, []);
 
   return (
-    <section id="features" className="relative py-24">
+    <section id="features" className="relative py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-6">
         <div className="text-center">
           <span className="mb-4 inline-block rounded-full border border-[#ff7a18]/20 bg-[#ff7a18]/10 px-4 py-1 text-xs font-medium uppercase tracking-wider text-orange-300">
@@ -60,7 +60,7 @@ export function LandingFeatures() {
           </p>
         </div>
 
-        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid gap-4 sm:mt-16 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => {
             const Icon = ICONS[i % ICONS.length];
             return (

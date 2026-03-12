@@ -51,4 +51,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   ttl(key: string): Promise<number> {
     return this.client.ttl(key);
   }
+
+  getClient(): Redis {
+    return this.client;
+  }
 }

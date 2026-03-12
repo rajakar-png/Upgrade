@@ -10,6 +10,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { IsNumber, IsString, IsPositive } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { imageFileFilter, validateImageBuffer } from '../utils/upload.util';
+import { readFile } from 'fs/promises';
 
 class SubmitUtrDto {
   @Transform(({ value }) => parseFloat(value))
@@ -47,12 +49,7 @@ export class BillingController {
         },
       }),
       limits: { fileSize: 5 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          return cb(new BadRequestException('Only images allowed'), false);
-        }
-        cb(null, true);
-      },
+      fileFilter: imageFileFilter,
     }),
   )
   async submitUtr(
@@ -61,6 +58,7 @@ export class BillingController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('Screenshot is required');
+    await validateImageBuffer(await readFile(file.path));
     return this.billingService.submitUtr(user.id, dto.amount, dto.utrNumber, file.filename);
   }
 }

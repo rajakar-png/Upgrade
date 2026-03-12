@@ -444,6 +444,25 @@ model AffiliateSettings {
   @@map("affiliate_settings")
 }
 
+// ─── Ad Settings ─────────────────────────────────────────────────────────────
+
+model AdSetting {
+  id                 Int     @id @default(1)
+  adProvider         String  @default("none") @map("ad_provider")          // "none" | "adsense" | "adsterra"
+  adBlockerDetection Boolean @default(true) @map("ad_blocker_detection")
+  requireAdView      Boolean @default(true) @map("require_ad_view")
+
+  // Google AdSense
+  adsensePublisherId String? @map("adsense_publisher_id")
+  adsenseSlotId      String? @map("adsense_slot_id")
+
+  // Adsterra
+  adsterraBannerKey  String? @map("adsterra_banner_key")
+  adsterraNativeKey  String? @map("adsterra_native_key")
+
+  @@map("ad_settings")
+}
+
 // ─── Popup Messages ──────────────────────────────────────────────────────────
 
 model PopupMessage {

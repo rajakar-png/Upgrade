@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Users, Server, DollarSign, AlertCircle, Ticket, Activity, Settings, Tag, Coins, FileText, MessageSquare, Gift, Home } from 'lucide-react';
+import { Users, Server, DollarSign, AlertCircle, Ticket, Activity, Settings, Tag, Coins, FileText, MessageSquare, Gift, Home, MonitorPlay } from 'lucide-react';
 
 interface Stats {
   totalUsers: number;
@@ -28,6 +28,7 @@ const NAV_LINKS = [
   { label: 'Coin Settings', href: '/admin/coins', icon: Coins, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   { label: 'Popup Messages', href: '/admin/popups', icon: MessageSquare, color: 'text-pink-400', bg: 'bg-pink-500/10' },
   { label: 'Affiliate Settings', href: '/admin/affiliate', icon: Gift, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+  { label: 'Ad Settings', href: '/admin/ads', icon: MonitorPlay, color: 'text-rose-400', bg: 'bg-rose-500/10' },
 ];
 
 export default function AdminDashboardPage() {
