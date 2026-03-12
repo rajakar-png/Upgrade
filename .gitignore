@@ -45,6 +45,9 @@ build/
 logs/
 /var/log/
 
+# SSL certificates
+ssl/
+
 # OS
 .DS_Store
 Thumbs.db
