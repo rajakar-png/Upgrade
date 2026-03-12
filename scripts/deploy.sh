@@ -64,8 +64,87 @@ read_env_value() {
     grep "^${key}=" "$file" 2>/dev/null | tail -1 | cut -d'=' -f2-
 }
 
+# Write/update a key=value in .env (creates if missing, updates if exists)
+set_env_value() {
+    local key="$1"
+    local value="$2"
+    local file="${3:-$ENV_FILE}"
+    if grep -q "^${key}=" "$file" 2>/dev/null; then
+        # Replace line matching ^KEY= with KEY=value (preserves position)
+        awk -v k="${key}=" -v line="${key}=${value}" '{if(index($0,k)==1) print line; else print}' "$file" > "${file}.tmp"
+        mv "${file}.tmp" "$file"
+        chmod 600 "$file"
+    else
+        echo "${key}=${value}" >> "$file"
+    fi
+}
+
+# Prompt user for a value. Usage: prompt_value "VAR_NAME" "description" "default" "required(y/n)"
+prompt_value() {
+    local key="$1"
+    local desc="$2"
+    local default="${3:-}"
+    local required="${4:-n}"
+
+    local current
+    current=$(read_env_value "$key")
+
+    # If already has a real value, skip
+    if [[ -n "$current" ]]; then
+        return 0
+    fi
+
+    echo ""
+    if [[ -n "$default" ]]; then
+        echo -en "${CYAN}  ${desc}${NC} [${GREEN}${default}${NC}]: "
+    else
+        echo -en "${CYAN}  ${desc}${NC}: "
+    fi
+
+    local input
+    read -r input </dev/tty || input=""
+    input="${input:-$default}"
+
+    if [[ "$required" == "y" && -z "$input" ]]; then
+        err "  $key is required!"
+        echo -en "${CYAN}  ${desc}${NC}: "
+        read -r input </dev/tty || input=""
+        if [[ -z "$input" ]]; then
+            err "  Cannot continue without $key."
+            exit 1
+        fi
+    fi
+
+    if [[ -n "$input" ]]; then
+        set_env_value "$key" "$input"
+    fi
+}
+
+# Generate a random secret
+generate_secret() {
+    openssl rand -base64 48 2>/dev/null | tr -d '/+=' | head -c 48
+}
+
+# Export POSTGRES_* vars from .env so docker-compose can use them
+load_env_for_compose() {
+    if [[ -f "$ENV_FILE" ]]; then
+        local val
+        val=$(read_env_value "POSTGRES_USER")
+        [[ -n "$val" ]] && export POSTGRES_USER="$val"
+        val=$(read_env_value "POSTGRES_PASSWORD")
+        [[ -n "$val" ]] && export POSTGRES_PASSWORD="$val"
+        val=$(read_env_value "POSTGRES_DB")
+        [[ -n "$val" ]] && export POSTGRES_DB="$val"
+    fi
+    # Ensure POSTGRES_PASSWORD is set (docker-compose requires it)
+    if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
+        err "POSTGRES_PASSWORD is not set. Run: ./scripts/deploy.sh --sync-env"
+        exit 1
+    fi
+}
+
 # ══════════════════════════════════════════════════════════════════════════════
-#  STEP 1: .env Sync
+#  STEP 1: .env Sync — Interactive Setup
 # ══════════════════════════════════════════════════════════════════════════════
 sync_env() {
     step "Syncing Environment Variables"
@@ -75,34 +154,28 @@ sync_env() {
         exit 1
     fi
 
-    # If .env does not exist, create it from example
+    local is_new=false
+
+    # ── Create .env from example if missing ────────────────────────────────
     if [[ ! -f "$ENV_FILE" ]]; then
         log "No .env found. Creating from .env.example..."
         cp "$ENV_EXAMPLE" "$ENV_FILE"
         chmod 600 "$ENV_FILE"
-        warn "Created $ENV_FILE — please review and fill in required values."
-        return 0
+        is_new=true
     fi
 
-    log "Checking $ENV_FILE against $ENV_EXAMPLE for missing variables..."
-
+    # ── Sync: add any keys from .env.example that are missing in .env ──────
     local added=0
-    local missing_keys=()
+    local new_keys=()
 
     while IFS= read -r line || [[ -n "$line" ]]; do
-        # Skip blank lines and comments
         [[ -z "${line}" || "${line}" =~ ^[[:space:]]*# ]] && continue
-
-        # Extract key (everything before first =)
         local key="${line%%=*}"
         key="$(echo "$key" | xargs)"
-
-        # Skip if empty key
         [[ -z "$key" ]] && continue
 
-        # Check if key exists in current .env (even if value is empty)
         if ! grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
-            # Find the comment above this key in .env.example for context
+            # Find section comment above this key
             local comment_line=""
             local line_num
             line_num=$(grep -n "^${key}=" "$ENV_EXAMPLE" | tail -1 | cut -d: -f1)
@@ -114,45 +187,188 @@ sync_env() {
                 fi
             fi
 
-            # Append to .env
             echo "" >> "$ENV_FILE"
-            if [[ -n "$comment_line" ]]; then
-                echo "$comment_line" >> "$ENV_FILE"
-            fi
+            [[ -n "$comment_line" ]] && echo "$comment_line" >> "$ENV_FILE"
             echo "$line" >> "$ENV_FILE"
-
-            missing_keys+=("$key")
+            new_keys+=("$key")
             added=$((added + 1))
         fi
     done < "$ENV_EXAMPLE"
 
-    if [[ $added -eq 0 ]]; then
-        log ".env is fully in sync — no missing variables."
-    else
+    if [[ $added -gt 0 ]]; then
         log "Added $added missing variable(s) to $ENV_FILE:"
-        for k in "${missing_keys[@]}"; do
-            warn "  + $k"
+        for k in "${new_keys[@]}"; do
+            info "  + $k"
         done
-        warn "Review $ENV_FILE and update the new values before deploying."
+    else
+        log ".env is in sync with .env.example."
     fi
 
-    # Validate required vars
-    local required=("DATABASE_URL" "JWT_SECRET" "PTERODACTYL_URL" "PTERODACTYL_API_KEY")
-    local missing_required=()
-    for key in "${required[@]}"; do
-        local val
-        val=$(read_env_value "$key")
-        if [[ -z "$val" || "$val" == "change-me"* || "$val" == "ptla_xxx"* ]]; then
-            missing_required+=("$key")
+    # ── Auto-fill & prompt for required values ─────────────────────────────
+    log "Checking required variables..."
+    echo ""
+    echo -e "${BLUE}  ┌──────────────────────────────────────────────────────┐${NC}"
+    echo -e "${BLUE}  │  Fill in missing values (press Enter to keep default)│${NC}"
+    echo -e "${BLUE}  │  Values already set in .env will be kept as-is      │${NC}"
+    echo -e "${BLUE}  └──────────────────────────────────────────────────────┘${NC}"
+
+    # ── PostgreSQL ─────────────────────────────────────────────────────────
+    echo ""
+    echo -e "${YELLOW}  ── PostgreSQL ──${NC}"
+    prompt_value "POSTGRES_USER" "PostgreSQL username" "astra" "n"
+    prompt_value "POSTGRES_DB" "PostgreSQL database name" "astra" "n"
+
+    # Auto-generate password if empty
+    local pg_pass
+    pg_pass=$(read_env_value "POSTGRES_PASSWORD")
+    if [[ -z "$pg_pass" ]]; then
+        local gen_pass
+        gen_pass=$(generate_secret | head -c 32)
+        echo ""
+        echo -en "${CYAN}  PostgreSQL password${NC} [${GREEN}auto-generate${NC}]: "
+        local input_pass
+        read -r input_pass </dev/tty || input_pass=""
+        if [[ -z "$input_pass" ]]; then
+            input_pass="$gen_pass"
+            log "  Auto-generated PostgreSQL password."
+        fi
+        set_env_value "POSTGRES_PASSWORD" "$input_pass"
+    fi
+
+    # Auto-build DATABASE_URL from parts
+    local pg_user pg_password pg_db
+    pg_user=$(read_env_value "POSTGRES_USER")
+    pg_password=$(read_env_value "POSTGRES_PASSWORD")
+    pg_db=$(read_env_value "POSTGRES_DB")
+    pg_user="${pg_user:-astra}"
+    pg_db="${pg_db:-astra}"
+
+    local db_url="postgresql://${pg_user}:${pg_password}@postgres:5432/${pg_db}"
+    set_env_value "DATABASE_URL" "$db_url"
+    log "  DATABASE_URL auto-configured."
+
+    # ── JWT ────────────────────────────────────────────────────────────────
+    echo ""
+    echo -e "${YELLOW}  ── JWT ──${NC}"
+    local jwt_secret
+    jwt_secret=$(read_env_value "JWT_SECRET")
+    if [[ -z "$jwt_secret" || "$jwt_secret" == "change-me"* ]]; then
+        local gen_jwt
+        gen_jwt=$(generate_secret)
+        set_env_value "JWT_SECRET" "$gen_jwt"
+        log "  JWT_SECRET auto-generated."
+    else
+        log "  JWT_SECRET already set."
+    fi
+
+    # ── Frontend URL ───────────────────────────────────────────────────────
+    echo ""
+    echo -e "${YELLOW}  ── App ──${NC}"
+    local frontend_url
+    frontend_url=$(read_env_value "FRONTEND_URL")
+    if [[ -z "$frontend_url" || "$frontend_url" == "http://localhost"* ]]; then
+        prompt_value "FRONTEND_URL" "Frontend URL (e.g. https://yourdomain.com)" "http://localhost:3000" "n"
+    fi
+
+    # ── Pterodactyl (REQUIRED) ─────────────────────────────────────────────
+    echo ""
+    echo -e "${YELLOW}  ── Pterodactyl (required) ──${NC}"
+    local ptero_url ptero_key
+    ptero_url=$(read_env_value "PTERODACTYL_URL")
+    ptero_key=$(read_env_value "PTERODACTYL_API_KEY")
+
+    if [[ -z "$ptero_url" || "$ptero_url" == "https://panel.example.com" ]]; then
+        set_env_value "PTERODACTYL_URL" ""
+        prompt_value "PTERODACTYL_URL" "Pterodactyl panel URL (e.g. https://panel.example.com)" "" "y"
+    else
+        log "  PTERODACTYL_URL: $ptero_url"
+    fi
+
+    if [[ -z "$ptero_key" || "$ptero_key" == "ptla_xxx" ]]; then
+        set_env_value "PTERODACTYL_API_KEY" ""
+        prompt_value "PTERODACTYL_API_KEY" "Pterodactyl Application API key (ptla_...)" "" "y"
+    else
+        log "  PTERODACTYL_API_KEY: set"
+    fi
+
+    local ptero_client
+    ptero_client=$(read_env_value "PTERODACTYL_CLIENT_KEY")
+    if [[ -z "$ptero_client" || "$ptero_client" == "ptlc_xxx" ]]; then
+        set_env_value "PTERODACTYL_CLIENT_KEY" ""
+        prompt_value "PTERODACTYL_CLIENT_KEY" "Pterodactyl Client API key (ptlc_..., or leave blank)" "" "n"
+    fi
+
+    # ── OAuth Callback ─────────────────────────────────────────────────────
+    echo ""
+    echo -e "${YELLOW}  ── OAuth (optional) ──${NC}"
+    local oauth_url
+    oauth_url=$(read_env_value "OAUTH_CALLBACK_URL")
+    if [[ -z "$oauth_url" || "$oauth_url" == "http://localhost:4000" ]]; then
+        local fe_url
+        fe_url=$(read_env_value "FRONTEND_URL")
+        local suggested_oauth="${fe_url:-http://localhost:4000}"
+        # Replace frontend port with backend port for callback
+        suggested_oauth=$(echo "$suggested_oauth" | sed 's|:3000|:4000|g')
+        prompt_value "OAUTH_CALLBACK_URL" "OAuth callback URL (backend URL)" "$suggested_oauth" "n"
+    fi
+
+    prompt_value "GOOGLE_CLIENT_ID" "Google OAuth Client ID (blank to skip)" "" "n"
+    prompt_value "GOOGLE_CLIENT_SECRET" "Google OAuth Client Secret (blank to skip)" "" "n"
+    prompt_value "DISCORD_CLIENT_ID" "Discord OAuth Client ID (blank to skip)" "" "n"
+    prompt_value "DISCORD_CLIENT_SECRET" "Discord OAuth Client Secret (blank to skip)" "" "n"
+
+    # ── Cloudflare (optional) ──────────────────────────────────────────────
+    echo ""
+    echo -e "${YELLOW}  ── Cloudflare (optional — for DNS & SSL) ──${NC}"
+    prompt_value "CLOUDFLARE_API_TOKEN" "Cloudflare API Token (blank to skip)" "" "n"
+
+    local cf_token
+    cf_token=$(read_env_value "CLOUDFLARE_API_TOKEN")
+    if [[ -n "$cf_token" ]]; then
+        prompt_value "CLOUDFLARE_ZONE_ID" "Cloudflare Zone ID" "" "y"
+        prompt_value "CLOUDFLARE_DOMAIN" "Your domain (e.g. astranodes.cloud)" "" "y"
+    fi
+
+    # ── Admin Email ────────────────────────────────────────────────────────
+    echo ""
+    echo -e "${YELLOW}  ── Admin ──${NC}"
+    prompt_value "ADMIN_EMAIL" "Admin email (for SSL certificate)" "" "n"
+
+    # ── Summary ────────────────────────────────────────────────────────────
+    echo ""
+    echo -e "${BLUE}  ┌──────────────────────────────────────────────────────┐${NC}"
+    echo -e "${BLUE}  │           Configuration Summary                     │${NC}"
+    echo -e "${BLUE}  └──────────────────────────────────────────────────────┘${NC}"
+
+    local summary_keys=(
+        "NODE_ENV" "PORT" "FRONTEND_URL"
+        "POSTGRES_USER" "POSTGRES_DB"
+        "PTERODACTYL_URL"
+        "CLOUDFLARE_DOMAIN"
+    )
+    for k in "${summary_keys[@]}"; do
+        local v
+        v=$(read_env_value "$k")
+        if [[ -n "$v" ]]; then
+            echo -e "  ${GREEN}✓${NC} $k = $v"
+        else
+            echo -e "  ${YELLOW}○${NC} $k = (empty)"
         fi
     done
 
-    if [[ ${#missing_required[@]} -gt 0 ]]; then
-        warn "The following required variables need real values:"
-        for k in "${missing_required[@]}"; do
-            warn "  ! $k"
-        done
-    fi
+    # Show secrets as masked
+    for k in "POSTGRES_PASSWORD" "JWT_SECRET" "PTERODACTYL_API_KEY"; do
+        local v
+        v=$(read_env_value "$k")
+        if [[ -n "$v" ]]; then
+            echo -e "  ${GREEN}✓${NC} $k = ****"
+        else
+            echo -e "  ${RED}✗${NC} $k = (MISSING)"
+        fi
+    done
+
+    echo ""
+    log "Environment configured. File: $ENV_FILE"
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -274,6 +490,7 @@ setup_cloudflare_dns() {
 # ══════════════════════════════════════════════════════════════════════════════
 setup_ssl() {
     step "SSL Certificate Setup"
+    load_env_for_compose
 
     local cf_domain
     cf_domain=$(read_env_value "CLOUDFLARE_DOMAIN")
@@ -582,6 +799,7 @@ migrate_sqlite_to_postgres() {
     fi
 
     log "Starting SQLite -> PostgreSQL data migration..."
+    load_env_for_compose
 
     # Ensure PostgreSQL is running
     docker compose -f "$COMPOSE_FILE" up -d postgres redis
@@ -766,6 +984,7 @@ PYEOF
 # ══════════════════════════════════════════════════════════════════════════════
 backup_database() {
     step "Database Backup"
+    load_env_for_compose
 
     mkdir -p "$BACKUP_DIR"
     local backup_file="$BACKUP_DIR/db-$(date +%Y%m%d-%H%M%S).sql.gz"
@@ -784,6 +1003,7 @@ backup_database() {
 # ══════════════════════════════════════════════════════════════════════════════
 deploy() {
     step "Building & Deploying"
+    load_env_for_compose
 
     log "Building Docker images..."
     docker compose -f "$COMPOSE_FILE" build --parallel
