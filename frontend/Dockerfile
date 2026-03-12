@@ -14,7 +14,7 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm run build
+RUN mkdir -p public && npm run build
 
 # ── Stage 3: Production ────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
