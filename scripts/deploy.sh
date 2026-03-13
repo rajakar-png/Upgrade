@@ -219,6 +219,38 @@ ask_optional UPI_NAME "UPI registered name / business name" ""
 
 fi  # end SKIPPED_WIZARD
 
+# Ensure critical values always exist (including when reusing saved config)
+if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
+  POSTGRES_PASSWORD=$(openssl rand -base64 32 2>/dev/null | tr -d '/+=' | head -c 32)
+  warn "POSTGRES_PASSWORD was missing in saved config. Generated a new secure value."
+fi
+if [[ ${#POSTGRES_PASSWORD} -lt 16 ]]; then
+  error "POSTGRES_PASSWORD must be at least 16 characters."
+fi
+
+if [[ -z "${JWT_SECRET:-}" ]]; then
+  JWT_SECRET=$(openssl rand -base64 48 2>/dev/null | tr -d '/+=' | head -c 48)
+  warn "JWT_SECRET was missing in saved config. Generated a new secure value."
+fi
+if [[ ${#JWT_SECRET} -lt 32 ]]; then
+  error "JWT_SECRET must be at least 32 characters."
+fi
+
+if [[ -z "${SITE_DOMAIN:-}" ]]; then
+  ask SITE_DOMAIN "Domain name (e.g. astranodes.cloud)"
+fi
+if [[ -z "${ADMIN_EMAIL:-}" ]]; then
+  ask ADMIN_EMAIL "Admin email (for Let's Encrypt and alerts)"
+fi
+
+# These are required by backend env validation at startup
+if [[ -z "${PTERODACTYL_URL:-}" ]]; then
+  ask PTERODACTYL_URL "Pterodactyl panel URL (e.g. https://panel.example.com)"
+fi
+if [[ -z "${PTERODACTYL_API_KEY:-}" ]]; then
+  ask PTERODACTYL_API_KEY "Pterodactyl admin API key"
+fi
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Review & Confirm
 # ─────────────────────────────────────────────────────────────────────────────
@@ -443,8 +475,18 @@ if ! docker-compose build; then
   error "Failed to build Docker images. Check logs above for details."
 fi
 
-info "Starting services..."
-docker-compose up -d
+info "Starting core services (PostgreSQL, Redis)..."
+docker-compose up -d postgres redis
+
+info "Starting app services (Backend, Frontend)..."
+if ! docker-compose up -d backend frontend; then
+  warn "Backend/Frontend reported unhealthy during initial start. Continuing with readiness checks..."
+fi
+
+info "Starting reverse proxy (Nginx)..."
+if ! docker-compose up -d nginx; then
+  warn "Nginx start deferred until app services become healthy. Will retry later."
+fi
 
 sleep 10  # Give containers time to start
 
@@ -509,6 +551,7 @@ Check build logs:
   
   retries=$((retries + 1))
   if [[ $retries -gt 120 ]]; then
+    docker-compose logs backend | tail -80
     error "Backend health check failed after 4 minutes.
   
 Check application logs:
@@ -553,6 +596,12 @@ Check application logs:
   sleep 2
 done
 success "Frontend is ready"
+
+# Ensure nginx is up after app services become healthy
+if ! docker-compose ps nginx | grep -q "Up"; then
+  info "Retrying Nginx startup now that app services are ready..."
+  docker-compose up -d nginx
+fi
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  SSL CERTIFICATE SETUP
