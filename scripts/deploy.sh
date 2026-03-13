@@ -438,13 +438,15 @@ header "Building & Starting Docker Containers"
 info "Pulling base images..."
 docker-compose pull
 
-info "Building images..."
-docker-compose build
+info "Building images (this may take 5-10 minutes first time)..."
+if ! docker-compose build; then
+  error "Failed to build Docker images. Check logs above for details."
+fi
 
 info "Starting services..."
 docker-compose up -d
 
-sleep 5
+sleep 10  # Give containers time to start
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  WAIT FOR SERVICES
@@ -455,8 +457,12 @@ info "Waiting for PostgreSQL..."
 retries=0
 while ! docker-compose exec -T postgres pg_isready -U astra >/dev/null 2>&1; do
   retries=$((retries + 1))
-  if [[ $retries -gt 30 ]]; then
-    error "PostgreSQL failed to start"
+  if [[ $retries -gt 40 ]]; then
+    error "PostgreSQL failed to start after 80 seconds.
+  
+Check logs:
+  docker-compose logs postgres
+  docker-compose logs -f"
   fi
   echo -n "."
   sleep 2
@@ -468,31 +474,80 @@ retries=0
 while ! docker-compose exec -T redis redis-cli ping >/dev/null 2>&1; do
   retries=$((retries + 1))
   if [[ $retries -gt 30 ]]; then
-    error "Redis failed to start"
+    error "Redis failed to start after 60 seconds.
+  
+Check logs:
+  docker-compose logs redis"
   fi
   echo -n "."
   sleep 2
 done
 success "Redis is ready"
 
-info "Waiting for Backend..."
+info "Waiting for Backend to build and start (this may take a few minutes)..."
 retries=0
-while ! docker-compose exec -T backend curl -sf http://localhost:4000/api/health >/dev/null 2>&1; do
+while true; do
+  # Check if container is running first
+  if ! docker-compose ps backend | grep -q "Up"; then
+    docker-compose logs backend | tail -20
+    retries=$((retries + 1))
+    if [[ $retries -gt 120 ]]; then
+      error "Backend container failed to start after 4 minutes.
+  
+Check build logs:
+  docker-compose logs backend"
+    fi
+    echo -n "."
+    sleep 2
+    continue
+  fi
+  
+  # Try to reach health endpoint
+  if docker-compose exec -T backend wget -qO- http://localhost:4000/api/health >/dev/null 2>&1; then
+    break
+  fi
+  
   retries=$((retries + 1))
-  if [[ $retries -gt 60 ]]; then
-    error "Backend failed to start"
+  if [[ $retries -gt 120 ]]; then
+    error "Backend health check failed after 4 minutes.
+  
+Check application logs:
+  docker-compose logs backend"
   fi
   echo -n "."
   sleep 2
 done
 success "Backend is ready"
 
-info "Waiting for Frontend..."
+info "Waiting for Frontend to build and start (this may take a few minutes)..."
 retries=0
-while ! docker-compose exec -T frontend curl -sf http://localhost:3000 >/dev/null 2>&1; do
+while true; do
+  # Check if container is running first
+  if ! docker-compose ps frontend | grep -q "Up"; then
+    docker-compose logs frontend | tail -20
+    retries=$((retries + 1))
+    if [[ $retries -gt 120 ]]; then
+      error "Frontend container failed to start after 4 minutes.
+  
+Check build logs:
+  docker-compose logs frontend"
+    fi
+    echo -n "."
+    sleep 2
+    continue
+  fi
+  
+  # Try to reach health check
+  if docker-compose exec -T frontend wget -qO- http://localhost:3000 >/dev/null 2>&1; then
+    break
+  fi
+  
   retries=$((retries + 1))
-  if [[ $retries -gt 60 ]]; then
-    error "Frontend failed to start"
+  if [[ $retries -gt 120 ]]; then
+    error "Frontend health check failed after 4 minutes.
+  
+Check application logs:
+  docker-compose logs frontend"
   fi
   echo -n "."
   sleep 2
