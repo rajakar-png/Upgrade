@@ -1,12 +1,12 @@
 # ── Stage 1: Build ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl python3 make g++
 
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install --legacy-peer-deps || npm install
 
 COPY prisma ./prisma
 RUN npx prisma generate
@@ -25,7 +25,7 @@ ENV NODE_ENV=production
 
 # Install production dependencies only
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm install --production --legacy-peer-deps || npm install --production && npm cache clean --force
 
 # Copy Prisma client (generated in builder)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
