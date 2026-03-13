@@ -254,6 +254,19 @@ fi
 # Public ports (allow overrides via environment or existing shell values)
 HTTP_PORT="${HTTP_PORT:-80}"
 HTTPS_PORT="${HTTPS_PORT:-443}"
+USE_HOST_NGINX_PROXY="no"
+
+# If host nginx already owns 80/443, switch Docker nginx to high ports and use host nginx as reverse proxy.
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx; then
+  if command -v lsof >/dev/null 2>&1; then
+    if lsof -iTCP:80 -sTCP:LISTEN -P -n >/dev/null 2>&1 || lsof -iTCP:443 -sTCP:LISTEN -P -n >/dev/null 2>&1; then
+      USE_HOST_NGINX_PROXY="yes"
+      HTTP_PORT="8000"
+      HTTPS_PORT="8443"
+      warn "Detected host nginx using 80/443. Enabling host-nginx proxy mode (Docker nginx on 8000/8443)."
+    fi
+  fi
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Review & Confirm
@@ -394,7 +407,7 @@ fi
 # ═════════════════════════════════════════════════════════════════════════════
 header "Generating Configuration Files"
 
-if [[ "$HTTPS_PORT" == "443" ]]; then
+if [[ "$USE_HOST_NGINX_PROXY" == "yes" || "$HTTPS_PORT" == "443" ]]; then
   FRONTEND_URL="https://${SITE_DOMAIN}"
   OAUTH_CALLBACK_URL="https://${SITE_DOMAIN}"
 else
@@ -670,6 +683,44 @@ success "Frontend is ready"
 if ! docker-compose ps nginx | grep -q "Up"; then
   info "Retrying Nginx startup now that app services are ready..."
   docker-compose up -d nginx
+fi
+
+# If host-nginx proxy mode is enabled, configure host nginx vhost to proxy domain to Docker nginx.
+if [[ "$USE_HOST_NGINX_PROXY" == "yes" ]]; then
+  info "Configuring host nginx reverse proxy for ${SITE_DOMAIN} -> 127.0.0.1:${HTTP_PORT}"
+  HOST_NGINX_SITE="/etc/nginx/sites-available/astranodes-${SITE_DOMAIN}.conf"
+  cat > "$HOST_NGINX_SITE" <<EOF
+server {
+    listen 80;
+    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
+
+    ssl_certificate /etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SITE_DOMAIN}/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:${HTTP_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+
+  ln -sf "$HOST_NGINX_SITE" "/etc/nginx/sites-enabled/astranodes-${SITE_DOMAIN}.conf"
+  if nginx -t >/dev/null 2>&1; then
+    systemctl reload nginx
+    success "Host nginx proxy enabled for ${SITE_DOMAIN}"
+  else
+    warn "Host nginx config test failed. Keeping existing host nginx config."
+  fi
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
