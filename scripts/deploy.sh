@@ -558,6 +558,16 @@ Check logs:
 fi
 success "PostgreSQL credentials synchronized for backend"
 
+info "Running Prisma migrations..."
+if ! docker-compose run --rm --no-deps backend npm run prisma:migrate; then
+  error "Prisma migrations failed.
+
+Check logs:
+  docker-compose logs postgres
+  docker-compose run --rm --no-deps backend npm run prisma:migrate"
+fi
+success "Prisma migrations applied"
+
 info "Starting app services (Backend, Frontend)..."
 if ! docker-compose up -d backend frontend; then
   warn "Backend/Frontend reported unhealthy during initial start. Continuing with readiness checks..."

@@ -30,6 +30,8 @@ RUN npm ci --only=production --prefer-offline --no-audit 2>/dev/null || npm inst
 # Copy Prisma client (generated in builder)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
