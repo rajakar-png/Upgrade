@@ -2,6 +2,25 @@
 
 Full-stack Minecraft hosting platform with a premium dashboard UI, secure backend, automated renewals, and Pterodactyl lifecycle integration.
 
+## 🚀 Quick Start (Production Deploy)
+
+Deploy to production automatically with one command:
+
+```bash
+bash scripts/deploy.sh
+```
+
+This interactive script will:
+- ✅ Ask for your domain and configuration
+- ✅ Auto-generate secrets (passwords, JWT tokens)
+- ✅ Configure OAuth (Google & Discord)
+- ✅ Set up PostgreSQL, Redis, and Nginx
+- ✅ Obtain SSL certificate (Let's Encrypt or self-signed)
+- ✅ Build and deploy everything with Docker Compose
+- ✅ Save configuration for future re-deployments
+
+**See [DEPLOY_SCRIPT_README.md](DEPLOY_SCRIPT_README.md) for full details.**
+
 ## Stack
 - Frontend: React (Vite) + TailwindCSS v4
 - Backend: Node.js (Express) + PostgreSQL
