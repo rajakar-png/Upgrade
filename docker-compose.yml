@@ -75,12 +75,6 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 5
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
-      interval: 30s
-      timeout: 5s
-      start_period: 30s
-      retries: 5
 
   # ── Nginx Reverse Proxy ──────────────────────────────────────────────────
   nginx:
