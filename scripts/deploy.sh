@@ -245,15 +245,106 @@ success "Config saved to ${CONFIG_FILE}"
 # ═════════════════════════════════════════════════════════════════════════════
 header "Validating Configuration"
 
-if ! command -v docker &>/dev/null; then
-  error "Docker is not installed. Please install Docker first."
+# ── Check Docker ──────────────────────────────────────────────────────────────
+info "Checking Docker installation..."
+
+# Try to find docker in standard locations
+DOCKER_CMD=""
+for docker_path in /usr/bin/docker /usr/local/bin/docker /snap/bin/docker /opt/docker/bin/docker; do
+  if [[ -x "$docker_path" ]]; then
+    DOCKER_CMD="$docker_path"
+    break
+  fi
+done
+
+# Fallback to command lookup
+if [[ -z "$DOCKER_CMD" ]]; then
+  DOCKER_CMD=$(command -v docker 2>/dev/null || echo "")
 fi
 
-if ! command -v docker-compose &>/dev/null; then
-  error "Docker Compose is not installed. Please run: pip install docker-compose"
+if [[ -z "$DOCKER_CMD" ]]; then
+  error "❌ Docker is not installed or not in PATH.
+  
+  Please install Docker:
+  - Ubuntu/Debian: sudo apt-get install docker.io docker-compose
+  - Snap: sudo snap install docker
+  - Official: https://docs.docker.com/engine/install/
+  
+  After installing, you may need to:
+  1. Add user to docker group: sudo usermod -aG docker \$USER
+  2. Log out and back in, or run: newgrp docker
+  3. Verify: docker --version"
 fi
 
-success "Docker and Docker Compose are available"
+# Test Docker works
+if ! $DOCKER_CMD --version >/dev/null 2>&1; then
+  error "❌ Docker is installed but not working. Try:
+  - sudo usermod -aG docker \$USER
+  - newgrp docker
+  - Test: docker --version"
+fi
+
+success "Docker is available: $($DOCKER_CMD --version)"
+
+# ── Check Docker Compose ──────────────────────────────────────────────────────
+info "Checking Docker Compose installation..."
+
+DOCKER_COMPOSE_CMD=""
+
+# Try docker compose (new version)
+if $DOCKER_CMD compose version >/dev/null 2>&1; then
+  DOCKER_COMPOSE_CMD="$DOCKER_CMD compose"
+  success "Docker Compose (integrated): $($DOCKER_CMD compose version | head -1)"
+# Try standalone docker-compose
+elif command -v docker-compose &>/dev/null; then
+  DOCKER_COMPOSE_CMD="docker-compose"
+  success "Docker Compose (standalone): $(docker-compose --version)"
+# Try to install docker-compose
+else
+  warn "Docker Compose not found. Attempting to install..."
+  
+  if command -v pip3 &>/dev/null; then
+    info "Installing docker-compose via pip3..."
+    if pip3 install --user docker-compose >/dev/null 2>&1; then
+      DOCKER_COMPOSE_CMD="$HOME/.local/bin/docker-compose"
+      success "Docker Compose installed: $($DOCKER_COMPOSE_CMD --version)"
+    else
+      error "Failed to install docker-compose via pip3"
+    fi
+  elif command -v pip &>/dev/null; then
+    info "Installing docker-compose via pip..."
+    if pip install --user docker-compose >/dev/null 2>&1; then
+      DOCKER_COMPOSE_CMD="$HOME/.local/bin/docker-compose"
+      success "Docker Compose installed: $($DOCKER_COMPOSE_CMD --version)"
+    else
+      error "Failed to install docker-compose via pip"
+    fi
+  else
+    error "❌ Docker Compose is not installed and pip is not available.
+  
+  Please install Docker Compose:
+  - Ubuntu/Debian: sudo apt-get install docker-compose
+  - Snap: sudo snap install docker
+  - pip: pip install docker-compose
+  - Or download: https://docs.docker.com/compose/install/"
+  fi
+fi
+
+# ── Setup docker-compose wrapper function ──────────────────────────────────
+# This function ensures docker-compose works whether we have standalone or integrated version
+docker-compose() {
+  if command -v docker &>/dev/null && docker compose version >/dev/null 2>&1; then
+    # Using "docker compose" (integrated)
+    docker compose "$@"
+  else
+    # Using standalone docker-compose
+    command docker-compose "$@"
+  fi
+}
+
+export -f docker-compose
+
+success "✅ Docker and Docker Compose are available"
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  GENERATE .env FILE

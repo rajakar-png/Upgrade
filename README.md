@@ -7,6 +7,10 @@ Full-stack Minecraft hosting platform with a premium dashboard UI, secure backen
 Deploy to production automatically with one command:
 
 ```bash
+# First, verify Docker is installed and working
+bash scripts/docker-detect.sh
+
+# Then deploy
 bash scripts/deploy.sh
 ```
 
