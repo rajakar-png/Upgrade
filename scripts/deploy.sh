@@ -892,32 +892,34 @@ if command -v curl >/dev/null 2>&1; then
   fi
 fi
 
-# End-to-end reachability checks to avoid false "Deployment Complete" states.
+# End-to-end reachability checks:
+# 1) Strict local checks (reliable) to validate deployed stack.
+# 2) Public-domain checks are informative warnings to avoid false failures during DNS/CDN propagation.
 if command -v curl >/dev/null 2>&1; then
-  info "Verifying public website URL..."
+  info "Verifying local website endpoint through Nginx..."
   retries=0
-  while ! curl -ksSf "${FRONTEND_URL}" >/dev/null 2>&1; do
+  while ! curl -ksSf "http://127.0.0.1:${HTTP_PORT}/" >/dev/null 2>&1; do
     retries=$((retries + 1))
     if [[ $retries -gt 20 ]]; then
       docker-compose logs nginx | tail -80
-      error "Public website check failed for ${FRONTEND_URL}.
+      error "Local website check failed at http://127.0.0.1:${HTTP_PORT}/.
 
 Check:
   docker-compose logs nginx
-  docker-compose ps
-  systemctl status nginx (if host nginx is enabled)"
+  docker-compose ps"
     fi
     sleep 2
   done
-  success "Public website URL is reachable: ${FRONTEND_URL}"
+  success "Local website endpoint is reachable"
 
-  info "Verifying public API health URL..."
+  info "Verifying local API health endpoint through Nginx..."
   retries=0
-  while ! curl -ksSf "${FRONTEND_URL}/api/health" >/dev/null 2>&1; do
+  while ! curl -ksSf "http://127.0.0.1:${HTTP_PORT}/api/health" >/dev/null 2>&1; do
     retries=$((retries + 1))
     if [[ $retries -gt 20 ]]; then
       docker-compose logs backend | tail -80
-      error "Public API health check failed for ${FRONTEND_URL}/api/health.
+      docker-compose logs nginx | tail -80
+      error "Local API health check failed at http://127.0.0.1:${HTTP_PORT}/api/health.
 
 Check:
   docker-compose logs backend
@@ -925,7 +927,32 @@ Check:
     fi
     sleep 2
   done
-  success "Public API health URL is reachable"
+  success "Local API health endpoint is reachable"
+
+  info "Checking public website URL..."
+  if curl -ksSf "${FRONTEND_URL}" >/dev/null 2>&1; then
+    success "Public website URL is reachable: ${FRONTEND_URL}"
+  else
+    warn "Public website URL check failed: ${FRONTEND_URL}"
+    warn "Stack is running locally; domain may still be affected by DNS/CDN/host-proxy routing."
+  fi
+
+  info "Checking public API health URL..."
+  if curl -ksSf "${FRONTEND_URL}/api/health" >/dev/null 2>&1; then
+    success "Public API health URL is reachable"
+  else
+    warn "Public API health check failed: ${FRONTEND_URL}/api/health"
+  fi
+
+  if [[ "$USE_HOST_NGINX_PROXY" == "yes" ]]; then
+    info "Verifying host nginx proxy path on loopback..."
+    if curl -ksSf --resolve "${SITE_DOMAIN}:443:127.0.0.1" "https://${SITE_DOMAIN}/api/health" >/dev/null 2>&1; then
+      success "Host nginx loopback proxy is reachable"
+    else
+      warn "Host nginx loopback proxy check failed for https://${SITE_DOMAIN}/api/health"
+      warn "Run: nginx -t && systemctl status nginx --no-pager"
+    fi
+  fi
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
