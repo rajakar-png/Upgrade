@@ -478,16 +478,6 @@ fi
 info "Starting core services (PostgreSQL, Redis)..."
 docker-compose up -d postgres redis
 
-info "Starting app services (Backend, Frontend)..."
-if ! docker-compose up -d backend frontend; then
-  warn "Backend/Frontend reported unhealthy during initial start. Continuing with readiness checks..."
-fi
-
-info "Starting reverse proxy (Nginx)..."
-if ! docker-compose up -d nginx; then
-  warn "Nginx start deferred until app services become healthy. Will retry later."
-fi
-
 sleep 10  # Give containers time to start
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -525,6 +515,58 @@ Check logs:
   sleep 2
 done
 success "Redis is ready"
+
+info "Reconciling PostgreSQL role/password/database for backend..."
+DB_ADMIN_ROLE=""
+for candidate in "${POSTGRES_USER:-astra}" postgres; do
+  if docker-compose exec -T postgres psql -U "$candidate" -d postgres -c "SELECT 1" >/dev/null 2>&1; then
+    DB_ADMIN_ROLE="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$DB_ADMIN_ROLE" ]]; then
+  for candidate in "${POSTGRES_USER:-astra}" postgres; do
+    if docker-compose exec -T postgres psql -U "$candidate" -d template1 -c "SELECT 1" >/dev/null 2>&1; then
+      DB_ADMIN_ROLE="$candidate"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$DB_ADMIN_ROLE" ]]; then
+  error "Unable to find a PostgreSQL admin role to reconcile credentials.
+
+Check logs:
+  docker-compose logs postgres"
+fi
+
+ESCAPED_DB_PASS=$(printf "%s" "$POSTGRES_PASSWORD" | sed "s/'/''/g")
+if ! docker-compose exec -T postgres psql -U "$DB_ADMIN_ROLE" -d postgres -v ON_ERROR_STOP=1 <<SQL
+SELECT 'CREATE ROLE astra LOGIN PASSWORD ''' || '${ESCAPED_DB_PASS}' || ''''
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'astra')\gexec
+ALTER ROLE astra WITH LOGIN PASSWORD '${ESCAPED_DB_PASS}';
+SELECT 'CREATE DATABASE astra OWNER astra'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'astra')\gexec
+GRANT ALL PRIVILEGES ON DATABASE astra TO astra;
+SQL
+then
+  error "Failed to reconcile PostgreSQL role/database credentials.
+
+Check logs:
+  docker-compose logs postgres"
+fi
+success "PostgreSQL credentials synchronized for backend"
+
+info "Starting app services (Backend, Frontend)..."
+if ! docker-compose up -d backend frontend; then
+  warn "Backend/Frontend reported unhealthy during initial start. Continuing with readiness checks..."
+fi
+
+info "Starting reverse proxy (Nginx)..."
+if ! docker-compose up -d nginx; then
+  warn "Nginx start deferred until app services become healthy. Will retry later."
+fi
 
 info "Waiting for Backend to build and start (this may take a few minutes)..."
 retries=0
