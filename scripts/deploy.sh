@@ -382,6 +382,13 @@ export -f docker-compose
 
 success "✅ Docker and Docker Compose are available"
 
+# Warn if a host-level nginx is active while using standard web ports
+if [[ "${HTTP_PORT}" == "80" || "${HTTPS_PORT}" == "443" ]]; then
+  if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx; then
+    warn "Host nginx service is active. It may serve ${SITE_DOMAIN} instead of Docker nginx if ports 80/443 are occupied."
+  fi
+fi
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  GENERATE .env FILE
 # ═════════════════════════════════════════════════════════════════════════════
@@ -784,6 +791,15 @@ else
   error "Nginx is not running. Deployment cannot continue."
 fi
 
+# Detect if domain is being served by host Ubuntu nginx instead of container stack
+if command -v curl >/dev/null 2>&1; then
+  DOMAIN_SERVER_HEADER=$(curl -skI "https://${SITE_DOMAIN}" 2>/dev/null | grep -i '^server:' || true)
+  if echo "$DOMAIN_SERVER_HEADER" | grep -qi 'nginx/1.18.0 (Ubuntu)'; then
+    warn "${SITE_DOMAIN} is currently served by host Ubuntu nginx (${DOMAIN_SERVER_HEADER})."
+    warn "If site returns 500, update host nginx vhost to reverse proxy to 127.0.0.1:${HTTP_PORT} or stop host nginx."
+  fi
+fi
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  FINAL SUMMARY
 # ═════════════════════════════════════════════════════════════════════════════
@@ -807,7 +823,7 @@ echo -e "  ${CYAN}Database & Users:${RESET}"
 echo -e "   docker-compose exec postgres psql -U astra -d astra"
 echo ""
 echo -e "  ${CYAN}Creating Admin Account:${RESET}"
-echo -e "   1. Visit https://${SITE_DOMAIN}"
+echo -e "   1. Visit ${FRONTEND_URL}"
 echo -e "   2. Login with Google or Discord OAuth"
 echo -e "   3. Promote user to admin:"
 echo -e "      docker-compose exec backend npm run set-admin ${ADMIN_EMAIL}"
