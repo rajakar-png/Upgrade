@@ -254,6 +254,7 @@ fi
 # Public ports (allow overrides via environment or existing shell values)
 HTTP_PORT="${HTTP_PORT:-80}"
 HTTPS_PORT="${HTTPS_PORT:-443}"
+HOST_BIND="${HOST_BIND:-0.0.0.0}"
 USE_HOST_NGINX_PROXY="no"
 HOST_PROXY_CONFIGURED="no"
 
@@ -264,6 +265,7 @@ if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx; th
       USE_HOST_NGINX_PROXY="yes"
       HTTP_PORT="8000"
       HTTPS_PORT="8443"
+      HOST_BIND="127.0.0.1"
       warn "Detected host nginx using 80/443. Enabling host-nginx proxy mode (Docker nginx on 8000/8443)."
     fi
   fi
@@ -488,6 +490,7 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 POSTGRES_DB=astra
 HTTP_PORT=${HTTP_PORT}
 HTTPS_PORT=${HTTPS_PORT}
+HOST_BIND=${HOST_BIND}
 EOF
 
 chmod 600 .env
@@ -821,6 +824,7 @@ if [[ "$USE_HOST_NGINX_PROXY" == "yes" && "$HOST_PROXY_CONFIGURED" != "yes" ]]; 
 
   HTTP_PORT="80"
   HTTPS_PORT="443"
+  HOST_BIND="0.0.0.0"
 
   # Update compose env ports for immediate recreate
   cat > .env <<EOF
@@ -829,6 +833,7 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 POSTGRES_DB=astra
 HTTP_PORT=${HTTP_PORT}
 HTTPS_PORT=${HTTPS_PORT}
+HOST_BIND=${HOST_BIND}
 EOF
 
   docker-compose up -d --force-recreate nginx
