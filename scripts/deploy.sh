@@ -256,24 +256,17 @@ HTTP_PORT="${HTTP_PORT:-80}"
 HTTPS_PORT="${HTTPS_PORT:-443}"
 HOST_BIND="${HOST_BIND:-0.0.0.0}"
 USE_HOST_NGINX_PROXY="no"
-HOST_PROXY_CONFIGURED="no"
 
-# Prefer a single edge proxy: Docker nginx on public 80/443.
-# If host nginx owns these ports, stop it to avoid split-routing failures.
-if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx; then
-  if command -v lsof >/dev/null 2>&1; then
-    if lsof -iTCP:80 -sTCP:LISTEN -P -n >/dev/null 2>&1 || lsof -iTCP:443 -sTCP:LISTEN -P -n >/dev/null 2>&1; then
-      warn "Host nginx is using 80/443. Stopping host nginx so Docker nginx can serve ${SITE_DOMAIN} directly."
-      systemctl stop nginx 2>/dev/null || true
-      systemctl disable nginx 2>/dev/null || true
-    fi
+# Never hijack host ports used by Pterodactyl/other services.
+# If 80/443 are occupied, move app nginx to 8000/8443 automatically.
+if command -v lsof >/dev/null 2>&1; then
+  if lsof -iTCP:80 -sTCP:LISTEN -P -n >/dev/null 2>&1 || lsof -iTCP:443 -sTCP:LISTEN -P -n >/dev/null 2>&1; then
+    HTTP_PORT="8000"
+    HTTPS_PORT="8443"
+    HOST_BIND="0.0.0.0"
+    warn "Ports 80/443 are already in use (likely Pterodactyl/host nginx). Using ${HTTP_PORT}/${HTTPS_PORT} for this app."
   fi
 fi
-
-# Always keep Docker nginx publicly bound unless explicit host-proxy mode is enabled later.
-HTTP_PORT="80"
-HTTPS_PORT="443"
-HOST_BIND="0.0.0.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Review & Confirm
@@ -414,7 +407,7 @@ fi
 # ═════════════════════════════════════════════════════════════════════════════
 header "Generating Configuration Files"
 
-if [[ "$USE_HOST_NGINX_PROXY" == "yes" || "$HTTPS_PORT" == "443" ]]; then
+if [[ "$HTTPS_PORT" == "443" ]]; then
   FRONTEND_URL="https://${SITE_DOMAIN}"
   OAUTH_CALLBACK_URL="https://${SITE_DOMAIN}"
 else
@@ -767,84 +760,11 @@ cp "ssl/live/${SITE_DOMAIN}/privkey.pem" ssl/live/privkey.pem 2>/dev/null || tru
 cp "ssl/live/${SITE_DOMAIN}/fullchain.pem" ssl/live/cert.pem 2>/dev/null || true
 cp "ssl/live/${SITE_DOMAIN}/privkey.pem" ssl/live/key.pem 2>/dev/null || true
 
-# If host-nginx proxy mode is enabled, configure host nginx to proxy domain to Docker nginx.
-if [[ "$USE_HOST_NGINX_PROXY" == "yes" ]]; then
-  info "Configuring host nginx reverse proxy for ${SITE_DOMAIN} -> 127.0.0.1:${HTTP_PORT}"
-  HOST_NGINX_SITE="/etc/nginx/sites-available/astranodes-${SITE_DOMAIN}.conf"
-  SSL_CERT_PATH="$(pwd)/ssl/live/cert.pem"
-  SSL_KEY_PATH="$(pwd)/ssl/live/key.pem"
-
-  cat > "$HOST_NGINX_SITE" <<EOF
-server {
-    listen 80;
-    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
-    return 301 https://\$host\$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
-
-    ssl_certificate ${SSL_CERT_PATH};
-    ssl_certificate_key ${SSL_KEY_PATH};
-
-    location / {
-        proxy_pass http://127.0.0.1:${HTTP_PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-
-  # Avoid default host nginx vhost taking precedence over the project domain.
-  rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
-  ln -sf "$HOST_NGINX_SITE" "/etc/nginx/sites-enabled/astranodes-${SITE_DOMAIN}.conf"
-  if nginx -t >/dev/null 2>&1; then
-    systemctl reload nginx
-    success "Host nginx proxy enabled for ${SITE_DOMAIN}"
-    HOST_PROXY_CONFIGURED="yes"
-  else
-    warn "Host nginx config test failed. Showing nginx -t output:"
-    nginx -t || true
-    HOST_PROXY_CONFIGURED="no"
-  fi
-fi
-
 success "SSL certificate configured"
 
 # Restart nginx with SSL
 docker-compose restart nginx
 sleep 3
-
-# If host-nginx proxy mode failed, force a reliable fallback: stop host nginx and bind Docker nginx to 80/443.
-if [[ "$USE_HOST_NGINX_PROXY" == "yes" && "$HOST_PROXY_CONFIGURED" != "yes" ]]; then
-  warn "Host nginx proxy mode failed. Falling back to Docker nginx on standard ports 80/443."
-
-  if command -v systemctl >/dev/null 2>&1; then
-    systemctl stop nginx 2>/dev/null || true
-    systemctl disable nginx 2>/dev/null || true
-  fi
-
-  HTTP_PORT="80"
-  HTTPS_PORT="443"
-  HOST_BIND="0.0.0.0"
-
-  # Update compose env ports for immediate recreate
-  cat > .env <<EOF
-POSTGRES_USER=astra
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-POSTGRES_DB=astra
-HTTP_PORT=${HTTP_PORT}
-HTTPS_PORT=${HTTPS_PORT}
-HOST_BIND=${HOST_BIND}
-EOF
-
-  docker-compose up -d --force-recreate nginx
-  sleep 3
-fi
 
 # Nginx may be "health: starting" for a short time; wait up to 60s for it to be up
 retries=0
@@ -948,15 +868,6 @@ Check:
     warn "Public API health check failed: ${FRONTEND_URL}/api/health"
   fi
 
-  if [[ "$USE_HOST_NGINX_PROXY" == "yes" ]]; then
-    info "Verifying host nginx proxy path on loopback..."
-    if curl -ksSf --resolve "${SITE_DOMAIN}:443:127.0.0.1" "https://${SITE_DOMAIN}/api/health" >/dev/null 2>&1; then
-      success "Host nginx loopback proxy is reachable"
-    else
-      warn "Host nginx loopback proxy check failed for https://${SITE_DOMAIN}/api/health"
-      warn "Run: nginx -t && systemctl status nginx --no-pager"
-    fi
-  fi
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
