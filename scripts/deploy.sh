@@ -795,6 +795,8 @@ server {
 }
 EOF
 
+  # Avoid default host nginx vhost taking precedence over the project domain.
+  rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
   ln -sf "$HOST_NGINX_SITE" "/etc/nginx/sites-enabled/astranodes-${SITE_DOMAIN}.conf"
   if nginx -t >/dev/null 2>&1; then
     systemctl reload nginx
@@ -888,6 +890,42 @@ if command -v curl >/dev/null 2>&1; then
     warn "${SITE_DOMAIN} is currently served by host Ubuntu nginx (${DOMAIN_SERVER_HEADER})."
     warn "If site returns 500, update host nginx vhost to reverse proxy to 127.0.0.1:${HTTP_PORT} or stop host nginx."
   fi
+fi
+
+# End-to-end reachability checks to avoid false "Deployment Complete" states.
+if command -v curl >/dev/null 2>&1; then
+  info "Verifying public website URL..."
+  retries=0
+  while ! curl -ksSf "${FRONTEND_URL}" >/dev/null 2>&1; do
+    retries=$((retries + 1))
+    if [[ $retries -gt 20 ]]; then
+      docker-compose logs nginx | tail -80
+      error "Public website check failed for ${FRONTEND_URL}.
+
+Check:
+  docker-compose logs nginx
+  docker-compose ps
+  systemctl status nginx (if host nginx is enabled)"
+    fi
+    sleep 2
+  done
+  success "Public website URL is reachable: ${FRONTEND_URL}"
+
+  info "Verifying public API health URL..."
+  retries=0
+  while ! curl -ksSf "${FRONTEND_URL}/api/health" >/dev/null 2>&1; do
+    retries=$((retries + 1))
+    if [[ $retries -gt 20 ]]; then
+      docker-compose logs backend | tail -80
+      error "Public API health check failed for ${FRONTEND_URL}/api/health.
+
+Check:
+  docker-compose logs backend
+  docker-compose logs nginx"
+    fi
+    sleep 2
+  done
+  success "Public API health URL is reachable"
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
