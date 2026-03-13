@@ -252,8 +252,8 @@ if [[ -z "${PTERODACTYL_API_KEY:-}" ]]; then
 fi
 
 # Public ports (allow overrides via environment or existing shell values)
-HTTP_PORT="${HTTP_PORT:-8000}"
-HTTPS_PORT="${HTTPS_PORT:-8443}"
+HTTP_PORT="${HTTP_PORT:-80}"
+HTTPS_PORT="${HTTPS_PORT:-443}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Review & Confirm
