@@ -258,18 +258,22 @@ HOST_BIND="${HOST_BIND:-0.0.0.0}"
 USE_HOST_NGINX_PROXY="no"
 HOST_PROXY_CONFIGURED="no"
 
-# If host nginx already owns 80/443, switch Docker nginx to high ports and use host nginx as reverse proxy.
+# Prefer a single edge proxy: Docker nginx on public 80/443.
+# If host nginx owns these ports, stop it to avoid split-routing failures.
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx; then
   if command -v lsof >/dev/null 2>&1; then
     if lsof -iTCP:80 -sTCP:LISTEN -P -n >/dev/null 2>&1 || lsof -iTCP:443 -sTCP:LISTEN -P -n >/dev/null 2>&1; then
-      USE_HOST_NGINX_PROXY="yes"
-      HTTP_PORT="8000"
-      HTTPS_PORT="8443"
-      HOST_BIND="127.0.0.1"
-      warn "Detected host nginx using 80/443. Enabling host-nginx proxy mode (Docker nginx on 8000/8443)."
+      warn "Host nginx is using 80/443. Stopping host nginx so Docker nginx can serve ${SITE_DOMAIN} directly."
+      systemctl stop nginx 2>/dev/null || true
+      systemctl disable nginx 2>/dev/null || true
     fi
   fi
 fi
+
+# Always keep Docker nginx publicly bound unless explicit host-proxy mode is enabled later.
+HTTP_PORT="80"
+HTTPS_PORT="443"
+HOST_BIND="0.0.0.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Review & Confirm
