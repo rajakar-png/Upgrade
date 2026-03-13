@@ -255,6 +255,7 @@ fi
 HTTP_PORT="${HTTP_PORT:-80}"
 HTTPS_PORT="${HTTPS_PORT:-443}"
 USE_HOST_NGINX_PROXY="no"
+HOST_PROXY_CONFIGURED="no"
 
 # If host nginx already owns 80/443, switch Docker nginx to high ports and use host nginx as reverse proxy.
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx; then
@@ -795,9 +796,11 @@ EOF
   if nginx -t >/dev/null 2>&1; then
     systemctl reload nginx
     success "Host nginx proxy enabled for ${SITE_DOMAIN}"
+    HOST_PROXY_CONFIGURED="yes"
   else
     warn "Host nginx config test failed. Showing nginx -t output:"
     nginx -t || true
+    HOST_PROXY_CONFIGURED="no"
   fi
 fi
 
@@ -806,6 +809,31 @@ success "SSL certificate configured"
 # Restart nginx with SSL
 docker-compose restart nginx
 sleep 3
+
+# If host-nginx proxy mode failed, force a reliable fallback: stop host nginx and bind Docker nginx to 80/443.
+if [[ "$USE_HOST_NGINX_PROXY" == "yes" && "$HOST_PROXY_CONFIGURED" != "yes" ]]; then
+  warn "Host nginx proxy mode failed. Falling back to Docker nginx on standard ports 80/443."
+
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl stop nginx 2>/dev/null || true
+    systemctl disable nginx 2>/dev/null || true
+  fi
+
+  HTTP_PORT="80"
+  HTTPS_PORT="443"
+
+  # Update compose env ports for immediate recreate
+  cat > .env <<EOF
+POSTGRES_USER=astra
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_DB=astra
+HTTP_PORT=${HTTP_PORT}
+HTTPS_PORT=${HTTPS_PORT}
+EOF
+
+  docker-compose up -d --force-recreate nginx
+  sleep 3
+fi
 
 # Nginx may be "health: starting" for a short time; wait up to 60s for it to be up
 retries=0
