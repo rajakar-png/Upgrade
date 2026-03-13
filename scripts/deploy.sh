@@ -418,6 +418,18 @@ EOF
 chmod 600 backend/.env
 success "backend/.env generated (chmod 600)"
 
+# Also create root .env for docker-compose to load environment variables
+cat > .env <<EOF
+POSTGRES_USER=astra
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_DB=astra
+HTTP_PORT=${HTTP_PORT:-8000}
+HTTPS_PORT=${HTTPS_PORT:-8443}
+EOF
+
+chmod 600 .env
+success ".env generated in root (chmod 600)"
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  BUILD & START DOCKER CONTAINERS
 # ═════════════════════════════════════════════════════════════════════════════
