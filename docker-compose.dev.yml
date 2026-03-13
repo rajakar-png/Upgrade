@@ -4,9 +4,9 @@ services:
     container_name: astranodes_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: astranodes
-      POSTGRES_USER: astranodes
-      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: astra
+      POSTGRES_USER: astra
+      POSTGRES_PASSWORD: astra-secure-password-32chars-required
     ports:
       - '5433:5432'
     volumes:
