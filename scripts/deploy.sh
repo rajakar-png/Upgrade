@@ -25,7 +25,7 @@ set -euo pipefail
 # ── Configuration ──────────────────────────────────────────────────────────────
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
-HEALTH_URL="${HEALTH_URL:-http://localhost:8080/api/health}"
+HEALTH_URL="${HEALTH_URL:-http://localhost:${HTTP_PORT:-8000}/api/health}"
 HEALTH_RETRIES=10
 HEALTH_DELAY=5
 SSL_DIR="./ssl"

@@ -6,4 +6,4 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Create SSL directory (certs mounted at runtime via docker-compose)
 RUN mkdir -p /etc/nginx/ssl
 
-EXPOSE 8080 443
+EXPOSE 8000 8443

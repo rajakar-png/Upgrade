@@ -83,8 +83,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "${HTTP_PORT:-8080}:8080"
-      - "${HTTPS_PORT:-443}:443"
+      - "${HTTP_PORT:-8000}:8000"
+      - "${HTTPS_PORT:-8443}:8443"
     volumes:
       - ./ssl/live:/etc/nginx/ssl:ro
     depends_on:
@@ -94,10 +94,19 @@ services:
         condition: service_healthy
     networks:
       - public
+    environment:
+      - NGINX_HTTP_PORT=8000
+      - NGINX_HTTPS_PORT=8443
 
 volumes:
   postgres_data:
   uploads:
+
+networks:
+  internal:
+    driver: bridge
+  public:
+    driver: bridge
 
 networks:
   internal:
