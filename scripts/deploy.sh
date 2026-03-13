@@ -125,6 +125,12 @@ generate_secret() {
     openssl rand -base64 48 2>/dev/null | tr -d '/+=' | head -c 48
 }
 
+# Check if a port is available on localhost
+port_available() {
+    local port="$1"
+    ! (nc -z localhost "$port" 2>/dev/null || lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1)
+}
+
 # Export POSTGRES_* vars from .env so docker-compose can use them
 load_env_for_compose() {
     if [[ -f "$ENV_FILE" ]]; then
@@ -714,40 +720,46 @@ with open('$key_file', 'w') as f: f.write(key)
         log "Attempting SSL via certbot (HTTP-01 standalone challenge)..."
         log "This requires port 80 to be available and domain DNS pointing to this server."
 
-        # Stop nginx if running (it holds port 80)
-        docker compose -f "$COMPOSE_FILE" stop nginx 2>/dev/null || true
+        # Check if port 80 is available
+        if ! port_available 80; then
+            warn "Port 80 is already in use (possibly Pterodactyl or another service)."
+            warn "Cannot use HTTP-01 challenge. Skipping to self-signed certificate."
+        else
+            # Stop nginx if running (it holds port 8000/8443)
+            docker compose -f "$COMPOSE_FILE" stop nginx 2>/dev/null || true
 
-        if docker run --rm \
-            -v "$(pwd)/$SSL_DIR:/etc/letsencrypt" \
-            -p 80:80 \
-            certbot/certbot certonly \
-            --standalone \
-            -d "$domain" \
-            --non-interactive \
-            --agree-tos \
-            --email "$admin_email" 2>&1; then
+            if docker run --rm \
+                -v "$(pwd)/$SSL_DIR:/etc/letsencrypt" \
+                -p 80:80 \
+                certbot/certbot certonly \
+                --standalone \
+                -d "$domain" \
+                --non-interactive \
+                --agree-tos \
+                --email "$admin_email" 2>&1; then
 
-            # Copy certs from certbot's domain-specific dir to flat location
-            local certbot_live="$SSL_DIR/live/$domain"
-            if [[ -f "$certbot_live/fullchain.pem" ]]; then
-                cp "$certbot_live/fullchain.pem" "$cert_file"
-                cp "$certbot_live/privkey.pem" "$key_file"
+                # Copy certs from certbot's domain-specific dir to flat location
+                local certbot_live="$SSL_DIR/live/$domain"
+                if [[ -f "$certbot_live/fullchain.pem" ]]; then
+                    cp "$certbot_live/fullchain.pem" "$cert_file"
+                    cp "$certbot_live/privkey.pem" "$key_file"
+                fi
+                chmod 600 "$key_file" 2>/dev/null || true
+                chmod 644 "$cert_file" 2>/dev/null || true
+                log "Let's Encrypt certificate obtained (HTTP challenge)!"
+
+                # Setup auto-renewal cron
+                if ! crontab -l 2>/dev/null | grep -q "certbot-renew"; then
+                    log "Setting up SSL auto-renewal cron..."
+                    (crontab -l 2>/dev/null || true; echo "0 3 * * * cd $(pwd) && docker compose -f $COMPOSE_FILE stop nginx && docker run --rm -v $(pwd)/$SSL_DIR:/etc/letsencrypt -p 80:80 certbot/certbot renew --quiet && cp $(pwd)/$SSL_DIR/live/$domain/fullchain.pem $(pwd)/$cert_file && cp $(pwd)/$SSL_DIR/live/$domain/privkey.pem $(pwd)/$key_file && docker compose -f $COMPOSE_FILE start nginx > /dev/null 2>&1 # certbot-renew") | crontab -
+                fi
+
+                ensure_nginx_ssl "$domain"
+                return 0
             fi
-            chmod 600 "$key_file" 2>/dev/null || true
-            chmod 644 "$cert_file" 2>/dev/null || true
-            log "Let's Encrypt certificate obtained (HTTP challenge)!"
 
-            # Setup auto-renewal cron
-            if ! crontab -l 2>/dev/null | grep -q "certbot-renew"; then
-                log "Setting up SSL auto-renewal cron..."
-                (crontab -l 2>/dev/null || true; echo "0 3 * * * cd $(pwd) && docker compose -f $COMPOSE_FILE stop nginx && docker run --rm -v $(pwd)/$SSL_DIR:/etc/letsencrypt -p 80:80 certbot/certbot renew --quiet && cp $(pwd)/$SSL_DIR/live/$domain/fullchain.pem $(pwd)/$cert_file && cp $(pwd)/$SSL_DIR/live/$domain/privkey.pem $(pwd)/$key_file && docker compose -f $COMPOSE_FILE start nginx > /dev/null 2>&1 # certbot-renew") | crontab -
-            fi
-
-            ensure_nginx_ssl "$domain"
-            return 0
+            warn "Certbot HTTP challenge failed. Falling back to self-signed certificate."
         fi
-
-        warn "Certbot HTTP challenge failed. Falling back to self-signed certificate."
     fi
 
     # ── Strategy 4: Self-signed (works everywhere, no external deps) ────────

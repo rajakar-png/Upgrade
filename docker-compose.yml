@@ -107,9 +107,3 @@ networks:
     driver: bridge
   public:
     driver: bridge
-
-networks:
-  internal:
-    driver: bridge
-  public:
-    driver: bridge
