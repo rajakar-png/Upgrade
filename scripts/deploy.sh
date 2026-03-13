@@ -733,10 +733,19 @@ success "SSL certificate configured"
 docker-compose restart nginx
 sleep 3
 
-if ! docker-compose ps nginx | grep -q "Up"; then
-  docker-compose logs nginx | tail -80
-  error "Nginx failed to start after SSL setup. Check nginx logs above."
-fi
+# Nginx may be "health: starting" for a short time; wait up to 60s for it to be up
+retries=0
+while true; do
+  if docker-compose ps nginx | tail -n +2 | grep -qE "Up|running"; then
+    break
+  fi
+  retries=$((retries + 1))
+  if [[ $retries -gt 30 ]]; then
+    docker-compose logs nginx | tail -80
+    error "Nginx failed to start after SSL setup. Check nginx logs above."
+  fi
+  sleep 2
+done
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  VERIFY DEPLOYMENT
@@ -759,7 +768,7 @@ fi
 if docker-compose ps | grep -q "Up.*frontend"; then
   success "Frontend is running"
 fi
-if docker-compose ps | grep -q "Up.*nginx"; then
+if docker-compose ps nginx | tail -n +2 | grep -qE "Up|running"; then
   success "Nginx is running"
 else
   error "Nginx is not running. Deployment cannot continue."
