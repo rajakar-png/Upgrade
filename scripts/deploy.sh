@@ -685,43 +685,7 @@ if ! docker-compose ps nginx | grep -q "Up"; then
   docker-compose up -d nginx
 fi
 
-# If host-nginx proxy mode is enabled, configure host nginx vhost to proxy domain to Docker nginx.
-if [[ "$USE_HOST_NGINX_PROXY" == "yes" ]]; then
-  info "Configuring host nginx reverse proxy for ${SITE_DOMAIN} -> 127.0.0.1:${HTTP_PORT}"
-  HOST_NGINX_SITE="/etc/nginx/sites-available/astranodes-${SITE_DOMAIN}.conf"
-  cat > "$HOST_NGINX_SITE" <<EOF
-server {
-    listen 80;
-    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
-    return 301 https://\$host\$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
-
-    ssl_certificate /etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${SITE_DOMAIN}/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:${HTTP_PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-
-  ln -sf "$HOST_NGINX_SITE" "/etc/nginx/sites-enabled/astranodes-${SITE_DOMAIN}.conf"
-  if nginx -t >/dev/null 2>&1; then
-    systemctl reload nginx
-    success "Host nginx proxy enabled for ${SITE_DOMAIN}"
-  else
-    warn "Host nginx config test failed. Keeping existing host nginx config."
-  fi
-fi
+# Host-nginx proxy configuration is applied after SSL setup, once cert files exist.
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  SSL CERTIFICATE SETUP
@@ -794,6 +758,48 @@ cp "ssl/live/${SITE_DOMAIN}/privkey.pem" ssl/live/privkey.pem 2>/dev/null || tru
 # nginx.conf expects these exact filenames
 cp "ssl/live/${SITE_DOMAIN}/fullchain.pem" ssl/live/cert.pem 2>/dev/null || true
 cp "ssl/live/${SITE_DOMAIN}/privkey.pem" ssl/live/key.pem 2>/dev/null || true
+
+# If host-nginx proxy mode is enabled, configure host nginx to proxy domain to Docker nginx.
+if [[ "$USE_HOST_NGINX_PROXY" == "yes" ]]; then
+  info "Configuring host nginx reverse proxy for ${SITE_DOMAIN} -> 127.0.0.1:${HTTP_PORT}"
+  HOST_NGINX_SITE="/etc/nginx/sites-available/astranodes-${SITE_DOMAIN}.conf"
+  SSL_CERT_PATH="$(pwd)/ssl/live/cert.pem"
+  SSL_KEY_PATH="$(pwd)/ssl/live/key.pem"
+
+  cat > "$HOST_NGINX_SITE" <<EOF
+server {
+    listen 80;
+    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
+
+    ssl_certificate ${SSL_CERT_PATH};
+    ssl_certificate_key ${SSL_KEY_PATH};
+
+    location / {
+        proxy_pass http://127.0.0.1:${HTTP_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+
+  ln -sf "$HOST_NGINX_SITE" "/etc/nginx/sites-enabled/astranodes-${SITE_DOMAIN}.conf"
+  if nginx -t >/dev/null 2>&1; then
+    systemctl reload nginx
+    success "Host nginx proxy enabled for ${SITE_DOMAIN}"
+  else
+    warn "Host nginx config test failed. Showing nginx -t output:"
+    nginx -t || true
+  fi
+fi
 
 success "SSL certificate configured"
 
