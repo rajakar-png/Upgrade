@@ -251,6 +251,10 @@ if [[ -z "${PTERODACTYL_API_KEY:-}" ]]; then
   ask PTERODACTYL_API_KEY "Pterodactyl admin API key"
 fi
 
+# Public ports (allow overrides via environment or existing shell values)
+HTTP_PORT="${HTTP_PORT:-8000}"
+HTTPS_PORT="${HTTPS_PORT:-8443}"
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Review & Confirm
 # ─────────────────────────────────────────────────────────────────────────────
@@ -263,7 +267,7 @@ echo -e "  ${BOLD}Pterodactyl:${RESET}      ${PTERODACTYL_URL}"
 echo -e "  ${BOLD}Database:${RESET}         PostgreSQL (Docker)"
 echo -e "  ${BOLD}Cache:${RESET}            Redis (Docker)"
 echo -e "  ${BOLD}Reverse proxy:${RESET}    Nginx (Docker)"
-echo -e "  ${BOLD}Frontend port:${RESET}    8000 (HTTP), 8443 (HTTPS)"
+echo -e "  ${BOLD}Frontend port:${RESET}    ${HTTP_PORT} (HTTP), ${HTTPS_PORT} (HTTPS)"
 echo ""
 ask_yn CONFIRM "Proceed with deployment?" "y"
 [[ "$CONFIRM" != "yes" ]] && { warn "Aborted."; exit 0; }
@@ -383,8 +387,14 @@ success "✅ Docker and Docker Compose are available"
 # ═════════════════════════════════════════════════════════════════════════════
 header "Generating Configuration Files"
 
-FRONTEND_URL="https://${SITE_DOMAIN}"
-OAUTH_CALLBACK_URL="https://${SITE_DOMAIN}"
+if [[ "$HTTPS_PORT" == "443" ]]; then
+  FRONTEND_URL="https://${SITE_DOMAIN}"
+  OAUTH_CALLBACK_URL="https://${SITE_DOMAIN}"
+else
+  FRONTEND_URL="https://${SITE_DOMAIN}:${HTTPS_PORT}"
+  OAUTH_CALLBACK_URL="https://${SITE_DOMAIN}:${HTTPS_PORT}"
+  warn "Using non-standard HTTPS port ${HTTPS_PORT}. Public URL will be ${FRONTEND_URL}"
+fi
 
 cat > backend/.env <<EOF
 # ─── App Configuration ───────────────────────────────────────────────────────
@@ -455,8 +465,8 @@ cat > .env <<EOF
 POSTGRES_USER=astra
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 POSTGRES_DB=astra
-HTTP_PORT=${HTTP_PORT:-8000}
-HTTPS_PORT=${HTTPS_PORT:-8443}
+HTTP_PORT=${HTTP_PORT}
+HTTPS_PORT=${HTTPS_PORT}
 EOF
 
 chmod 600 .env
@@ -783,8 +793,8 @@ echo -e "${BOLD}${GREEN}══════════════════�
 echo -e "${BOLD}${GREEN}  Deployment Complete!${RESET}"
 echo -e "${BOLD}${GREEN}═══════════════════════════════════════════════════════${RESET}"
 echo ""
-echo -e "  ${BOLD}Website:${RESET}        https://${SITE_DOMAIN}"
-echo -e "  ${BOLD}API Health:${RESET}     https://${SITE_DOMAIN}/api/health"
+echo -e "  ${BOLD}Website:${RESET}        ${FRONTEND_URL}"
+echo -e "  ${BOLD}API Health:${RESET}     ${FRONTEND_URL}/api/health"
 echo -e "  ${BOLD}Admin Email:${RESET}    ${ADMIN_EMAIL}"
 echo ""
 echo -e "  ${CYAN}Docker Compose Commands:${RESET}"
