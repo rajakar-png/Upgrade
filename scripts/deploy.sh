@@ -723,12 +723,20 @@ fi
 # Copy cert to flat location for nginx
 cp "ssl/live/${SITE_DOMAIN}/fullchain.pem" ssl/live/fullchain.pem 2>/dev/null || true
 cp "ssl/live/${SITE_DOMAIN}/privkey.pem" ssl/live/privkey.pem 2>/dev/null || true
+# nginx.conf expects these exact filenames
+cp "ssl/live/${SITE_DOMAIN}/fullchain.pem" ssl/live/cert.pem 2>/dev/null || true
+cp "ssl/live/${SITE_DOMAIN}/privkey.pem" ssl/live/key.pem 2>/dev/null || true
 
 success "SSL certificate configured"
 
 # Restart nginx with SSL
 docker-compose restart nginx
 sleep 3
+
+if ! docker-compose ps nginx | grep -q "Up"; then
+  docker-compose logs nginx | tail -80
+  error "Nginx failed to start after SSL setup. Check nginx logs above."
+fi
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  VERIFY DEPLOYMENT
@@ -753,6 +761,8 @@ if docker-compose ps | grep -q "Up.*frontend"; then
 fi
 if docker-compose ps | grep -q "Up.*nginx"; then
   success "Nginx is running"
+else
+  error "Nginx is not running. Deployment cannot continue."
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
