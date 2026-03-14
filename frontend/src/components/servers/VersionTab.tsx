@@ -73,8 +73,8 @@ export function VersionTab({ serverId, category }: Props) {
         prev.map((v) => (v.env_variable === versionVar.env_variable ? { ...v, server_value: value } : v)),
       );
       toast.success('Version updated! Reinstall your server to apply.');
-    } catch {
-      toast.error('Failed to update version');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update version');
     }
   };
 
@@ -101,8 +101,8 @@ export function VersionTab({ serverId, category }: Props) {
         prev.map((v) => (v.env_variable === key ? { ...v, server_value: value } : v)),
       );
       toast.success('Variable updated');
-    } catch {
-      toast.error('Failed to update variable');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update variable');
     }
   };
 

@@ -653,22 +653,36 @@ export class PterodactylService {
     const variable = vars.find((v: any) => v.attributes.env_variable === key);
     if (!variable) throw new ServiceUnavailableException(`Variable ${key} not found`);
 
-    // Update via Application API server build/startup
-    const updateRes = await this.withRetry(() =>
-      this.api.put(`/servers/${pterodactylId}/startup`, {
-        startup: res.data.attributes.container.startup_command,
-        egg: res.data.attributes.egg,
-        image: res.data.attributes.container.image,
-        environment: {
-          ...Object.fromEntries(
-            vars.map((v: any) => [
-              v.attributes.env_variable,
-              v.attributes.env_variable === key ? value : (v.attributes.server_value ?? v.attributes.default_value),
-            ]),
-          ),
-        },
-      }),
-    );
+    const payload = {
+      startup: res.data.attributes.container.startup_command,
+      egg: res.data.attributes.egg,
+      image: res.data.attributes.container.image,
+      environment: {
+        ...Object.fromEntries(
+          vars.map((v: any) => [
+            v.attributes.env_variable,
+            v.attributes.env_variable === key ? value : (v.attributes.server_value ?? v.attributes.default_value),
+          ]),
+        ),
+      },
+    };
+
+    // Prefer PATCH (expected by most panel versions), fallback to PUT for older installs.
+    let updateRes: any;
+    try {
+      updateRes = await this.withRetry(() =>
+        this.api.patch(`/servers/${pterodactylId}/startup`, payload),
+      );
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status !== 404 && status !== 405) {
+        throw err;
+      }
+      updateRes = await this.withRetry(() =>
+        this.api.put(`/servers/${pterodactylId}/startup`, payload),
+      );
+    }
+
     return updateRes.data;
   }
 
