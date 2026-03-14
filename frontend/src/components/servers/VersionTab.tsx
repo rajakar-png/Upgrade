@@ -49,6 +49,8 @@ export function VersionTab({ serverId, category }: Props) {
   const [selectedEgg, setSelectedEgg] = useState<number | null>(null);
   const [selectedVersion, setSelectedVersion] = useState('');
   const [availableVersions, setAvailableVersions] = useState<string[]>(FALLBACK_MC_VERSIONS);
+  const [customVersion, setCustomVersion] = useState('');
+  const [savingVersion, setSavingVersion] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [changing, setChanging] = useState(false);
 
@@ -117,9 +119,12 @@ export function VersionTab({ serverId, category }: Props) {
       const preferred = vars.find((v: any) => versionKeys.includes(v.env_variable));
       const buildOnly = vars.find((v: any) => v.env_variable === 'BUILD_NUMBER');
       if (preferred) {
-        setSelectedVersion(preferred.server_value || preferred.default_value || 'latest');
+        const resolved = preferred.server_value || preferred.default_value || 'latest';
+        setSelectedVersion(resolved);
+        setCustomVersion(resolved);
       } else if (buildOnly) {
         setSelectedVersion('latest');
+        setCustomVersion('latest');
       }
     } catch {
       toast.error('Failed to load version data');
@@ -129,6 +134,8 @@ export function VersionTab({ serverId, category }: Props) {
   };
 
   const updateVersion = async (value: string) => {
+    if (savingVersion) return;
+
     if (!versionVar && !buildNumberVar) {
       toast.error('No version variable found for this server egg');
       return;
@@ -147,10 +154,14 @@ export function VersionTab({ serverId, category }: Props) {
     }
 
     try {
+      setSavingVersion(true);
       await api.put(`/servers/${serverId}/manage/startup/variable`, {
         key: targetVar.env_variable,
         value: next,
       });
+
+      // Version changes must reinstall so the server files are recreated for the selected version.
+      await api.post(`/servers/${serverId}/manage/settings/reinstall`);
 
       setVariables((prev) => prev.map((v) => {
         if (v.env_variable === targetVar.env_variable) {
@@ -160,9 +171,12 @@ export function VersionTab({ serverId, category }: Props) {
       }));
 
       setSelectedVersion(next);
-      toast.success('Version updated! Reinstall your server to apply.');
+      setCustomVersion(next);
+      toast.success('Version updated and reinstall started. Existing server files will be replaced.');
     } catch (err: any) {
       toast.error(getErrorMessage(err, 'Failed to update version'));
+    } finally {
+      setSavingVersion(false);
     }
   };
 
@@ -218,8 +232,12 @@ export function VersionTab({ serverId, category }: Props) {
             <div className="flex flex-col gap-2 sm:flex-row">
               <select
                 value={selectedVersion}
-                onChange={(e) => setSelectedVersion(e.target.value)}
+                onChange={(e) => {
+                  setSelectedVersion(e.target.value);
+                  setCustomVersion(e.target.value);
+                }}
                 className="flex-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white outline-none"
+                disabled={savingVersion}
               >
                 {dropdownVersions.map((v) => (
                   <option key={v} value={v} className="bg-white text-black">{v}</option>
@@ -227,28 +245,28 @@ export function VersionTab({ serverId, category }: Props) {
               </select>
               <Button
                 onClick={() => updateVersion(selectedVersion)}
-                disabled={!selectedVersion || selectedVersion === (versionVar?.server_value || versionVar?.default_value || 'latest')}
+                disabled={savingVersion || !selectedVersion || selectedVersion === (versionVar?.server_value || versionVar?.default_value || 'latest')}
               >
-                Apply
+                {savingVersion ? 'Applying…' : 'Apply'}
               </Button>
             </div>
             {versionVar && (
               <div className="mt-2 flex gap-2">
               <input
-                defaultValue={versionVar.server_value || versionVar.default_value}
-                onBlur={(e) => {
-                  const val = e.target.value.trim();
-                  if (val && val !== (versionVar.server_value || versionVar.default_value)) {
-                    updateVersion(val);
-                  }
+                value={customVersion}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomVersion(val);
+                  setSelectedVersion(val);
                 }}
                 placeholder="e.g. 1.20.4, latest"
                 className="flex-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white outline-none"
+                disabled={savingVersion}
               />
               </div>
             )}
             <p className="mt-2 text-xs text-gray-600">
-              Change the version and reinstall to apply. Use &quot;latest&quot; for the newest stable version.
+              Applying a version automatically reinstalls the server, wipes files, and re-runs installation for that version.
             </p>
             {buildNumberVar && versionVar && (
               <p className="mt-1 text-xs text-gray-600">
