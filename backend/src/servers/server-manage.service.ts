@@ -233,13 +233,12 @@ export class ServerManageService {
       this.pterodactyl.getUser(user.pterodactylUserId),
     ]);
 
-    const daemon = await this.pterodactyl.getNodeDaemonPublic(serverInfo.node);
-    const sftpPort = await this.pterodactyl.getNodeSftpPort(serverInfo.node);
+    const endpoint = await this.pterodactyl.getSftpEndpoint(serverInfo.node);
 
     return {
-      host: daemon.fqdn,
-      port: sftpPort,
-      username: `${pteroUser.username}.${serverInfo.uuid}`,
+      host: endpoint.host,
+      port: endpoint.port,
+      username: `${pteroUser.username}.${serverInfo.identifier || serverInfo.uuid}`,
       password: user.pterodactylPassword || null,
     };
   }

@@ -23,8 +23,8 @@ export class PterodactylService {
   private nodeCache = new Map<number, { info: NodeDaemonInfo; ts: number }>();
   private readonly NODE_CACHE_TTL = 5 * 60 * 1000; // 5 min
 
-  /** Cache: pterodactylServerId -> { uuid, node } */
-  private serverInfoCache = new Map<number, { uuid: string; node: number; ts: number }>();
+  /** Cache: pterodactylServerId -> { uuid, identifier, node } */
+  private serverInfoCache = new Map<number, { uuid: string; identifier: string; node: number; ts: number }>();
   private readonly SERVER_CACHE_TTL = 10 * 60 * 1000; // 10 min
 
   // ── Circuit breaker state ────────────────────────────────────────────────
@@ -368,17 +368,37 @@ export class PterodactylService {
    * Get the server's uuid and node from Application API.
    * Cached for 10 minutes per pterodactyl server id.
    */
-  async getServerInfo(pterodactylId: number): Promise<{ uuid: string; node: number }> {
+  async getServerInfo(pterodactylId: number): Promise<{ uuid: string; identifier: string; node: number }> {
     const cached = this.serverInfoCache.get(pterodactylId);
     if (cached && Date.now() - cached.ts < this.SERVER_CACHE_TTL) {
-      return { uuid: cached.uuid, node: cached.node };
+      return { uuid: cached.uuid, identifier: cached.identifier, node: cached.node };
     }
 
     const res = await this.withRetry(() => this.api.get(`/servers/${pterodactylId}`));
     const attr = res.data.attributes;
-    const entry = { uuid: attr.uuid as string, node: attr.node as number, ts: Date.now() };
+    const entry = {
+      uuid: attr.uuid as string,
+      identifier: attr.identifier as string,
+      node: attr.node as number,
+      ts: Date.now(),
+    };
     this.serverInfoCache.set(pterodactylId, entry);
-    return { uuid: entry.uuid, node: entry.node };
+    return { uuid: entry.uuid, identifier: entry.identifier, node: entry.node };
+  }
+
+  async getSftpEndpoint(nodeId: number): Promise<{ host: string; port: number }> {
+    const [daemon, detectedPort] = await Promise.all([
+      this.getNodeDaemonPublic(nodeId),
+      this.getNodeSftpPort(nodeId),
+    ]);
+
+    const overrideHost = (this.config.get<string>('app.pterodactyl.sftpHost') || '').trim();
+    const overridePort = Number(this.config.get<number>('app.pterodactyl.sftpPort') || 0);
+
+    return {
+      host: overrideHost || daemon.fqdn,
+      port: overridePort > 0 ? overridePort : detectedPort,
+    };
   }
 
   /**

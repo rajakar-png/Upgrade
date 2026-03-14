@@ -313,10 +313,59 @@ export class ServerProvisioningService {
 
   private async provisionPterodactylUser(email: string, userId: number): Promise<number> {
     const { randomBytes } = await import('crypto');
-    const username = email.split('@')[0].replace(/[^a-zA-Z0-9-]/g, '').slice(0, 20) || `user${Date.now()}`;
     const password = randomBytes(24).toString('base64url');
-    const pteroId = await this.pterodactyl.createUser({ email, username, firstName: username, lastName: 'User', password });
-    await this.prisma.user.update({ where: { id: userId }, data: { pterodactylUserId: pteroId, pterodactylPassword: password } });
-    return pteroId;
+
+    // If a panel user already exists for this email, reuse it to avoid duplicate-account 422s.
+    const existingPteroId = await this.pterodactyl.getUserByEmail(email);
+    if (existingPteroId) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { pterodactylUserId: existingPteroId, pterodactylPassword: password },
+      });
+      await this.pterodactyl.updateUserPassword(existingPteroId, password).catch(() => {});
+      return existingPteroId;
+    }
+
+    const rawBase = email.split('@')[0].replace(/[^a-zA-Z0-9-]/g, '').toLowerCase();
+    const base = (rawBase || `user${userId}`).slice(0, 16);
+
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const suffix = attempt === 0 ? `${userId}` : `${userId}${Math.floor(Math.random() * 900 + 100)}`;
+      const username = `${base}${suffix}`.slice(0, 32);
+
+      try {
+        const pteroId = await this.pterodactyl.createUser({
+          email,
+          username,
+          firstName: username,
+          lastName: 'User',
+          password,
+        });
+
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { pterodactylUserId: pteroId, pterodactylPassword: password },
+        });
+        return pteroId;
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 422) {
+          // Could be username/email uniqueness conflict. Re-check email mapping before retrying.
+          const mapped = await this.pterodactyl.getUserByEmail(email);
+          if (mapped) {
+            await this.prisma.user.update({
+              where: { id: userId },
+              data: { pterodactylUserId: mapped, pterodactylPassword: password },
+            });
+            await this.pterodactyl.updateUserPassword(mapped, password).catch(() => {});
+            return mapped;
+          }
+          if (attempt < 3) continue;
+        }
+        throw new BadRequestException('Failed to provision panel user. Check panel user/email constraints.');
+      }
+    }
+
+    throw new BadRequestException('Failed to provision panel user. Please retry.');
   }
 }

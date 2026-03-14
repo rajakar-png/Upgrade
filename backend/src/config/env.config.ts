@@ -33,6 +33,8 @@ export default registerAs('app', () => ({
   pterodactyl: {
     url: process.env.PTERODACTYL_URL!,
     apiKey: process.env.PTERODACTYL_API_KEY!,
+    sftpHost: process.env.PTERODACTYL_SFTP_HOST || '',
+    sftpPort: parseInt(process.env.PTERODACTYL_SFTP_PORT || '0', 10) || 0,
     defaultEgg: parseInt(process.env.PTERODACTYL_DEFAULT_EGG || '1', 10),
     defaultDockerImage: process.env.PTERODACTYL_DEFAULT_DOCKER_IMAGE || '',
     defaultStartup: process.env.PTERODACTYL_DEFAULT_STARTUP || '',

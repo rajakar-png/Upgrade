@@ -36,6 +36,7 @@ COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 # Copy built application
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts ./scripts
 
 # Create uploads directory
 RUN mkdir -p uploads && chown -R node:node /app
