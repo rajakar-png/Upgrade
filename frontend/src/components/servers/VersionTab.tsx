@@ -29,17 +29,32 @@ interface Props {
   category: 'minecraft' | 'bot';
 }
 
+const COMMON_MC_VERSIONS = [
+  '1.21.4',
+  '1.21.3',
+  '1.21.1',
+  '1.20.6',
+  '1.20.4',
+  '1.20.2',
+  '1.20.1',
+  '1.19.4',
+  '1.18.2',
+  '1.16.5',
+];
+
 export function VersionTab({ serverId, category }: Props) {
   const [nests, setNests] = useState<NestData[]>([]);
   const [variables, setVariables] = useState<StartupVar[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEgg, setSelectedEgg] = useState<number | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
   const [changing, setChanging] = useState(false);
 
-  // Common version variable names in Pterodactyl eggs
-  const versionKeys = ['MINECRAFT_VERSION', 'MC_VERSION', 'VERSION', 'SERVER_VERSION', 'DL_VERSION', 'BUILD_NUMBER'];
+  // Prefer semantic Minecraft version keys; BUILD_NUMBER is handled separately.
+  const versionKeys = ['MINECRAFT_VERSION', 'MC_VERSION', 'VERSION', 'SERVER_VERSION', 'DL_VERSION'];
   const versionVar = variables.find((v) => versionKeys.includes(v.env_variable));
+  const buildNumberVar = variables.find((v) => v.env_variable === 'BUILD_NUMBER');
 
   useEffect(() => {
     loadData();
@@ -55,6 +70,14 @@ export function VersionTab({ serverId, category }: Props) {
       setNests(eggsRes.data);
       const vars = startupRes.data?.data?.map((v: any) => v.attributes) || [];
       setVariables(vars);
+
+      const preferred = vars.find((v: any) => versionKeys.includes(v.env_variable));
+      const buildOnly = vars.find((v: any) => v.env_variable === 'BUILD_NUMBER');
+      if (preferred) {
+        setSelectedVersion(preferred.server_value || preferred.default_value || 'latest');
+      } else if (buildOnly) {
+        setSelectedVersion('latest');
+      }
     } catch {
       toast.error('Failed to load version data');
     } finally {
@@ -63,15 +86,44 @@ export function VersionTab({ serverId, category }: Props) {
   };
 
   const updateVersion = async (value: string) => {
-    if (!versionVar) return;
+    if (!versionVar && !buildNumberVar) {
+      toast.error('No version variable found for this server egg');
+      return;
+    }
+
+    const next = value.trim();
+    if (!next) {
+      toast.error('Version cannot be empty');
+      return;
+    }
+
     try {
-      await api.put(`/servers/${serverId}/manage/startup/variable`, {
-        key: versionVar.env_variable,
-        value,
-      });
-      setVariables((prev) =>
-        prev.map((v) => (v.env_variable === versionVar.env_variable ? { ...v, server_value: value } : v)),
-      );
+      if (versionVar) {
+        await api.put(`/servers/${serverId}/manage/startup/variable`, {
+          key: versionVar.env_variable,
+          value: next,
+        });
+      }
+
+      // Common Paper/Purpur setup: version + BUILD_NUMBER=latest.
+      if (buildNumberVar) {
+        await api.put(`/servers/${serverId}/manage/startup/variable`, {
+          key: buildNumberVar.env_variable,
+          value: 'latest',
+        });
+      }
+
+      setVariables((prev) => prev.map((v) => {
+        if (versionVar && v.env_variable === versionVar.env_variable) {
+          return { ...v, server_value: next };
+        }
+        if (buildNumberVar && v.env_variable === buildNumberVar.env_variable) {
+          return { ...v, server_value: 'latest' };
+        }
+        return v;
+      }));
+
+      setSelectedVersion(next);
       toast.success('Version updated! Reinstall your server to apply.');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to update version');
@@ -117,7 +169,7 @@ export function VersionTab({ serverId, category }: Props) {
   return (
     <div className="space-y-6">
       {/* Version Changer */}
-      {versionVar && (
+      {(versionVar || buildNumberVar) && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <ArrowUpCircle className="h-5 w-5 text-[#ff7a18]" />
@@ -125,9 +177,28 @@ export function VersionTab({ serverId, category }: Props) {
           </div>
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
             <label className="block text-xs text-gray-500 mb-2">
-              Current: <span className="text-white font-medium">{versionVar.server_value || versionVar.default_value || 'latest'}</span>
+              Current: <span className="text-white font-medium">{versionVar?.server_value || versionVar?.default_value || 'latest'}</span>
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select
+                value={selectedVersion}
+                onChange={(e) => setSelectedVersion(e.target.value)}
+                className="flex-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white outline-none"
+              >
+                {COMMON_MC_VERSIONS.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+                <option value="latest">latest</option>
+              </select>
+              <Button
+                onClick={() => updateVersion(selectedVersion)}
+                disabled={!selectedVersion || selectedVersion === (versionVar?.server_value || versionVar?.default_value || 'latest')}
+              >
+                Apply
+              </Button>
+            </div>
+            {versionVar && (
+              <div className="mt-2 flex gap-2">
               <input
                 defaultValue={versionVar.server_value || versionVar.default_value}
                 onBlur={(e) => {
@@ -139,10 +210,16 @@ export function VersionTab({ serverId, category }: Props) {
                 placeholder="e.g. 1.20.4, latest"
                 className="flex-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white outline-none"
               />
-            </div>
+              </div>
+            )}
             <p className="mt-2 text-xs text-gray-600">
               Change the version and reinstall to apply. Use &quot;latest&quot; for the newest stable version.
             </p>
+            {buildNumberVar && (
+              <p className="mt-1 text-xs text-gray-600">
+                This egg also uses BUILD_NUMBER; it will be set to &quot;latest&quot; automatically.
+              </p>
+            )}
           </div>
         </div>
       )}
