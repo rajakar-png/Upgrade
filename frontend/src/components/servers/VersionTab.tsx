@@ -155,13 +155,9 @@ export function VersionTab({ serverId, category }: Props) {
 
     try {
       setSavingVersion(true);
-      await api.put(`/servers/${serverId}/manage/startup/variable`, {
-        key: targetVar.env_variable,
-        value: next,
+      await api.post(`/servers/${serverId}/manage/version/switch`, {
+        version: next,
       });
-
-      // Version changes must reinstall so the server files are recreated for the selected version.
-      await api.post(`/servers/${serverId}/manage/settings/reinstall`);
 
       setVariables((prev) => prev.map((v) => {
         if (v.env_variable === targetVar.env_variable) {
@@ -172,7 +168,7 @@ export function VersionTab({ serverId, category }: Props) {
 
       setSelectedVersion(next);
       setCustomVersion(next);
-      toast.success('Version updated and reinstall started. Existing server files will be replaced.');
+      toast.success('Version switched successfully. Server jar replaced and server restarted.');
     } catch (err: any) {
       toast.error(getErrorMessage(err, 'Failed to update version'));
     } finally {
@@ -266,7 +262,7 @@ export function VersionTab({ serverId, category }: Props) {
               </div>
             )}
             <p className="mt-2 text-xs text-gray-600">
-              Applying a version automatically reinstalls the server, wipes files, and re-runs installation for that version.
+              Applying a version safely replaces only the server jar and restarts the server. Worlds/configs/plugins remain intact.
             </p>
             {buildNumberVar && versionVar && (
               <p className="mt-1 text-xs text-gray-600">

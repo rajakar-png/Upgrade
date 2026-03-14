@@ -5,6 +5,8 @@ import { PterodactylService } from '../pterodactyl/pterodactyl.service';
 import { DnsService } from '../dns/dns.service';
 import { ServerStatus } from '@prisma/client';
 import { sanitizePath } from '../utils/path.util';
+import axios from 'axios';
+import { basename } from 'path';
 
 @Injectable()
 export class ServerManageService {
@@ -163,6 +165,91 @@ export class ServerManageService {
   async updateVariable(serverId: number, userId: number, key: string, value: string) {
     const server = await this.getServer(serverId, userId);
     return this.pterodactyl.updateStartupVariable(this.pid(server), key, value);
+  }
+
+  async switchMinecraftVersion(serverId: number, userId: number, requestedVersion: string) {
+    const server = await this.getServer(serverId, userId);
+    const pid = this.pid(server);
+
+    const input = (requestedVersion || '').trim();
+    if (!input) throw new BadRequestException('Version is required');
+
+    const { version, jarUrl } = await this.resolveMinecraftJar(input);
+
+    const startup = await this.pterodactyl.getStartup(pid);
+    const vars = (startup?.data || []).map((v: any) => v.attributes || v);
+
+    const versionKeys = ['MINECRAFT_VERSION', 'MC_VERSION', 'VERSION', 'SERVER_VERSION', 'DL_VERSION'];
+    const jarKeys = ['SERVER_JARFILE', 'JARFILE'];
+
+    const versionVar = vars.find((v: any) => versionKeys.includes(v.env_variable));
+    const jarVar = vars.find((v: any) => jarKeys.includes(v.env_variable));
+
+    const currentJarRaw = jarVar?.server_value || jarVar?.default_value || 'server.jar';
+    const targetJarFile = basename(String(currentJarRaw || 'server.jar'));
+    if (!targetJarFile.endsWith('.jar')) {
+      throw new BadRequestException(`Jar variable points to invalid filename: ${targetJarFile}`);
+    }
+
+    // Stop first to avoid writing jar while Java process still has old file open.
+    await this.pterodactyl.sendPowerAction(pid, 'stop').catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Remove the old target jar to avoid conflicts between old/new binaries.
+    const rootFiles = await this.pterodactyl.listFiles(pid, '/');
+    const rootNames = new Set(rootFiles.map((f: any) => String(f.attributes?.name || '')));
+    if (rootNames.has(targetJarFile)) {
+      await this.pterodactyl.deleteFiles(pid, '/', [targetJarFile]).catch(() => {});
+    }
+
+    // Download fresh server jar for selected version.
+    await this.pterodactyl.downloadFileToServer(pid, jarUrl, `/${targetJarFile}`);
+
+    // Update startup/version variables when available.
+    if (versionVar?.env_variable) {
+      await this.pterodactyl.updateStartupVariable(pid, versionVar.env_variable, version);
+    }
+    if (jarVar?.env_variable) {
+      await this.pterodactyl.updateStartupVariable(pid, jarVar.env_variable, targetJarFile);
+    }
+
+    // Start server with updated jar/version config.
+    await this.pterodactyl.sendPowerAction(pid, 'start');
+
+    return {
+      message: 'Version switched successfully',
+      version,
+      jarFile: targetJarFile,
+      restarted: true,
+    };
+  }
+
+  private async resolveMinecraftJar(input: string): Promise<{ version: string; jarUrl: string }> {
+    const manifestRes = await axios.get('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json', {
+      timeout: 15000,
+    });
+    const manifest = manifestRes.data;
+
+    const requested = input.toLowerCase() === 'latest'
+      ? manifest?.latest?.release
+      : input;
+
+    if (!requested) {
+      throw new BadRequestException('Unable to resolve latest Minecraft release version');
+    }
+
+    const entry = (manifest?.versions || []).find((v: any) => v?.id === requested);
+    if (!entry?.url) {
+      throw new BadRequestException(`Minecraft version ${requested} was not found`);
+    }
+
+    const versionMetaRes = await axios.get(entry.url, { timeout: 15000 });
+    const jarUrl = versionMetaRes.data?.downloads?.server?.url;
+    if (!jarUrl) {
+      throw new BadRequestException(`Minecraft version ${requested} does not provide a server jar`);
+    }
+
+    return { version: requested, jarUrl };
   }
 
   // ── Settings ─────────────────────────────────────────────────────────────

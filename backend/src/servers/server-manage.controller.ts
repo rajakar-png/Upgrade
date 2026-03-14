@@ -139,6 +139,16 @@ export class ServerManageController {
     return this.svc.updateVariable(id, u.id, body.key, body.value);
   }
 
+  @Post('version/switch')
+  @HttpCode(200)
+  switchMinecraftVersion(
+    @Param('serverId', ParseIntPipe) id: number,
+    @CurrentUser() u: any,
+    @Body('version') version: string,
+  ) {
+    return this.svc.switchMinecraftVersion(id, u.id, version);
+  }
+
   // ── Settings ─────────────────────────────────────────────────────────────
 
   @Post('settings/rename')
