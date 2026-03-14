@@ -632,22 +632,110 @@ export class PterodactylService {
 
   // ── Startup / Variables (Application API — these are panel-level) ───────
 
-  async getStartup(pterodactylId: number) {
-    const res = await this.withRetry(() =>
-      this.api.get(`/servers/${pterodactylId}?include=variables`),
+  private extractStartupAttributes(payload: any): any {
+    return payload?.attributes || payload?.data?.attributes || payload || {};
+  }
+
+  private extractStartupVariables(payload: any): any[] {
+    const attr = this.extractStartupAttributes(payload);
+    const candidates = [
+      attr?.relationships?.variables?.data,
+      attr?.variables?.data,
+      attr?.variables,
+      payload?.data?.variables,
+      payload?.variables,
+    ];
+    const raw = candidates.find((c) => Array.isArray(c)) || [];
+    return raw.map((v: any) => (v?.attributes ? v.attributes : v));
+  }
+
+  private extractStartupEnvironment(payload: any): Record<string, string> {
+    const attr = this.extractStartupAttributes(payload);
+    const env = attr?.environment || payload?.environment || {};
+    if (!env || typeof env !== 'object') return {};
+    return Object.fromEntries(
+      Object.entries(env).map(([k, v]) => [k, String(v ?? '')]),
     );
-    const attr = res.data.attributes;
-    const vars = attr.relationships?.variables?.data || [];
+  }
+
+  private async fetchStartupSnapshot(pterodactylId: number): Promise<{
+    startup: string;
+    egg?: number;
+    image: string;
+    vars: any[];
+    environment: Record<string, string>;
+  }> {
+    let startupRes: any = null;
+    let includeRes: any = null;
+    let lastErr: any;
+
+    try {
+      startupRes = await this.withRetry(() => this.api.get(`/servers/${pterodactylId}/startup`));
+    } catch (err: any) {
+      lastErr = err;
+    }
+
+    try {
+      includeRes = await this.withRetry(() =>
+        this.api.get(`/servers/${pterodactylId}?include=variables`),
+      );
+    } catch (err: any) {
+      if (!lastErr) lastErr = err;
+    }
+
+    if (!startupRes && !includeRes) {
+      throw new BadRequestException(this.panelErrorMessage(lastErr, 'Failed to fetch startup variables from panel'));
+    }
+
+    const preferred = startupRes?.data || includeRes?.data;
+    const secondary = includeRes?.data || startupRes?.data;
+    const attrA = this.extractStartupAttributes(preferred);
+    const attrB = this.extractStartupAttributes(secondary);
+
+    const varsA = this.extractStartupVariables(preferred);
+    const varsB = this.extractStartupVariables(secondary);
+    const vars = varsA.length > 0 ? varsA : varsB;
+
+    const environment = {
+      ...this.extractStartupEnvironment(secondary),
+      ...this.extractStartupEnvironment(preferred),
+    };
+
+    const startup =
+      attrA?.startup_command ||
+      attrA?.startup ||
+      attrA?.container?.startup_command ||
+      attrB?.startup_command ||
+      attrB?.startup ||
+      attrB?.container?.startup_command ||
+      '';
+
+    const egg = attrA?.egg || attrA?.egg_id || attrB?.egg || attrB?.egg_id;
+    const image =
+      attrA?.docker_image ||
+      attrA?.image ||
+      attrA?.container?.image ||
+      attrB?.docker_image ||
+      attrB?.image ||
+      attrB?.container?.image ||
+      '';
+
+    return { startup, egg, image, vars, environment };
+  }
+
+  async getStartup(pterodactylId: number) {
+    const snapshot = await this.fetchStartupSnapshot(pterodactylId);
+    const vars = snapshot.vars;
     return {
       data: vars.map((v: any) => ({
         attributes: {
-          env_variable: v.attributes.env_variable,
-          name: v.attributes.name,
-          description: v.attributes.description,
-          default_value: v.attributes.default_value,
-          server_value: v.attributes.server_value,
-          is_editable: true,
-          rules: v.attributes.rules,
+          env_variable: v.env_variable,
+          name: v.name,
+          description: v.description,
+          default_value: v.default_value,
+          server_value: v.server_value,
+          is_editable: v.user_editable ?? v.is_editable ?? true,
+          rules: v.rules,
         },
       })),
     };
@@ -659,43 +747,57 @@ export class PterodactylService {
     if (!trimmedKey) throw new BadRequestException('Startup variable key is required');
     if (!trimmedValue) throw new BadRequestException('Startup variable value is required');
 
-    // Application API: update server startup
-    let res: any;
-    try {
-      res = await this.withRetry(() =>
-        this.api.get(`/servers/${pterodactylId}?include=variables`),
-      );
-    } catch (err: any) {
-      throw new BadRequestException(this.panelErrorMessage(err, 'Failed to fetch startup variables from panel'));
+    const snapshot = await this.fetchStartupSnapshot(pterodactylId);
+    const vars = snapshot.vars;
+    const variable = vars.find((v: any) => v.env_variable === trimmedKey);
+
+    if (!variable && !(trimmedKey in snapshot.environment)) {
+      throw new BadRequestException(`Variable ${trimmedKey} not found on this server`);
     }
 
-    const vars = res.data.attributes.relationships?.variables?.data || [];
-    const variable = vars.find((v: any) => v.attributes.env_variable === trimmedKey);
-    if (!variable) throw new BadRequestException(`Variable ${trimmedKey} not found on this server`);
-
-    const editable = variable?.attributes?.user_editable ?? variable?.attributes?.is_editable ?? true;
+    const editable = variable?.user_editable ?? variable?.is_editable ?? true;
     if (!editable) {
       throw new BadRequestException(`Variable ${trimmedKey} is not editable for this server`);
     }
 
-    const normalizedEnv = Object.fromEntries(
-      vars.map((v: any) => {
-        const raw = v.attributes.env_variable === trimmedKey
-          ? trimmedValue
-          : (v.attributes.server_value ?? v.attributes.default_value ?? '');
-        return [v.attributes.env_variable, String(raw ?? '')];
-      }),
-    );
+    const normalizedEnv: Record<string, string> = {
+      ...snapshot.environment,
+    };
 
-    const startupCmd = res.data.attributes.container?.startup_command || res.data.attributes.startup || '';
-    const eggId = res.data.attributes.egg;
-    const image = res.data.attributes.container?.image || '';
+    for (const v of vars) {
+      const keyName = v.env_variable;
+      if (!keyName) continue;
+      const raw = keyName === trimmedKey
+        ? trimmedValue
+        : (v.server_value ?? v.default_value ?? normalizedEnv[keyName] ?? '');
+      normalizedEnv[keyName] = String(raw ?? '');
+    }
+
+    // Ensure target key is always included even if not exposed in vars list.
+    normalizedEnv[trimmedKey] = trimmedValue;
+
+    const startupCmd = snapshot.startup;
+    const eggId = snapshot.egg;
+    const image = snapshot.image;
 
     // Different panel versions/eggs can be strict about accepted keys.
     const payloadCandidates = [
-      { startup: startupCmd, egg: eggId, docker_image: image, environment: normalizedEnv },
-      { startup: startupCmd, egg: eggId, image, environment: normalizedEnv },
-      { startup: startupCmd, environment: normalizedEnv },
+      {
+        ...(startupCmd ? { startup: startupCmd } : {}),
+        ...(eggId ? { egg: eggId } : {}),
+        ...(image ? { docker_image: image } : {}),
+        environment: normalizedEnv,
+      },
+      {
+        ...(startupCmd ? { startup: startupCmd } : {}),
+        ...(eggId ? { egg: eggId } : {}),
+        ...(image ? { image } : {}),
+        environment: normalizedEnv,
+      },
+      {
+        ...(startupCmd ? { startup: startupCmd } : {}),
+        environment: normalizedEnv,
+      },
     ];
 
     // Prefer PATCH, fallback to PUT; within each method try compatible payload shapes.
