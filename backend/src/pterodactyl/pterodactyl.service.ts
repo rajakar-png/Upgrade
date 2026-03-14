@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import * as jwt from 'jsonwebtoken';
@@ -32,6 +32,15 @@ export class PterodactylService {
   private circuitOpenedAt: number | null = null;
   private readonly CIRCUIT_THRESHOLD = 5;
   private readonly CIRCUIT_RESET_MS = 30_000; // 30s
+
+  private panelErrorMessage(err: any, fallback: string): string {
+    const data = err?.response?.data;
+    if (!data) return fallback;
+    if (typeof data?.message === 'string' && data.message.trim()) return data.message;
+    const first = Array.isArray(data?.errors) ? data.errors[0] : null;
+    if (typeof first?.detail === 'string' && first.detail.trim()) return first.detail;
+    return fallback;
+  }
 
   constructor(private config: ConfigService) {
     this.pteroUrl = config.get<string>('app.pterodactyl.url')!.replace(/\/$/, '');
@@ -645,13 +654,29 @@ export class PterodactylService {
   }
 
   async updateStartupVariable(pterodactylId: number, key: string, value: string) {
+    const trimmedKey = (key || '').trim();
+    const trimmedValue = (value || '').trim();
+    if (!trimmedKey) throw new BadRequestException('Startup variable key is required');
+    if (!trimmedValue) throw new BadRequestException('Startup variable value is required');
+
     // Application API: update server startup
-    const res = await this.withRetry(() =>
-      this.api.get(`/servers/${pterodactylId}?include=variables`),
-    );
+    let res: any;
+    try {
+      res = await this.withRetry(() =>
+        this.api.get(`/servers/${pterodactylId}?include=variables`),
+      );
+    } catch (err: any) {
+      throw new BadRequestException(this.panelErrorMessage(err, 'Failed to fetch startup variables from panel'));
+    }
+
     const vars = res.data.attributes.relationships?.variables?.data || [];
-    const variable = vars.find((v: any) => v.attributes.env_variable === key);
-    if (!variable) throw new ServiceUnavailableException(`Variable ${key} not found`);
+    const variable = vars.find((v: any) => v.attributes.env_variable === trimmedKey);
+    if (!variable) throw new BadRequestException(`Variable ${trimmedKey} not found on this server`);
+
+    const editable = variable?.attributes?.user_editable ?? variable?.attributes?.is_editable ?? true;
+    if (!editable) {
+      throw new BadRequestException(`Variable ${trimmedKey} is not editable for this server`);
+    }
 
     const payload = {
       startup: res.data.attributes.container.startup_command,
@@ -661,7 +686,9 @@ export class PterodactylService {
         ...Object.fromEntries(
           vars.map((v: any) => [
             v.attributes.env_variable,
-            v.attributes.env_variable === key ? value : (v.attributes.server_value ?? v.attributes.default_value),
+            v.attributes.env_variable === trimmedKey
+              ? trimmedValue
+              : (v.attributes.server_value ?? v.attributes.default_value),
           ]),
         ),
       },
@@ -676,11 +703,15 @@ export class PterodactylService {
     } catch (err: any) {
       const status = err?.response?.status;
       if (status !== 404 && status !== 405) {
-        throw err;
+        throw new BadRequestException(this.panelErrorMessage(err, 'Failed to update startup variable'));
       }
-      updateRes = await this.withRetry(() =>
-        this.api.put(`/servers/${pterodactylId}/startup`, payload),
-      );
+      try {
+        updateRes = await this.withRetry(() =>
+          this.api.put(`/servers/${pterodactylId}/startup`, payload),
+        );
+      } catch (fallbackErr: any) {
+        throw new BadRequestException(this.panelErrorMessage(fallbackErr, 'Failed to update startup variable'));
+      }
     }
 
     return updateRes.data;

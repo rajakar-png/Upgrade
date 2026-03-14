@@ -186,9 +186,9 @@ export function VersionTab({ serverId, category }: Props) {
                 className="flex-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white outline-none"
               >
                 {COMMON_MC_VERSIONS.map((v) => (
-                  <option key={v} value={v}>{v}</option>
+                  <option key={v} value={v} className="bg-white text-black">{v}</option>
                 ))}
-                <option value="latest">latest</option>
+                <option value="latest" className="bg-white text-black">latest</option>
               </select>
               <Button
                 onClick={() => updateVersion(selectedVersion)}
