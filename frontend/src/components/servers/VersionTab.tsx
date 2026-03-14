@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ interface Props {
   category: 'minecraft' | 'bot';
 }
 
-const COMMON_MC_VERSIONS = [
+const FALLBACK_MC_VERSIONS = [
   '1.21.4',
   '1.21.3',
   '1.21.1',
@@ -48,6 +48,7 @@ export function VersionTab({ serverId, category }: Props) {
   const [loading, setLoading] = useState(true);
   const [selectedEgg, setSelectedEgg] = useState<number | null>(null);
   const [selectedVersion, setSelectedVersion] = useState('');
+  const [availableVersions, setAvailableVersions] = useState<string[]>(FALLBACK_MC_VERSIONS);
   const [showConfirm, setShowConfirm] = useState(false);
   const [changing, setChanging] = useState(false);
 
@@ -67,10 +68,40 @@ export function VersionTab({ serverId, category }: Props) {
   const versionKeys = ['MINECRAFT_VERSION', 'MC_VERSION', 'VERSION', 'SERVER_VERSION', 'DL_VERSION'];
   const versionVar = variables.find((v) => versionKeys.includes(v.env_variable));
   const buildNumberVar = variables.find((v) => v.env_variable === 'BUILD_NUMBER');
+  const currentVersion = versionVar?.server_value || versionVar?.default_value || 'latest';
+
+  const dropdownVersions = useMemo(
+    () => Array.from(new Set([selectedVersion, currentVersion, ...availableVersions, 'latest'].filter(Boolean))),
+    [selectedVersion, currentVersion, availableVersions],
+  );
 
   useEffect(() => {
     loadData();
   }, [serverId]);
+
+  useEffect(() => {
+    const loadVersionCatalog = async () => {
+      if (category !== 'minecraft') return;
+      try {
+        const res = await fetch('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json', {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const releases = (data?.versions || [])
+          .filter((v: any) => v?.type === 'release' && typeof v?.id === 'string')
+          .map((v: any) => v.id);
+        if (releases.length > 0) {
+          setAvailableVersions(releases);
+        }
+      } catch {
+        // Keep fallback list when remote catalog is unavailable.
+      }
+    };
+
+    loadVersionCatalog();
+  }, [category]);
 
   const loadData = async () => {
     setLoading(true);
@@ -109,28 +140,21 @@ export function VersionTab({ serverId, category }: Props) {
       return;
     }
 
-    try {
-      if (versionVar) {
-        await api.put(`/servers/${serverId}/manage/startup/variable`, {
-          key: versionVar.env_variable,
-          value: next,
-        });
-      }
+    const targetVar = versionVar || buildNumberVar;
+    if (!targetVar) {
+      toast.error('No editable version variable found for this server egg');
+      return;
+    }
 
-      // Common Paper/Purpur setup: version + BUILD_NUMBER=latest.
-      if (buildNumberVar) {
-        await api.put(`/servers/${serverId}/manage/startup/variable`, {
-          key: buildNumberVar.env_variable,
-          value: 'latest',
-        });
-      }
+    try {
+      await api.put(`/servers/${serverId}/manage/startup/variable`, {
+        key: targetVar.env_variable,
+        value: next,
+      });
 
       setVariables((prev) => prev.map((v) => {
-        if (versionVar && v.env_variable === versionVar.env_variable) {
+        if (v.env_variable === targetVar.env_variable) {
           return { ...v, server_value: next };
-        }
-        if (buildNumberVar && v.env_variable === buildNumberVar.env_variable) {
-          return { ...v, server_value: 'latest' };
         }
         return v;
       }));
@@ -197,10 +221,9 @@ export function VersionTab({ serverId, category }: Props) {
                 onChange={(e) => setSelectedVersion(e.target.value)}
                 className="flex-1 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white outline-none"
               >
-                {COMMON_MC_VERSIONS.map((v) => (
+                {dropdownVersions.map((v) => (
                   <option key={v} value={v} className="bg-white text-black">{v}</option>
                 ))}
-                <option value="latest" className="bg-white text-black">latest</option>
               </select>
               <Button
                 onClick={() => updateVersion(selectedVersion)}
@@ -227,9 +250,9 @@ export function VersionTab({ serverId, category }: Props) {
             <p className="mt-2 text-xs text-gray-600">
               Change the version and reinstall to apply. Use &quot;latest&quot; for the newest stable version.
             </p>
-            {buildNumberVar && (
+            {buildNumberVar && versionVar && (
               <p className="mt-1 text-xs text-gray-600">
-                This egg also uses BUILD_NUMBER; it will be set to &quot;latest&quot; automatically.
+                This egg exposes both version and BUILD_NUMBER. Only the version field is changed here.
               </p>
             )}
           </div>

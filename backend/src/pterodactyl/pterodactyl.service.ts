@@ -678,43 +678,51 @@ export class PterodactylService {
       throw new BadRequestException(`Variable ${trimmedKey} is not editable for this server`);
     }
 
-    const payload = {
-      startup: res.data.attributes.container.startup_command,
-      egg: res.data.attributes.egg,
-      image: res.data.attributes.container.image,
-      environment: {
-        ...Object.fromEntries(
-          vars.map((v: any) => [
-            v.attributes.env_variable,
-            v.attributes.env_variable === trimmedKey
-              ? trimmedValue
-              : (v.attributes.server_value ?? v.attributes.default_value),
-          ]),
-        ),
-      },
-    };
+    const normalizedEnv = Object.fromEntries(
+      vars.map((v: any) => {
+        const raw = v.attributes.env_variable === trimmedKey
+          ? trimmedValue
+          : (v.attributes.server_value ?? v.attributes.default_value ?? '');
+        return [v.attributes.env_variable, String(raw ?? '')];
+      }),
+    );
 
-    // Prefer PATCH (expected by most panel versions), fallback to PUT for older installs.
+    const startupCmd = res.data.attributes.container?.startup_command || res.data.attributes.startup || '';
+    const eggId = res.data.attributes.egg;
+    const image = res.data.attributes.container?.image || '';
+
+    // Different panel versions/eggs can be strict about accepted keys.
+    const payloadCandidates = [
+      { startup: startupCmd, egg: eggId, docker_image: image, environment: normalizedEnv },
+      { startup: startupCmd, egg: eggId, image, environment: normalizedEnv },
+      { startup: startupCmd, environment: normalizedEnv },
+    ];
+
+    // Prefer PATCH, fallback to PUT; within each method try compatible payload shapes.
     let updateRes: any;
-    try {
-      updateRes = await this.withRetry(() =>
-        this.api.patch(`/servers/${pterodactylId}/startup`, payload),
-      );
-    } catch (err: any) {
-      const status = err?.response?.status;
-      if (status !== 404 && status !== 405) {
-        throw new BadRequestException(this.panelErrorMessage(err, 'Failed to update startup variable'));
-      }
-      try {
-        updateRes = await this.withRetry(() =>
-          this.api.put(`/servers/${pterodactylId}/startup`, payload),
-        );
-      } catch (fallbackErr: any) {
-        throw new BadRequestException(this.panelErrorMessage(fallbackErr, 'Failed to update startup variable'));
+    let lastErr: any;
+    const methods: Array<'patch' | 'put'> = ['patch', 'put'];
+
+    for (const method of methods) {
+      for (const payload of payloadCandidates) {
+        try {
+          updateRes = await this.withRetry(() =>
+            this.api.request({ method, url: `/servers/${pterodactylId}/startup`, data: payload }),
+          );
+          return updateRes.data;
+        } catch (err: any) {
+          lastErr = err;
+          const status = err?.response?.status;
+          // Continue trying fallbacks for validation/method-shape errors.
+          if ([400, 404, 405, 422].includes(status)) {
+            continue;
+          }
+          throw new BadRequestException(this.panelErrorMessage(err, 'Failed to update startup variable'));
+        }
       }
     }
 
-    return updateRes.data;
+    throw new BadRequestException(this.panelErrorMessage(lastErr, 'Failed to update startup variable'));
   }
 
   // ── Settings (Application API) ──────────────────────────────────────────
