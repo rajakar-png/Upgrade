@@ -12,12 +12,25 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message: string | object = 'Internal server error';
+    let message: string | string[] = 'Internal server error';
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse();
-      message = typeof res === 'string' ? res : res;
+      if (typeof res === 'string') {
+        message = res;
+      } else if (res && typeof res === 'object') {
+        const payload = res as any;
+        if (Array.isArray(payload.message)) {
+          message = payload.message.map((m: any) => String(m));
+        } else if (typeof payload.message === 'string') {
+          message = payload.message;
+        } else if (typeof payload.error === 'string') {
+          message = payload.error;
+        } else {
+          message = 'Request failed';
+        }
+      }
     } else {
       // Log full error internally but never expose to client
       this.logger.error(

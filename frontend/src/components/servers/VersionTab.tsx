@@ -51,6 +51,18 @@ export function VersionTab({ serverId, category }: Props) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [changing, setChanging] = useState(false);
 
+  const getErrorMessage = (err: any, fallback: string) => {
+    const msg = err?.response?.data?.message;
+    if (typeof msg === 'string' && msg.trim()) return msg;
+    if (Array.isArray(msg) && msg.length > 0) return msg.map((m) => String(m)).join(', ');
+    if (msg && typeof msg === 'object') {
+      if (typeof msg.message === 'string' && msg.message.trim()) return msg.message;
+      if (typeof msg.error === 'string' && msg.error.trim()) return msg.error;
+    }
+    if (typeof err?.message === 'string' && err.message.trim()) return err.message;
+    return fallback;
+  };
+
   // Prefer semantic Minecraft version keys; BUILD_NUMBER is handled separately.
   const versionKeys = ['MINECRAFT_VERSION', 'MC_VERSION', 'VERSION', 'SERVER_VERSION', 'DL_VERSION'];
   const versionVar = variables.find((v) => versionKeys.includes(v.env_variable));
@@ -126,7 +138,7 @@ export function VersionTab({ serverId, category }: Props) {
       setSelectedVersion(next);
       toast.success('Version updated! Reinstall your server to apply.');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to update version');
+      toast.error(getErrorMessage(err, 'Failed to update version'));
     }
   };
 
@@ -154,7 +166,7 @@ export function VersionTab({ serverId, category }: Props) {
       );
       toast.success('Variable updated');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to update variable');
+      toast.error(getErrorMessage(err, 'Failed to update variable'));
     }
   };
 
