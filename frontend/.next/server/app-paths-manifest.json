@@ -1,5 +1,9 @@
 {
+  "/[slug]/page": "app/[slug]/page.js",
+  "/page": "app/page.js",
+  "/docs/page": "app/docs/page.js",
+  "/status/page": "app/status/page.js",
   "/(dashboard)/admin/page": "app/(dashboard)/admin/page.js",
-  "/(dashboard)/tickets/page": "app/(dashboard)/tickets/page.js",
-  "/(dashboard)/admin/plans/page": "app/(dashboard)/admin/plans/page.js"
+  "/(dashboard)/admin/seo/page": "app/(dashboard)/admin/seo/page.js",
+  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js"
 }

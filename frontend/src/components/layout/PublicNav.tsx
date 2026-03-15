@@ -9,8 +9,8 @@ const navLinks = [
   { label: 'Features', href: '#features' },
   { label: 'Plans', href: '#plans' },
   { label: 'Locations', href: '#locations' },
-  { label: 'Docs', href: '#' },
-  { label: 'Status', href: '#' },
+  { label: 'Docs', href: '/docs' },
+  { label: 'Status', href: '/status' },
 ];
 
 export function PublicNav() {
@@ -28,7 +28,7 @@ export function PublicNav() {
   }, []);
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-gray-800/60 bg-black/60 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 border-b border-gray-700/70 bg-black/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5">
@@ -44,7 +44,7 @@ export function PublicNav() {
             <Link
               key={link.label}
               href={link.href}
-              className="text-sm text-gray-400 transition-colors duration-200 hover:text-white"
+              className="text-sm text-gray-300 transition-colors duration-200 hover:text-white"
             >
               {link.label}
             </Link>
@@ -64,7 +64,7 @@ export function PublicNav() {
             <>
               <Link
                 href="/login"
-                className="rounded-lg px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white"
+                className="rounded-lg border border-white/10 bg-black/30 px-4 py-2 text-sm text-gray-200 transition-colors hover:bg-black/40 hover:text-white"
               >
                 Log In
               </Link>
@@ -81,7 +81,7 @@ export function PublicNav() {
         {/* Mobile toggle */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white md:hidden"
+          className="rounded-lg border border-white/10 bg-black/40 p-2 text-gray-200 shadow-sm shadow-black/40 transition-colors hover:bg-black/60 hover:text-white md:hidden"
         >
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -89,14 +89,14 @@ export function PublicNav() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="border-t border-gray-800/60 bg-[#0f0f0f]/95 backdrop-blur-xl md:hidden">
+        <div className="border-t border-gray-700/70 bg-[#0f0f0f]/95 backdrop-blur-xl md:hidden">
           <div className="space-y-1 px-6 py-4">
             {navLinks.map((link) => (
               <Link
                 key={link.label}
                 href={link.href}
                 onClick={() => setMobileOpen(false)}
-                className="block rounded-lg px-3 py-2.5 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-white"
+                className="block rounded-lg px-3 py-2.5 text-sm text-gray-200 transition-colors hover:bg-white/5 hover:text-white"
               >
                 {link.label}
               </Link>

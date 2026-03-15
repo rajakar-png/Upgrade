@@ -12,6 +12,7 @@ interface Popup {
   title: string;
   message: string;
   imageUrl?: string | null;
+  imageAlt?: string | null;
   enabled: boolean;
   showOnce: boolean;
   sortOrder: number;
@@ -21,6 +22,7 @@ const empty: Omit<Popup, 'id'> = {
   title: '',
   message: '',
   imageUrl: null,
+  imageAlt: '',
   enabled: true,
   showOnce: false,
   sortOrder: 0,
@@ -63,6 +65,7 @@ export default function AdminPopupsPage() {
       form.append('enabled', String(!!editing.enabled));
       form.append('showOnce', String(!!editing.showOnce));
       form.append('sortOrder', String(editing.sortOrder ?? 0));
+      form.append('imageAlt', editing.imageAlt || '');
       if (imageFile) form.append('image', imageFile);
 
       if (editing.id) {
@@ -106,7 +109,7 @@ export default function AdminPopupsPage() {
         {popups.map((p) => (
           <div key={p.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
             {p.imageUrl && (
-              <img src={p.imageUrl} alt="" className="h-14 w-14 rounded-lg object-cover border border-white/10" />
+              <img src={p.imageUrl} alt={p.imageAlt || p.title} className="h-14 w-14 rounded-lg object-cover border border-white/10" />
             )}
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{p.title}</p>
@@ -149,13 +152,20 @@ export default function AdminPopupsPage() {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-300">Image (optional)</label>
               {(imagePreview || editing.imageUrl) && (
-                <img src={imagePreview || editing.imageUrl || ''} alt="" className="mb-2 h-24 rounded-lg object-cover border border-white/10" />
+                <img src={imagePreview || editing.imageUrl || ''} alt={editing.imageAlt || editing.title || 'Popup image'} className="mb-2 h-24 rounded-lg object-cover border border-white/10" />
               )}
               <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
               <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} className="gap-2">
                 <Upload className="h-4 w-4" /> Upload Image
               </Button>
             </div>
+
+            <Input
+              label="Image ALT Text"
+              value={editing.imageAlt || ''}
+              onChange={(e) => setEditing({ ...editing, imageAlt: e.target.value })}
+              placeholder="Short descriptive ALT text"
+            />
 
             <Input label="Sort Order" type="number" value={String(editing.sortOrder ?? 0)} onChange={(e) => setEditing({ ...editing, sortOrder: parseInt(e.target.value) || 0 })} />
 

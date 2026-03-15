@@ -6,6 +6,22 @@ import { ServerStatus } from '@prisma/client';
 export class SiteService {
   constructor(private prisma: PrismaService) {}
 
+  private normalizePath(path: string) {
+    const raw = (path || '/').trim();
+    if (!raw) return '/';
+    const withSlash = raw.startsWith('/') ? raw : `/${raw}`;
+    return withSlash.replace(/\/+$/, '') || '/';
+  }
+
+  private escapeXml(value: string) {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
   async getSection(sectionName: string) {
     const row = await this.prisma.siteContent.findUnique({ where: { sectionName } });
     return row ? JSON.parse(row.contentJson) : null;
@@ -64,5 +80,71 @@ export class SiteService {
       this.prisma.server.count({ where: { status: ServerStatus.active } }),
     ]);
     return { activeUsers, activeServers, uptime: '99.9%' };
+  }
+
+  async getSeoByPath(path: string) {
+    const routePath = this.normalizePath(path);
+    const slugCandidate = routePath.replace(/^\//, '') || undefined;
+    const seo = await this.prisma.seoPage.findFirst({
+      where: {
+        OR: [
+          { routePath },
+          ...(slugCandidate ? [{ slug: slugCandidate }] : []),
+        ],
+      },
+    });
+    if (!seo) return null;
+    return {
+      ...seo,
+      robotsMeta: `${seo.robotsIndex ? 'index' : 'noindex'},${seo.robotsFollow ? 'follow' : 'nofollow'}`,
+    };
+  }
+
+  async getSeoByKey(pageKey: string) {
+    const seo = await this.prisma.seoPage.findUnique({ where: { pageKey } });
+    if (!seo) return null;
+    return {
+      ...seo,
+      robotsMeta: `${seo.robotsIndex ? 'index' : 'noindex'},${seo.robotsFollow ? 'follow' : 'nofollow'}`,
+    };
+  }
+
+  async getSitemapXml() {
+    const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const seoRows = await this.prisma.seoPage.findMany({
+      where: { isPublic: true, robotsIndex: true },
+      select: { routePath: true, updatedAt: true },
+      orderBy: { routePath: 'asc' },
+    });
+
+    const entries = new Map<string, Date>();
+    entries.set('/', new Date());
+    for (const row of seoRows) {
+      entries.set(this.normalizePath(row.routePath), row.updatedAt);
+    }
+
+    const urls = Array.from(entries.entries()).map(([path, updatedAt]) => {
+      const loc = `${baseUrl}${path === '/' ? '' : path}`;
+      return [
+        '  <url>',
+        `    <loc>${this.escapeXml(loc)}</loc>`,
+        `    <lastmod>${updatedAt.toISOString()}</lastmod>`,
+        '  </url>',
+      ].join('\n');
+    }).join('\n');
+
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      urls,
+      '</urlset>',
+    ].join('\n');
+  }
+
+  async getRobotsTxt() {
+    const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const settings = await this.prisma.siteSetting.findFirst({ select: { robotsTxt: true } });
+    if (settings?.robotsTxt?.trim()) return settings.robotsTxt;
+    return `User-agent: *\nAllow: /\n\nSitemap: ${baseUrl}/sitemap.xml`;
   }
 }

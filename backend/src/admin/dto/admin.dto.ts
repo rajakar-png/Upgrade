@@ -129,6 +129,7 @@ export class CreatePopupDto {
   @IsString() @MinLength(1) @MaxLength(200) title: string;
   @IsString() @MinLength(1) message: string;
   @IsOptional() @IsString() imageUrl?: string;
+  @IsOptional() @IsString() @MaxLength(200) imageAlt?: string;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') enabled?: boolean;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') showOnce?: boolean;
   @IsOptional() @Transform(({ value }) => parseInt(value)) @IsInt() @Min(0) sortOrder?: number;
@@ -138,6 +139,7 @@ export class UpdatePopupDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(200) title?: string;
   @IsOptional() @IsString() @MinLength(1) message?: string;
   @IsOptional() @IsString() imageUrl?: string;
+  @IsOptional() @IsString() @MaxLength(200) imageAlt?: string;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') enabled?: boolean;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') showOnce?: boolean;
   @IsOptional() @Transform(({ value }) => parseInt(value)) @IsInt() @Min(0) sortOrder?: number;
@@ -151,6 +153,8 @@ export class UpdateSiteSettingsDto {
   @IsOptional() @IsString() @MaxLength(1000) heroSubtitle?: string;
   @IsOptional() @IsString() @MaxLength(500) faviconPath?: string;
   @IsOptional() @IsString() @MaxLength(500) logoPath?: string;
+  @IsOptional() @IsString() @MaxLength(200) logoAlt?: string;
+  @IsOptional() @IsString() @MaxLength(200) backgroundImageAlt?: string;
   @IsOptional() @IsString() @MaxLength(500) discordInviteUrl?: string;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') maintenanceMode?: boolean;
   @IsOptional() @IsBoolean() @Transform(({ value }) => value === true || value === 'true') discordPopupEnabled?: boolean;
@@ -169,4 +173,56 @@ export class AdminReplyTicketDto {
 
 export class UpdateTicketStatusDto {
   @IsEnum(['open', 'in_progress', 'resolved', 'closed']) status: string;
+}
+
+// ── SEO ───────────────────────────────────────────────────────────────────────
+
+export class CreateSeoPageDto {
+  @IsString() @MinLength(2) @MaxLength(120) pageKey: string;
+  @IsOptional() @IsEnum(['homepage', 'main', 'blog', 'product', 'service', 'dynamic']) pageType?: string;
+  @IsString() @MinLength(1) @MaxLength(250) routePath: string;
+  @IsOptional() @IsString() @MaxLength(180) slug?: string;
+  @IsOptional() @IsString() @MaxLength(255) metaTitle?: string;
+  @IsOptional() @IsString() @MaxLength(500) metaDescription?: string;
+  @IsOptional() @IsString() @MaxLength(500) metaKeywords?: string;
+  @IsOptional() @IsString() @MaxLength(500) canonicalUrl?: string;
+  @IsOptional() @IsString() @MaxLength(255) ogTitle?: string;
+  @IsOptional() @IsString() @MaxLength(500) ogDescription?: string;
+  @IsOptional() @IsString() @MaxLength(500) ogImage?: string;
+  @IsOptional() @IsString() @MaxLength(255) twitterCardTitle?: string;
+  @IsOptional() @IsString() @MaxLength(500) twitterCardDesc?: string;
+  @IsOptional() @IsString() @MaxLength(500) twitterCardImage?: string;
+  @IsOptional() @IsString() articleBody?: string;
+  @IsOptional() @IsString() faqJson?: string;
+  @IsOptional() @IsString() relatedLinksJson?: string;
+  @IsOptional() @IsBoolean() robotsIndex?: boolean;
+  @IsOptional() @IsBoolean() robotsFollow?: boolean;
+  @IsOptional() @IsBoolean() isPublic?: boolean;
+}
+
+export class UpdateSeoPageDto {
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(120) pageKey?: string;
+  @IsOptional() @IsEnum(['homepage', 'main', 'blog', 'product', 'service', 'dynamic']) pageType?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(250) routePath?: string;
+  @IsOptional() @IsString() @MaxLength(180) slug?: string;
+  @IsOptional() @IsString() @MaxLength(255) metaTitle?: string;
+  @IsOptional() @IsString() @MaxLength(500) metaDescription?: string;
+  @IsOptional() @IsString() @MaxLength(500) metaKeywords?: string;
+  @IsOptional() @IsString() @MaxLength(500) canonicalUrl?: string;
+  @IsOptional() @IsString() @MaxLength(255) ogTitle?: string;
+  @IsOptional() @IsString() @MaxLength(500) ogDescription?: string;
+  @IsOptional() @IsString() @MaxLength(500) ogImage?: string;
+  @IsOptional() @IsString() @MaxLength(255) twitterCardTitle?: string;
+  @IsOptional() @IsString() @MaxLength(500) twitterCardDesc?: string;
+  @IsOptional() @IsString() @MaxLength(500) twitterCardImage?: string;
+  @IsOptional() @IsString() articleBody?: string;
+  @IsOptional() @IsString() faqJson?: string;
+  @IsOptional() @IsString() relatedLinksJson?: string;
+  @IsOptional() @IsBoolean() robotsIndex?: boolean;
+  @IsOptional() @IsBoolean() robotsFollow?: boolean;
+  @IsOptional() @IsBoolean() isPublic?: boolean;
+}
+
+export class UpdateRobotsTxtDto {
+  @IsString() robotsTxt: string;
 }

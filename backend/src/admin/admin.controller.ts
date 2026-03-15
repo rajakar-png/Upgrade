@@ -13,7 +13,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
   UpdateUserDto, CreateCoinPlanDto, UpdateCoinPlanDto, CreateRealPlanDto, UpdateRealPlanDto,
   CreateCouponDto, UpdateCouponDto, UpdateAdSettingsDto, CreatePopupDto, UpdatePopupDto,
-  UpdateSiteSettingsDto, AdminReplyTicketDto, UpdateTicketStatusDto,
+  UpdateSiteSettingsDto, AdminReplyTicketDto, UpdateTicketStatusDto, CreateSeoPageDto,
+  UpdateSeoPageDto, UpdateRobotsTxtDto,
 } from './dto/admin.dto';
 import { imageFileFilter } from '../utils/upload.util';
 
@@ -296,5 +297,37 @@ export class AdminController {
   )
   updateSiteSettings(@Body() data: UpdateSiteSettingsDto, @UploadedFile() file?: Express.Multer.File) {
     return this.adminService.updateSiteSettings(data, file?.filename);
+  }
+
+  // ── SEO ─────────────────────────────────────────────────────────────────────
+
+  @Get('seo/pages')
+  getSeoPages(@Query('pageType') pageType?: string) {
+    return this.adminService.getSeoPages(pageType);
+  }
+
+  @Post('seo/pages')
+  createSeoPage(@Body() data: CreateSeoPageDto) {
+    return this.adminService.createSeoPage(data);
+  }
+
+  @Put('seo/pages/:id')
+  updateSeoPage(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateSeoPageDto) {
+    return this.adminService.updateSeoPage(id, data);
+  }
+
+  @Delete('seo/pages/:id')
+  deleteSeoPage(@Param('id', ParseIntPipe) id: number) {
+    return this.adminService.deleteSeoPage(id);
+  }
+
+  @Get('seo/robots')
+  getRobotsTxt() {
+    return this.adminService.getRobotsTxt();
+  }
+
+  @Put('seo/robots')
+  updateRobotsTxt(@Body() data: UpdateRobotsTxtDto) {
+    return this.adminService.updateRobotsTxt(data.robotsTxt);
   }
 }

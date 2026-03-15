@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Users, Server, DollarSign, AlertCircle, Ticket, Activity, Settings, Tag, Coins, FileText, MessageSquare, Gift, Home, MonitorPlay } from 'lucide-react';
+import { Users, Server, DollarSign, AlertCircle, Ticket, Activity, Settings, Tag, Coins, FileText, MessageSquare, Gift, Home, MonitorPlay, SearchCheck } from 'lucide-react';
 
 interface Stats {
   totalUsers: number;
@@ -25,6 +25,7 @@ const NAV_LINKS = [
   { label: 'Audit Log', href: '/admin/audit', icon: FileText, color: 'text-gray-400', bg: 'bg-gray-500/10' },
   { label: 'Homepage Editor', href: '/admin/homepage', icon: Home, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
   { label: 'Site Settings', href: '/admin/site', icon: Settings, color: 'text-[#ff7a18]', bg: 'bg-[#ff7a18]/10' },
+  { label: 'SEO Settings', href: '/admin/seo', icon: SearchCheck, color: 'text-sky-400', bg: 'bg-sky-500/10' },
   { label: 'Coin Settings', href: '/admin/coins', icon: Coins, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   { label: 'Popup Messages', href: '/admin/popups', icon: MessageSquare, color: 'text-pink-400', bg: 'bg-pink-500/10' },
   { label: 'Affiliate Settings', href: '/admin/affiliate', icon: Gift, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },

@@ -381,14 +381,17 @@ model SiteSetting {
   id                       Int     @id @default(autoincrement())
   siteName                 String? @map("site_name")
   backgroundImage          String? @map("background_image")
+  backgroundImageAlt       String? @map("background_image_alt")
   backgroundOverlayOpacity Float?  @map("background_overlay_opacity")
   faviconPath              String? @map("favicon_path")
   logoPath                 String? @default("") @map("logo_path")
+  logoAlt                  String? @map("logo_alt")
   heroTitle                String? @map("hero_title")
   heroSubtitle             String? @map("hero_subtitle")
   maintenanceMode          Boolean @default(false) @map("maintenance_mode")
   discordInviteUrl         String? @map("discord_invite_url")
   discordPopupEnabled      Boolean @default(false) @map("discord_popup_enabled")
+  robotsTxt                String? @map("robots_txt")
 
   // Discord Bot Settings
   discordBotToken          String? @map("discord_bot_token")
@@ -471,10 +474,41 @@ model PopupMessage {
   title     String
   message   String
   imageUrl  String?  @map("image_url")
+  imageAlt  String?  @map("image_alt")
   enabled   Boolean  @default(true)
   showOnce  Boolean  @default(false) @map("show_once")
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("popup_messages")
+}
+
+model SeoPage {
+  id                 Int      @id @default(autoincrement())
+  pageKey            String   @unique @map("page_key")
+  pageType           String   @default("main") @map("page_type")
+  routePath          String   @unique @map("route_path")
+  slug               String?  @unique
+  metaTitle          String?  @map("meta_title")
+  metaDescription    String?  @map("meta_description")
+  metaKeywords       String?  @map("meta_keywords")
+  canonicalUrl       String?  @map("canonical_url")
+  ogTitle            String?  @map("og_title")
+  ogDescription      String?  @map("og_description")
+  ogImage            String?  @map("og_image")
+  twitterCardTitle   String?  @map("twitter_card_title")
+  twitterCardDesc    String?  @map("twitter_card_desc")
+  twitterCardImage   String?  @map("twitter_card_image")
+  articleBody        String?  @map("article_body")
+  faqJson            String?  @map("faq_json")
+  relatedLinksJson   String?  @map("related_links_json")
+  robotsIndex        Boolean  @default(true) @map("robots_index")
+  robotsFollow       Boolean  @default(true) @map("robots_follow")
+  isPublic           Boolean  @default(true) @map("is_public")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([pageType])
+  @@index([isPublic, robotsIndex])
+  @@map("seo_pages")
 }

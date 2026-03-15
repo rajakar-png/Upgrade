@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Body, Param, UseGuards, Query, Header } from '@nestjs/common';
 import { SiteService } from './site.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -29,6 +29,28 @@ export class SiteController {
 
   @Get('public-stats')
   getPublicStats() { return this.siteService.getPublicStats(); }
+
+  @Get('seo/by-path')
+  getSeoByPath(@Query('path') path = '/') {
+    return this.siteService.getSeoByPath(path);
+  }
+
+  @Get('seo/by-key/:pageKey')
+  getSeoByKey(@Param('pageKey') pageKey: string) {
+    return this.siteService.getSeoByKey(pageKey);
+  }
+
+  @Get('sitemap.xml')
+  @Header('Content-Type', 'application/xml; charset=utf-8')
+  getSitemapXml() {
+    return this.siteService.getSitemapXml();
+  }
+
+  @Get('robots.txt')
+  @Header('Content-Type', 'text/plain; charset=utf-8')
+  getRobotsTxt() {
+    return this.siteService.getRobotsTxt();
+  }
 
   // ── Admin endpoints ─────────────────────────────────────────────────────────
 

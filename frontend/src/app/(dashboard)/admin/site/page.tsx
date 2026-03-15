@@ -16,6 +16,8 @@ interface SiteSettings {
   backgroundOverlayOpacity?: number;
   faviconPath?: string;
   logoPath?: string;
+  logoAlt?: string;
+  backgroundImageAlt?: string;
   maintenanceMode?: boolean;
   discordInviteUrl?: string;
   discordPopupEnabled?: boolean;
@@ -59,6 +61,8 @@ export default function AdminSitePage() {
       if (settings.heroSubtitle !== undefined) form.append('heroSubtitle', settings.heroSubtitle || '');
       if (settings.faviconPath !== undefined) form.append('faviconPath', settings.faviconPath || '');
       if (settings.logoPath !== undefined) form.append('logoPath', settings.logoPath || '');
+      if (settings.logoAlt !== undefined) form.append('logoAlt', settings.logoAlt || '');
+      if (settings.backgroundImageAlt !== undefined) form.append('backgroundImageAlt', settings.backgroundImageAlt || '');
       if (settings.discordInviteUrl !== undefined) form.append('discordInviteUrl', settings.discordInviteUrl || '');
       if (settings.backgroundOverlayOpacity !== undefined) form.append('backgroundOverlayOpacity', String(settings.backgroundOverlayOpacity));
       form.append('maintenanceMode', String(!!settings.maintenanceMode));
@@ -123,6 +127,12 @@ export default function AdminSitePage() {
             onChange={(e) => handleChange('logoPath', e.target.value)}
             placeholder="/uploads/logo.png or https://..."
           />
+          <Input
+            label="Logo ALT Text"
+            value={settings.logoAlt || ''}
+            onChange={(e) => handleChange('logoAlt', e.target.value)}
+            placeholder="Accessible logo description"
+          />
 
           {/* Background Image Upload */}
           <div>
@@ -166,6 +176,12 @@ export default function AdminSitePage() {
             max="1"
             value={String(settings.backgroundOverlayOpacity ?? 0.5)}
             onChange={(e) => handleChange('backgroundOverlayOpacity', parseFloat(e.target.value) || 0)}
+          />
+          <Input
+            label="Background Image ALT Text"
+            value={settings.backgroundImageAlt || ''}
+            onChange={(e) => handleChange('backgroundImageAlt', e.target.value)}
+            placeholder="Describe background image content"
           />
         </div>
 

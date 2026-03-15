@@ -44,6 +44,57 @@ wait_for_postgres() {
   done
 }
 
+wait_for_redis() {
+  local retries=0
+  while ! docker-compose exec -T redis redis-cli ping >/dev/null 2>&1; do
+    retries=$((retries + 1))
+    if [[ $retries -gt 45 ]]; then
+      error "Redis did not become ready in time. Check: docker compose logs redis"
+    fi
+    sleep 2
+  done
+}
+
+resolve_db_admin_role() {
+  local candidate
+  for candidate in "${POSTGRES_USER:-astra}" astra postgres; do
+    if docker-compose exec -T postgres psql -U "$candidate" -d postgres -c "SELECT 1" >/dev/null 2>&1; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  for candidate in "${POSTGRES_USER:-astra}" astra postgres; do
+    if docker-compose exec -T postgres psql -U "$candidate" -d template1 -c "SELECT 1" >/dev/null 2>&1; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+reconcile_postgres_credentials() {
+  local admin_role="$1"
+  local target_role="$2"
+  local target_db="$3"
+
+  [[ "$target_role" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || error "POSTGRES_USER has invalid format: $target_role"
+  [[ "$target_db" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || error "POSTGRES_DB has invalid format: $target_db"
+
+  local escaped_db_pass
+  escaped_db_pass=$(printf "%s" "$POSTGRES_PASSWORD" | sed "s/'/''/g")
+
+  docker-compose exec -T postgres psql -U "$admin_role" -d postgres -v ON_ERROR_STOP=1 <<SQL
+SELECT 'CREATE ROLE ${target_role} LOGIN PASSWORD ''' || '${escaped_db_pass}' || ''''
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${target_role}')\gexec
+ALTER ROLE ${target_role} WITH LOGIN PASSWORD '${escaped_db_pass}';
+SELECT 'CREATE DATABASE ${target_db} OWNER ${target_role}'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${target_db}')\gexec
+GRANT ALL PRIVILEGES ON DATABASE ${target_db} TO ${target_role};
+SQL
+}
+
 header "AstraNodes Safe Update"
 
 [[ -f .env ]] || error "Missing root .env file at $ROOT_DIR/.env"
@@ -65,24 +116,35 @@ fi
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="backend/data/backups"
 BACKUP_FILE="${BACKUP_DIR}/postgres_${POSTGRES_DB}_${TIMESTAMP}.sql.gz"
+FULL_BACKUP_FILE="${BACKUP_DIR}/postgres_cluster_${TIMESTAMP}.sql.gz"
 UPLOADS_BACKUP_FILE="${BACKUP_DIR}/uploads_${TIMESTAMP}.tar.gz"
 ENV_BACKUP_DIR="${BACKUP_DIR}/env_${TIMESTAMP}"
+DB_ADMIN_ROLE=""
 
-header "1/7 Backup PostgreSQL"
+header "1/8 Prepare Database Access"
 mkdir -p "$BACKUP_DIR"
 
 info "Ensuring PostgreSQL container is running..."
 docker-compose up -d postgres >/dev/null
 wait_for_postgres
 
+DB_ADMIN_ROLE="$(resolve_db_admin_role || true)"
+[[ -n "$DB_ADMIN_ROLE" ]] || error "Unable to detect PostgreSQL admin role. Check: docker compose logs postgres"
+success "PostgreSQL ready (admin role detected: ${DB_ADMIN_ROLE})"
+
+header "2/8 Backup PostgreSQL"
+
 info "Creating backup at ${BACKUP_FILE}"
 docker-compose exec -T -e PGPASSWORD="$POSTGRES_PASSWORD" postgres \
   pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-acl \
   | gzip > "$BACKUP_FILE"
 
+info "Creating full cluster fallback backup at ${FULL_BACKUP_FILE}"
+docker-compose exec -T postgres pg_dumpall -U "$DB_ADMIN_ROLE" | gzip > "$FULL_BACKUP_FILE"
+
 success "Database backup completed"
 
-header "2/7 Backup Uploads and Env Files"
+header "3/8 Backup Uploads and Env Files"
 info "Backing up uploads volume to ${UPLOADS_BACKUP_FILE}"
 docker-compose run --rm --no-deps backend sh -lc 'mkdir -p /tmp/uploads && tar -czf - -C /app/uploads .' > "$UPLOADS_BACKUP_FILE"
 
@@ -91,7 +153,7 @@ cp -f .env "$ENV_BACKUP_DIR/.env"
 cp -f backend/.env "$ENV_BACKUP_DIR/backend.env"
 success "Uploads and environment backups completed"
 
-header "3/7 Pull Latest Code"
+header "4/8 Pull Latest Code"
 if [[ "$SKIP_GIT" == "yes" ]]; then
   warn "Skipping git pull because --skip-git was provided"
 elif command -v git >/dev/null 2>&1; then
@@ -108,24 +170,29 @@ else
   warn "Git not found. Skipping git pull."
 fi
 
-header "4/7 Pull and Build Images"
+header "5/8 Pull and Build Images"
 docker-compose pull
 docker-compose build backend frontend nginx
 success "Docker images are ready"
 
-header "5/7 Start Core Services"
+header "6/8 Start Core Services"
 docker-compose up -d postgres redis
 wait_for_postgres
+wait_for_redis
 success "PostgreSQL and Redis are running"
 
-header "6/7 Apply Database Migrations"
+header "7/8 Reconcile Database Credentials"
+info "Ensuring role/database credentials are synchronized without touching existing data"
+reconcile_postgres_credentials "$DB_ADMIN_ROLE" "$POSTGRES_USER" "$POSTGRES_DB"
+success "PostgreSQL credentials synchronized"
+
+header "8/8 Apply Database Migrations and Restart Stack"
 if ! docker-compose run --rm --no-deps backend npm run prisma:migrate; then
   warn "First migration attempt failed. Retrying once..."
   docker-compose run --rm --no-deps backend npm run prisma:migrate
 fi
 success "Prisma migrations applied"
 
-header "7/7 Restart Stack"
 docker-compose up -d --remove-orphans
 
 HTTP_PORT="${HTTP_PORT:-80}"
@@ -139,6 +206,7 @@ fi
 echo ""
 success "Update complete without deleting Docker volumes."
 echo "Backup file: ${BACKUP_FILE}"
+echo "Full cluster backup: ${FULL_BACKUP_FILE}"
 echo "Uploads backup: ${UPLOADS_BACKUP_FILE}"
 echo "Env backup dir: ${ENV_BACKUP_DIR}"
 echo "To restore: gunzip -c ${BACKUP_FILE} | docker compose exec -T -e PGPASSWORD=\"${POSTGRES_PASSWORD}\" postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB}"

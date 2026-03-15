@@ -410,6 +410,7 @@ export class AdminService {
         title: data.title,
         message: data.message,
         imageUrl: data.imageUrl || null,
+        imageAlt: data.imageAlt || null,
         enabled: data.enabled === 'true' || data.enabled === true,
         showOnce: data.showOnce === 'true' || data.showOnce === true,
         sortOrder: data.sortOrder ? parseInt(data.sortOrder) : 0,
@@ -422,6 +423,7 @@ export class AdminService {
     if (data.title !== undefined) update.title = data.title;
     if (data.message !== undefined) update.message = data.message;
     if (data.imageUrl !== undefined) update.imageUrl = data.imageUrl;
+    if (data.imageAlt !== undefined) update.imageAlt = data.imageAlt || null;
     if (data.enabled !== undefined) update.enabled = data.enabled === 'true' || data.enabled === true;
     if (data.showOnce !== undefined) update.showOnce = data.showOnce === 'true' || data.showOnce === true;
     if (data.sortOrder !== undefined) update.sortOrder = parseInt(data.sortOrder);
@@ -441,6 +443,8 @@ export class AdminService {
     if (data.heroSubtitle !== undefined) update.heroSubtitle = data.heroSubtitle;
     if (data.faviconPath !== undefined) update.faviconPath = data.faviconPath;
     if (data.logoPath !== undefined) update.logoPath = data.logoPath;
+    if (data.logoAlt !== undefined) update.logoAlt = data.logoAlt || null;
+    if (data.backgroundImageAlt !== undefined) update.backgroundImageAlt = data.backgroundImageAlt || null;
     if (data.discordInviteUrl !== undefined) update.discordInviteUrl = data.discordInviteUrl;
     if (data.maintenanceMode !== undefined) update.maintenanceMode = data.maintenanceMode === 'true' || data.maintenanceMode === true;
     if (data.discordPopupEnabled !== undefined) update.discordPopupEnabled = data.discordPopupEnabled === 'true' || data.discordPopupEnabled === true;
@@ -458,5 +462,100 @@ export class AdminService {
       return this.prisma.siteSetting.update({ where: { id: existing.id }, data: update });
     }
     return this.prisma.siteSetting.create({ data: update });
+  }
+
+  // ── SEO ─────────────────────────────────────────────────────────────────────
+
+  private normalizeRoutePath(path: string) {
+    const trimmed = (path || '/').trim();
+    if (!trimmed) return '/';
+    const prefixed = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return prefixed.replace(/\/+$/, '') || '/';
+  }
+
+  private normalizeSlug(slug?: string | null) {
+    if (slug === undefined) return undefined;
+    const normalized = (slug || '').trim().toLowerCase().replace(/^\/+|\/+$/g, '').replace(/\s+/g, '-');
+    return normalized || null;
+  }
+
+  async getSeoPages(pageType?: string) {
+    return this.prisma.seoPage.findMany({
+      where: pageType ? { pageType } : undefined,
+      orderBy: [{ pageType: 'asc' }, { routePath: 'asc' }],
+    });
+  }
+
+  async createSeoPage(data: any) {
+    return this.prisma.seoPage.create({
+      data: {
+        pageKey: data.pageKey.trim(),
+        pageType: data.pageType || 'main',
+        routePath: this.normalizeRoutePath(data.routePath),
+        slug: this.normalizeSlug(data.slug),
+        metaTitle: data.metaTitle || null,
+        metaDescription: data.metaDescription || null,
+        metaKeywords: data.metaKeywords || null,
+        canonicalUrl: data.canonicalUrl || null,
+        ogTitle: data.ogTitle || null,
+        ogDescription: data.ogDescription || null,
+        ogImage: data.ogImage || null,
+        twitterCardTitle: data.twitterCardTitle || null,
+        twitterCardDesc: data.twitterCardDesc || null,
+        twitterCardImage: data.twitterCardImage || null,
+        articleBody: data.articleBody || null,
+        faqJson: data.faqJson || null,
+        relatedLinksJson: data.relatedLinksJson || null,
+        robotsIndex: data.robotsIndex !== false,
+        robotsFollow: data.robotsFollow !== false,
+        isPublic: data.isPublic !== false,
+      },
+    });
+  }
+
+  async updateSeoPage(id: number, data: any) {
+    const update: any = {};
+    if (data.pageKey !== undefined) update.pageKey = data.pageKey.trim();
+    if (data.pageType !== undefined) update.pageType = data.pageType;
+    if (data.routePath !== undefined) update.routePath = this.normalizeRoutePath(data.routePath);
+    if (data.slug !== undefined) update.slug = this.normalizeSlug(data.slug);
+    if (data.metaTitle !== undefined) update.metaTitle = data.metaTitle || null;
+    if (data.metaDescription !== undefined) update.metaDescription = data.metaDescription || null;
+    if (data.metaKeywords !== undefined) update.metaKeywords = data.metaKeywords || null;
+    if (data.canonicalUrl !== undefined) update.canonicalUrl = data.canonicalUrl || null;
+    if (data.ogTitle !== undefined) update.ogTitle = data.ogTitle || null;
+    if (data.ogDescription !== undefined) update.ogDescription = data.ogDescription || null;
+    if (data.ogImage !== undefined) update.ogImage = data.ogImage || null;
+    if (data.twitterCardTitle !== undefined) update.twitterCardTitle = data.twitterCardTitle || null;
+    if (data.twitterCardDesc !== undefined) update.twitterCardDesc = data.twitterCardDesc || null;
+    if (data.twitterCardImage !== undefined) update.twitterCardImage = data.twitterCardImage || null;
+    if (data.articleBody !== undefined) update.articleBody = data.articleBody || null;
+    if (data.faqJson !== undefined) update.faqJson = data.faqJson || null;
+    if (data.relatedLinksJson !== undefined) update.relatedLinksJson = data.relatedLinksJson || null;
+    if (data.robotsIndex !== undefined) update.robotsIndex = data.robotsIndex === true || data.robotsIndex === 'true';
+    if (data.robotsFollow !== undefined) update.robotsFollow = data.robotsFollow === true || data.robotsFollow === 'true';
+    if (data.isPublic !== undefined) update.isPublic = data.isPublic === true || data.isPublic === 'true';
+    return this.prisma.seoPage.update({ where: { id }, data: update });
+  }
+
+  async deleteSeoPage(id: number) {
+    return this.prisma.seoPage.delete({ where: { id } });
+  }
+
+  async getRobotsTxt() {
+    const settings = await this.prisma.siteSetting.findFirst({ select: { robotsTxt: true } });
+    return {
+      robotsTxt: settings?.robotsTxt || `User-agent: *\nAllow: /\nSitemap: ${(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/sitemap.xml`,
+    };
+  }
+
+  async updateRobotsTxt(robotsTxt: string) {
+    const existing = await this.prisma.siteSetting.findFirst({ select: { id: true } });
+    if (existing) {
+      await this.prisma.siteSetting.update({ where: { id: existing.id }, data: { robotsTxt } });
+    } else {
+      await this.prisma.siteSetting.create({ data: { robotsTxt } });
+    }
+    return { success: true, robotsTxt };
   }
 }
