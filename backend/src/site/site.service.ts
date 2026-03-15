@@ -111,16 +111,40 @@ export class SiteService {
 
   async getSitemapXml() {
     const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
-    const seoRows = await this.prisma.seoPage.findMany({
-      where: { isPublic: true, robotsIndex: true },
-      select: { routePath: true, updatedAt: true },
-      orderBy: { routePath: 'asc' },
-    });
+    const [seoRows, settings] = await this.prisma.$transaction([
+      this.prisma.seoPage.findMany({
+        where: { isPublic: true, robotsIndex: true },
+        select: { routePath: true, updatedAt: true },
+        orderBy: { routePath: 'asc' },
+      }),
+      this.prisma.siteSetting.findFirst({ select: { sitemapUrlsJson: true } }),
+    ]);
 
     const entries = new Map<string, Date>();
     entries.set('/', new Date());
     for (const row of seoRows) {
       entries.set(this.normalizePath(row.routePath), row.updatedAt);
+    }
+
+    try {
+      const parsed = JSON.parse(settings?.sitemapUrlsJson || '[]');
+      if (Array.isArray(parsed)) {
+        for (const rawUrl of parsed) {
+          if (typeof rawUrl !== 'string') continue;
+          const url = rawUrl.trim();
+          if (!url) continue;
+          // Accept absolute URLs and same-site paths.
+          if (url.startsWith('http://') || url.startsWith('https://')) {
+            const normalized = url.replace(/\/$/, '');
+            const path = normalized.startsWith(baseUrl) ? normalized.slice(baseUrl.length) || '/' : null;
+            if (path) entries.set(this.normalizePath(path), new Date());
+          } else {
+            entries.set(this.normalizePath(url), new Date());
+          }
+        }
+      }
+    } catch {
+      // Ignore malformed custom sitemap JSON and continue with SEO-generated routes.
     }
 
     const urls = Array.from(entries.entries()).map(([path, updatedAt]) => {

@@ -226,3 +226,9 @@ export class UpdateSeoPageDto {
 export class UpdateRobotsTxtDto {
   @IsString() robotsTxt: string;
 }
+
+export class UpdateSitemapUrlsDto {
+  @IsArray()
+  @IsString({ each: true })
+  sitemapUrls: string[];
+}

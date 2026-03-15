@@ -558,4 +558,40 @@ export class AdminService {
     }
     return { success: true, robotsTxt };
   }
+
+  async getSitemapUrls() {
+    const settings = await this.prisma.siteSetting.findFirst({ select: { sitemapUrlsJson: true } });
+    let sitemapUrls: string[] = [];
+    try {
+      const parsed = JSON.parse(settings?.sitemapUrlsJson || '[]');
+      if (Array.isArray(parsed)) {
+        sitemapUrls = parsed
+          .filter((url) => typeof url === 'string')
+          .map((url) => url.trim())
+          .filter(Boolean);
+      }
+    } catch {
+      sitemapUrls = [];
+    }
+    return { sitemapUrls };
+  }
+
+  async updateSitemapUrls(sitemapUrls: string[]) {
+    const normalized = Array.from(new Set(
+      (sitemapUrls || [])
+        .map((url) => (url || '').trim())
+        .filter(Boolean),
+    ));
+
+    const existing = await this.prisma.siteSetting.findFirst({ select: { id: true } });
+    if (existing) {
+      await this.prisma.siteSetting.update({
+        where: { id: existing.id },
+        data: { sitemapUrlsJson: JSON.stringify(normalized) },
+      });
+    } else {
+      await this.prisma.siteSetting.create({ data: { sitemapUrlsJson: JSON.stringify(normalized) } });
+    }
+    return { success: true, sitemapUrls: normalized };
+  }
 }

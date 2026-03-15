@@ -392,6 +392,7 @@ model SiteSetting {
   discordInviteUrl         String? @map("discord_invite_url")
   discordPopupEnabled      Boolean @default(false) @map("discord_popup_enabled")
   robotsTxt                String? @map("robots_txt")
+  sitemapUrlsJson          String? @map("sitemap_urls_json")
 
   // Discord Bot Settings
   discordBotToken          String? @map("discord_bot_token")

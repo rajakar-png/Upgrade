@@ -113,6 +113,8 @@ export default function AdminSeoPage() {
   const [form, setForm] = useState<SeoForm | null>(null);
   const [robotsTxt, setRobotsTxt] = useState('');
   const [robotsSaving, setRobotsSaving] = useState(false);
+  const [sitemapUrls, setSitemapUrls] = useState<string[]>(['']);
+  const [sitemapSaving, setSitemapSaving] = useState(false);
 
   const previewTitle = form?.metaTitle || 'Your page title appears here';
   const previewDesc = form?.metaDescription || 'Your meta description appears here and should clearly explain the page for search users.';
@@ -129,12 +131,15 @@ export default function AdminSeoPage() {
   async function loadSeoPages() {
     setLoading(true);
     try {
-      const [pagesRes, robotsRes] = await Promise.all([
+      const [pagesRes, robotsRes, sitemapRes] = await Promise.all([
         api.get<SeoPage[]>('/admin/seo/pages'),
         api.get<{ robotsTxt: string }>('/admin/seo/robots'),
+        api.get<{ sitemapUrls: string[] }>('/admin/seo/sitemap-urls'),
       ]);
       setItems(pagesRes.data || []);
       setRobotsTxt(robotsRes.data?.robotsTxt || '');
+      const parsedUrls = Array.isArray(sitemapRes.data?.sitemapUrls) ? sitemapRes.data.sitemapUrls : [];
+      setSitemapUrls(parsedUrls.length ? parsedUrls : ['']);
     } catch {
       toast.error('Failed to load SEO settings');
     } finally {
@@ -222,6 +227,20 @@ export default function AdminSeoPage() {
       toast.error('Failed to update robots.txt');
     } finally {
       setRobotsSaving(false);
+    }
+  }
+
+  async function saveSitemapUrls() {
+    setSitemapSaving(true);
+    try {
+      const normalized = Array.from(new Set(sitemapUrls.map((u) => u.trim()).filter(Boolean)));
+      await api.put('/admin/seo/sitemap-urls', { sitemapUrls: normalized });
+      setSitemapUrls(normalized.length ? normalized : ['']);
+      toast.success('Sitemap URLs updated');
+    } catch {
+      toast.error('Failed to update sitemap URLs');
+    } finally {
+      setSitemapSaving(false);
     }
   }
 
@@ -518,6 +537,50 @@ export default function AdminSeoPage() {
           className="w-full rounded-xl border border-white/10 bg-black/20 px-3.5 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:border-[#ff7a18]/50 focus:outline-none focus:ring-2 focus:ring-[#ff7a18]/20"
         />
         <Button onClick={saveRobotsTxt} disabled={robotsSaving}>{robotsSaving ? 'Saving...' : 'Save robots.txt'}</Button>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Sitemap URL Manager</h2>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setSitemapUrls((prev) => [...prev, ''])}
+          >
+            Add URL
+          </Button>
+        </div>
+        <p className="text-xs text-gray-500">Add extra URLs you want in sitemap.xml. Use paths like /docs or full URLs.</p>
+
+        <div className="space-y-2">
+          {sitemapUrls.map((url, idx) => (
+            <div key={`sitemap-url-${idx}`} className="flex items-center gap-2">
+              <Input
+                value={url}
+                onChange={(e) => {
+                  const next = [...sitemapUrls];
+                  next[idx] = e.target.value;
+                  setSitemapUrls(next);
+                }}
+                placeholder="/docs"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const next = sitemapUrls.filter((_, i) => i !== idx);
+                  setSitemapUrls(next.length ? next : ['']);
+                }}
+              >
+                <Trash2 className="h-4 w-4 text-red-400" />
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <Button onClick={saveSitemapUrls} disabled={sitemapSaving}>{sitemapSaving ? 'Saving...' : 'Save sitemap URLs'}</Button>
       </section>
     </div>
   );

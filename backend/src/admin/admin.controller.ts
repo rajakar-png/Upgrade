@@ -14,7 +14,7 @@ import {
   UpdateUserDto, CreateCoinPlanDto, UpdateCoinPlanDto, CreateRealPlanDto, UpdateRealPlanDto,
   CreateCouponDto, UpdateCouponDto, UpdateAdSettingsDto, CreatePopupDto, UpdatePopupDto,
   UpdateSiteSettingsDto, AdminReplyTicketDto, UpdateTicketStatusDto, CreateSeoPageDto,
-  UpdateSeoPageDto, UpdateRobotsTxtDto,
+  UpdateSeoPageDto, UpdateRobotsTxtDto, UpdateSitemapUrlsDto,
 } from './dto/admin.dto';
 import { imageFileFilter } from '../utils/upload.util';
 
@@ -329,5 +329,15 @@ export class AdminController {
   @Put('seo/robots')
   updateRobotsTxt(@Body() data: UpdateRobotsTxtDto) {
     return this.adminService.updateRobotsTxt(data.robotsTxt);
+  }
+
+  @Get('seo/sitemap-urls')
+  getSitemapUrls() {
+    return this.adminService.getSitemapUrls();
+  }
+
+  @Put('seo/sitemap-urls')
+  updateSitemapUrls(@Body() data: UpdateSitemapUrlsDto) {
+    return this.adminService.updateSitemapUrls(data.sitemapUrls || []);
   }
 }
